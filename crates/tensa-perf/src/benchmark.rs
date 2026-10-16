@@ -43,10 +43,8 @@ pub fn measure_memory_bandwidth_mbps() -> f64 {
         *byte = 0xA5;
     }
     let mut checksum: u64 = 0;
-    for chunk in buffer.chunks_exact(8) {
-        let mut word = [0u8; 8];
-        word.copy_from_slice(chunk);
-        checksum = checksum.wrapping_add(u64::from_ne_bytes(word));
+    for chunk in buffer.as_chunks::<8>().0 {
+        checksum = checksum.wrapping_add(u64::from_ne_bytes(*chunk));
     }
     let elapsed = start.elapsed().as_secs_f64().max(1e-9);
     std::hint::black_box(checksum);
