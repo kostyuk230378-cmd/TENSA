@@ -1,4 +1,4 @@
-﻿//! Core memory — SQLite-реализация (Контракт 13).
+//! Core memory — SQLite-реализация (Контракт 13).
 //! Блоки всегда в контексте LLM; редактируются агентом через tool calls.
 
 use crate::error::{MemoryError, Result};
@@ -297,11 +297,19 @@ impl CoreMemoryStore for SqliteCoreMemoryStore {
     }
 
     async fn get_config(&self) -> Result<CoreMemoryConfig> {
-        Ok(self.config.read().expect("config lock").clone())
+        let config = self
+            .config
+            .read()
+            .map_err(|_| MemoryError::Config("блокировка конфигурации отравлена".to_string()))?;
+        Ok(config.clone())
     }
 
     async fn update_config(&self, config: CoreMemoryConfig) -> Result<()> {
-        *self.config.write().expect("config lock") = config;
+        *self
+            .config
+            .write()
+            .map_err(|_| MemoryError::Config("блокировка конфигурации отравлена".to_string()))? =
+            config;
         Ok(())
     }
 
@@ -310,7 +318,7 @@ impl CoreMemoryStore for SqliteCoreMemoryStore {
         let limit = self
             .config
             .read()
-            .expect("config lock")
+            .map_err(|_| MemoryError::Config("блокировка конфигурации отравлена".to_string()))?
             .max_tokens_per_block;
         if tokens > limit as i32 {
             return Err(MemoryError::BlockSizeExceeded {

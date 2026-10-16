@@ -26,17 +26,25 @@ impl SearchCache {
     }
 
     pub fn with_capacity(ttl_seconds: u64, capacity: usize) -> Self {
+        let capacity = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
-            inner: Mutex::new(LruCache::new(
-                NonZeroUsize::new(capacity.max(1)).expect("capacity"),
-            )),
+            inner: Mutex::new(LruCache::new(capacity)),
             ttl_seconds,
+        }
+    }
+
+    /// Взять блокировку кэша. Отравленная блокировка восстанавливается:
+    /// кэш — вспомогательные данные, паника из-за него недопустима.
+    fn lock_cache(&self) -> std::sync::MutexGuard<'_, LruCache<String, SearchCacheEntry>> {
+        match self.inner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
         }
     }
 
     /// Взять из кэша (если не истёк TTL).
     pub fn get(&self, query_hash: &str) -> Option<SearchCacheEntry> {
-        let mut cache = self.inner.lock().expect("cache lock");
+        let mut cache = self.lock_cache();
         let entry = cache.get(query_hash)?;
         if entry.expires_at < now_ts() {
             cache.pop(query_hash);
@@ -61,22 +69,20 @@ impl SearchCache {
             created_at,
             expires_at: created_at + self.ttl_seconds as i64,
         };
-        self.inner
-            .lock()
-            .expect("cache lock")
+        self.lock_cache()
             .put(entry.query_hash.clone(), entry.clone());
         Ok(entry)
     }
 
     /// Очистить весь кэш.
     pub fn clear(&self) {
-        self.inner.lock().expect("cache lock").clear();
+        self.lock_cache().clear();
     }
 
     /// Удалить истёкшие записи; возвращает количество удалённых.
     pub fn evict_expired(&self) -> usize {
         let now = now_ts();
-        let mut cache = self.inner.lock().expect("cache lock");
+        let mut cache = self.lock_cache();
         let expired: Vec<String> = cache
             .iter()
             .filter(|(_, e)| e.expires_at < now)
@@ -90,7 +96,7 @@ impl SearchCache {
     }
 
     pub fn len(&self) -> usize {
-        self.inner.lock().expect("cache lock").len()
+        self.lock_cache().len()
     }
 
     pub fn is_empty(&self) -> bool {

@@ -45,7 +45,7 @@ pub enum SyncError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// Ошибка из крейтаApprovalStore (события и их применение).
+    /// Ошибка из крейта ApprovalStore (события и их применение).
     #[error("approval store error: {0}")]
     Approval(#[from] tensa_approval::ApprovalError),
 }

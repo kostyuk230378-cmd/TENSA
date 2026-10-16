@@ -214,7 +214,10 @@ impl LlamaEngine {
     }
 
     fn ensure_loaded(&self) -> Result<()> {
-        let st = self.inner.read().expect("engine lock");
+        let st = self
+            .inner
+            .read()
+            .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
         if st.config.is_none() {
             return Err(LlmError::NotLoaded);
         }
@@ -242,7 +245,10 @@ impl LlmEngine for LlamaEngine {
     }
 
     async fn unload(&self) -> Result<()> {
-        let mut st = self.inner.write().expect("engine lock");
+        let mut st = self
+            .inner
+            .write()
+            .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
         st.config = None;
         st.info = None;
         Ok(())
@@ -285,7 +291,10 @@ impl LlmEngine for LlamaEngine {
     }
 
     async fn health(&self) -> Result<LlmHealth> {
-        let st = self.inner.read().expect("engine lock");
+        let st = self
+            .inner
+            .read()
+            .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
         Ok(LlmHealth {
             loaded: st.config.is_some(),
             native_engine: crate::NATIVE_ENGINE,
@@ -299,6 +308,6 @@ impl LlmEngine for LlamaEngine {
     }
 
     fn model_info(&self) -> Option<ModelInfo> {
-        self.inner.read().expect("engine lock").info.clone()
+        self.inner.read().ok().and_then(|st| st.info.clone())
     }
 }

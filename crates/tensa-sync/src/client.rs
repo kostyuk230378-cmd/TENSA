@@ -67,22 +67,33 @@ impl GrpcSyncService {
     }
 }
 
+impl GrpcSyncService {
+    /// Блокировка журнала. Отравленная блокировка восстанавливается:
+    /// журнал — служебные данные, паника из-за него недопустима.
+    fn ledger(&self) -> std::sync::MutexGuard<'_, SyncLedger> {
+        match self.ledger.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+}
+
 #[async_trait]
 impl SyncService for GrpcSyncService {
     async fn start(&self) -> Result<()> {
-        self.ledger.lock().expect("ledger").mark_started();
+        self.ledger().mark_started();
         Ok(())
     }
 
     async fn stop(&self) -> Result<()> {
-        self.ledger.lock().expect("ledger").mark_stopped();
+        self.ledger().mark_stopped();
         Ok(())
     }
 
     async fn status(&self) -> Result<SyncStatus> {
         // Best-effort: peers узнаём у сервера; при недоступности — нули. [derived]
         let (running, last_sync_at) = {
-            let ledger = self.ledger.lock().expect("ledger");
+            let ledger = self.ledger();
             (ledger.is_running(), ledger.snapshot(0, 0).last_sync_at)
         };
         let (peers_online, peers_total) = match self.node_client().await {
@@ -101,11 +112,7 @@ impl SyncService for GrpcSyncService {
             }
             Err(_) => (0, 0),
         };
-        let mut s = self
-            .ledger
-            .lock()
-            .expect("ledger")
-            .snapshot(peers_online, peers_total);
+        let mut s = self.ledger().snapshot(peers_online, peers_total);
         s.running = running;
         s.last_sync_at = last_sync_at;
         Ok(s)

@@ -28,6 +28,10 @@ pub enum LlmError {
     #[error("model is not loaded")]
     NotLoaded,
 
+    /// Внутренняя блокировка отравлена (паника в другом потоке).
+    #[error("internal lock poisoned: {0}")]
+    LockPoisoned(String),
+
     /// Ошибка llama.cpp.
     #[error("llama.cpp error: {0}")]
     Llama(String),
