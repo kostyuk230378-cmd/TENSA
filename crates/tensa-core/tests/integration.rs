@@ -151,7 +151,7 @@ async fn config_store_load_save_reload() {
     std::fs::remove_file(&path).ok();
 }
 
-// --- Health + CoreRuntime (запуск/остановка) ---
+// --- Health + TensaCore (запуск/остановка) ---
 
 #[tokio::test]
 async fn core_start_stop_health() {
@@ -159,7 +159,7 @@ async fn core_start_stop_health() {
     let approval = SqliteApprovalStore::init_with_config(tensa_approval::ApprovalConfig::default())
         .await
         .expect("approval");
-    let mut core = CoreRuntime::new(config, std::sync::Arc::new(approval));
+    let mut core = TensaCore::from_parts(config, std::sync::Arc::new(approval));
 
     let health_before = core.health("test").await.expect("health");
     assert!(!health_before.healthy); // ещё не запущено

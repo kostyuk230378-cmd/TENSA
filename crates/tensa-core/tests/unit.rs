@@ -63,28 +63,55 @@ fn paths_layout() {
 
 // --- First-run wizard (dop_tz_core) ---
 
-#[test]
-fn wizard_incomplete_rejected() {
+#[tokio::test]
+async fn wizard_incomplete_rejected() {
     let answers = WizardAnswers::default();
     assert!(!answers.complete());
-    assert!(first_run::finish(answers).is_err());
+
+    let root = std::env::temp_dir().join(format!("tensa_wizard_{}", uuid::Uuid::new_v4()));
+    let wizard = FirstRunWizard::new(
+        root.join("config.toml"),
+        root.join("secrets.toml"),
+        None,
+        test_node_id(),
+    )
+    .await
+    .expect("wizard");
+    assert!(wizard.run().await.is_err());
+    let _ = std::fs::remove_dir_all(root);
 }
 
-#[test]
-fn wizard_complete_flow() {
-    let answers = WizardAnswers {
-        language: Some(Language::Ru),
-        owner_name: Some("Александр".into()),
-        owner_title: Some("Шеф".into()),
-        assistant_name: Some("Tensa".into()),
-        timezone: Some("Europe/Moscow".into()),
-        ..WizardAnswers::default()
-    };
+#[tokio::test]
+async fn wizard_complete_flow() {
+    let root = std::env::temp_dir().join(format!("tensa_wizard_{}", uuid::Uuid::new_v4()));
+    let wizard = FirstRunWizard::new(
+        root.join("config.toml"),
+        root.join("secrets.toml"),
+        None,
+        test_node_id(),
+    )
+    .await
+    .expect("wizard");
+    wizard.step_language(Language::Ru).await.expect("язык");
+    wizard
+        .step_introduction(
+            "Александр".into(),
+            "Шеф".into(),
+            "Tensa".into(),
+            "Europe/Moscow".into(),
+        )
+        .await
+        .expect("знакомство");
+
+    let answers = wizard.answers().await;
     assert!(answers.complete());
-    let result = first_run::finish(answers).expect("finish");
-    assert!(result.completed);
-    assert_eq!(result.answers.owner_name.expect("name"), "Александр");
-    assert_eq!(result.answers.owner_title.expect("title"), "Шеф");
+    assert_eq!(answers.owner_name.as_deref(), Some("Александр"));
+    assert_eq!(answers.owner_title.as_deref(), Some("Шеф"));
+
+    let result = wizard.step_finish().await.expect("finish");
+    assert!(!result.core_memory_initialized);
+    assert_eq!(result.config.general.language, Language::Ru);
+    let _ = std::fs::remove_dir_all(root);
 }
 
 // --- Инициализация памяти (Контракт 13) ---
@@ -110,6 +137,7 @@ fn init_params_custom_owner() {
     let params = InitParams {
         owner_name: "Иван".into(),
         owner_title: "Босс".into(),
+        secretary_name: "Tensa".into(),
         language: Language::En,
         timezone: "Asia/Almaty".into(),
     };

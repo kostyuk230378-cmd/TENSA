@@ -94,6 +94,54 @@ pub enum NodeRole {
     Auto,
 }
 
+/// Учётная запись почты (ТЗ/UDL tensa.udl: `EmailAccount`).
+/// [derived] Добавлены `email` (адрес нужен ядру) и `credential` — секрет
+/// (уходит только в secrets.toml, в config.toml не пишется); `Debug` секрет не печатает.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct EmailAccount {
+    pub id: String,
+    pub label: String,
+    pub email: String,
+    pub imap_host: String,
+    pub imap_port: u16,
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential: Option<String>,
+}
+
+impl std::fmt::Debug for EmailAccount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmailAccount")
+            .field("id", &self.id)
+            .field("label", &self.label)
+            .field("email", &self.email)
+            .field("imap_host", &self.imap_host)
+            .field("imap_port", &self.imap_port)
+            .field("smtp_host", &self.smtp_host)
+            .field("smtp_port", &self.smtp_port)
+            .finish_non_exhaustive()
+    }
+}
+
+/// WhatsApp Cloud API (ТЗ/UDL tensa.udl: `WhatsAppConfig`).
+/// [derived] Поле-секрет — `credential` (access token); `Debug` его не печатает.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct WhatsAppConfig {
+    pub credential: String,
+    pub phone_number_id: String,
+    pub waba_id: String,
+}
+
+impl std::fmt::Debug for WhatsAppConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WhatsAppConfig")
+            .field("phone_number_id", &self.phone_number_id)
+            .field("waba_id", &self.waba_id)
+            .finish_non_exhaustive()
+    }
+}
+
 // --- Трейты хранилищ (Контракт 3 / ТЗ tensa-core, сигнатуры дословно) ---
 // В структуре ТЗ для них нет отдельного файла — живут рядом с типами.
 

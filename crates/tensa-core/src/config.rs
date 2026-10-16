@@ -20,6 +20,7 @@ pub struct Config {
     pub sync: crate::config::SyncSection,
     pub approval: crate::config::ApprovalSection,
     pub telegram: toml::Table,
+    pub whatsapp: toml::Table,
     pub email: toml::Table,
     pub calendar: toml::Table,
     pub apps: toml::Table,
@@ -89,6 +90,22 @@ impl Default for ApprovalSection {
             allow_whatsapp_send: c.allow_whatsapp_send,
             confirm_unknown_recipients: c.confirm_unknown_recipients,
             max_pending_actions: c.max_pending_actions,
+        }
+    }
+}
+
+/// Преобразование секции `[approval]` в конфиг хранилища одобрений
+/// (ТЗ tensa-core: `TensaCore::new` открывает ApprovalStore).
+impl From<&ApprovalSection> for tensa_approval::ApprovalConfig {
+    fn from(section: &ApprovalSection) -> Self {
+        Self {
+            action_ttl_hours: section.action_ttl_hours,
+            auto_approve_trusted: section.auto_approve_trusted,
+            allow_email_send: section.allow_email_send,
+            allow_telegram_send: section.allow_telegram_send,
+            allow_whatsapp_send: section.allow_whatsapp_send,
+            confirm_unknown_recipients: section.confirm_unknown_recipients,
+            max_pending_actions: section.max_pending_actions,
         }
     }
 }

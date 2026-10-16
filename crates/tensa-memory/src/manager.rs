@@ -195,3 +195,13 @@ impl MemoryManager for DefaultMemoryManager {
         })
     }
 }
+
+#[async_trait]
+impl tensa_core::MemoryInitializer for DefaultMemoryManager {
+    /// Адаптер к обратному трейту tensa-core (без цикла зависимостей).
+    async fn init_default(&self, params: &tensa_core::InitParams) -> tensa_core::Result<()> {
+        DefaultMemoryManager::init_default(self, params)
+            .await
+            .map_err(|error| tensa_core::CoreError::Memory(error.to_string()))
+    }
+}

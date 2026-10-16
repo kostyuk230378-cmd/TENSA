@@ -1,4 +1,4 @@
-﻿//! Ошибки крейта (thiserror).
+//! Ошибки крейта (thiserror).
 
 use thiserror::Error;
 
@@ -43,6 +43,10 @@ pub enum CoreError {
     /// Ошибка подсистемы одобрения.
     #[error("approval error: {0}")]
     Approval(#[from] tensa_approval::ApprovalError),
+
+    /// Ошибка подсистемы памяти (через [`crate::MemoryInitializer`]).
+    #[error("memory error: {0}")]
+    Memory(String),
 
     /// Wizard ещё не завершён (первый запуск).
     #[error("first-run wizard not completed")]
