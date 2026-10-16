@@ -6,10 +6,19 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Уровень 1 (ADR-003): raw FFI-биндинги llama.cpp (bindgen). Нативный слой подключается отдельным этапом"
+description = "Уровень 1 (ADR-003): raw FFI-биндинги llama.cpp; фича `native` собирает закреплённый llama.cpp v0.7.0 из vendor/ (TASK-ENV-001)"
 
 [dependencies]
 # Пусто: только FFI-декларации, никакой логики (ADR-003, уровень 1).
 
 [build-dependencies]
-# bindgen/cc будут добавлены вместе с нативным слоем (требуется LLVM/libclang).
+# Нужны только для нативной сборки (фича `native`).
+# bindgen 0.73.x не собирается (конфликт syn 2/3 внутри крейта) — пин на 0.72.1.
+bindgen = { version = "0.72.1", optional = true }
+cmake = { version = "0.1.58", optional = true }
+
+[features]
+default = []
+# Нативная сборка llama.cpp (TASK-ENV-001): cmake-сборка vendor/llama.cpp
+# (тег v0.7.0) + bindgen-биндинги. Требуется libclang: путь — LIBCLANG_PATH.
+native = ["dep:bindgen", "dep:cmake"]
