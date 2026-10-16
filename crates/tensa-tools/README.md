@@ -10,6 +10,8 @@
 | `Tool` | Трейт инструмента: `name`, `description`, `execute(params)`, `requires_approval` |
 | `ToolRegistry` | Реестр `имя → Arc<dyn Tool>`: `register`, `get`, `list` |
 | `wol` | Wake-on-LAN: magic packet (6 × `0xFF` + MAC × 16) по UDP, `WolTool` |
+| `telegram` | Бот-секретарь: уведомления владельцу, команды и inline-кнопки решений, цикл одобрения |
+| `audit` | Журнал действий `~/.tensa/logs/tools.log` (JSON-строки, без секретов) |
 
 ## Инструмент `wol`
 
@@ -27,6 +29,29 @@ WoL-крейты не используются.
 подкрейт `crates/tensa-tools/wol` — его выделение требует правки корневого
 `Cargo.toml` воркспейса и делается отдельной задачей ([derived]).
 
+## Инструмент `telegram`
+
+Тонкий клиент Bot API поверх `reqwest` (без `teloxide` — [derived]: принцип
+ТЗ «минимум зависимостей»; клиент — `telegram/bot.rs`, обработчики —
+`telegram/handlers.rs`, схема кнопок — `telegram/callbacks.rs`).
+
+Настройки: токен бота — `TELEGRAM_BOT_TOKEN` → `secrets.toml`;
+чат владельца — `secrets.telegram.owner_chat_id` → `config.telegram.owner_chat_id`.
+
+Цикл одобрения (LLM-инициированные отправки):
+
+1. `TelegramService::propose_send(text, store)` — создаёт действие
+   `telegram_send` (origin `llm`, статус `pending`); владелец видит его в PWA
+   («Одобрения») и в боте (`/approvals` с кнопками);
+2. решение: кнопка в боте или approve в PWA (origin `telegram` — trusted,
+   с аудитом);
+3. `execute_approved(store, id)` — отправка через Bot API и статус `executed`.
+
+Демо: `cargo run -p tensa-tools --example telegram_flow -- <config.toml> propose "текст"`
+(далее `execute <uuid>` после одобрения или `bot` для long polling).
+
+Все действия пишутся в `<root>/logs/tools.log` (ТЗ: аудит).
+
 ## Проверки
 
 ```powershell
@@ -39,5 +64,7 @@ cargo clippy -p tensa-tools --all-targets -- -D warnings
 
 ## Дальше по плану
 
-Подкрейты (порядок — по отчёту о зависимостях): apps → documents → ocr →
-telegram → whatsapp → calendar → email.
+Подкрейты (порядок — по приоритету под дедлайн): email → documents →
+calendar → ocr → whatsapp (отложен). Выделение подкрейтов
+`crates/tensa-tools/<tool>` из модулей — отдельная механическая задача
+([derived], как у `wol`/`telegram`).

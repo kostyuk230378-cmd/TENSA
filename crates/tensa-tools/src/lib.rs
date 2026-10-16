@@ -3,9 +3,10 @@
 //! Мета-крейт инструментов секретаря (ТЗ tensa-tools): общий трейт [`Tool`],
 //! реестр [`ToolRegistry`] и сами инструменты.
 //!
-//! Реализовано: [`WolTool`] — пробуждение устройства по сети (Wake-on-LAN).
-//! По плану ТЗ далее — apps, documents, ocr, telegram, whatsapp, calendar,
-//! email (порядок — по отчёту о зависимостях).
+//! Реализовано: [`WolTool`] — пробуждение устройства по сети (Wake-on-LAN);
+//! [`TelegramTool`]/[`TelegramService`] — бот-секретарь: уведомления владельцу,
+//! решения из чата (inline-кнопки), цикл одобрения (propose → PWA/бот → execute).
+//! По плану ТЗ далее — email, documents, ocr, calendar, apps, whatsapp.
 //!
 //! Принципы ТЗ: сетевые действия — только через `ApprovalStore`
 //! (централизованно, вне инструмента), поэтому инструмент лишь объявляет
@@ -15,7 +16,9 @@
 //! отдельный подкрейт `crates/tensa-tools/wol`): выделение подкрейтов требует
 //! правки корневого `Cargo.toml` воркспейса и делается отдельной задачей.
 
+pub mod audit;
 pub mod error;
+pub mod telegram;
 pub mod wol;
 
 use std::collections::HashMap;
@@ -24,6 +27,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 pub use error::{Result, ToolsError};
+pub use telegram::{TelegramError, TelegramService, TelegramTool};
 pub use wol::{MacAddress, WolError, WolParams, WolTool};
 
 /// Версия крейта.
