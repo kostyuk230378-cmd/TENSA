@@ -231,10 +231,7 @@ impl NativeEngine {
         &mut self,
         prompt: &str,
         max_tokens: u32,
-        temperature: f32,
-        top_p: f32,
-        top_k: u32,
-        repeat_penalty: f32,
+        params: &crate::sampling::SamplingParams,
         stop: &[String],
     ) -> Result<NativeOutput> {
         let tokens = self.tokenize(prompt, true)?;
@@ -244,8 +241,12 @@ impl NativeEngine {
             ));
         }
         let tokens_prompt = tokens.len() as u32;
-
-        let sampler = self.build_sampler(temperature, top_p, top_k, repeat_penalty)?;
+        let sampler = self.build_sampler(
+            params.temperature,
+            params.top_p,
+            params.top_k,
+            params.repeat_penalty,
+        )?;
         let _sampler_guard = SamplerGuard(sampler);
 
         // SAFETY: эксклюзивный доступ (&mut self); память КV-кэша — C-API.
@@ -520,7 +521,6 @@ fn meta_value_chunk(written: i32, buffer: Vec<u8>) -> MetaRead {
 /// Прочитать строку метаданных модели (`meta_val_str`) с динамическим
 /// буфером: первый запрос — короткий, при усечении буфер растёт до полной
 /// длины значения (например, chat-шаблон Gemma 4 — ~17 КиБ).
-
 fn read_meta_str(model: *const sys::llama_model, key: &str) -> Option<String> {
     let c_key = CString::new(key).ok()?;
     let mut size = 4096usize;

@@ -300,23 +300,16 @@ impl LlamaEngine {
     async fn generate_native(&self, request: GenerateRequest) -> Result<GenerateResponse> {
         let (native, config) = self.native_handle()?;
         let max_tokens = request.max_tokens.unwrap_or(config.max_tokens);
-        let temperature = request.temperature.unwrap_or(config.temperature);
-        let (top_p, top_k, repeat_penalty) = (config.top_p, config.top_k, config.repeat_penalty);
+        // Параметры сэмплинга: из конфига, температура может быть переопределена
+        // запросом (см. SamplingParams::from_config).
+        let params = SamplingParams::from_config(&config, request.temperature);
         let prompt = request.prompt;
         let stop = request.stop;
         let started = Instant::now();
 
         let output = tokio::task::spawn_blocking(move || {
             let mut engine = native.blocking_lock();
-            engine.generate(
-                &prompt,
-                max_tokens,
-                temperature,
-                top_p,
-                top_k,
-                repeat_penalty,
-                &stop,
-            )
+            engine.generate(&prompt, max_tokens, &params, &stop)
         })
         .await
         .map_err(|error| LlmError::Llama(format!("генерация прервана: {error}")))??;
@@ -349,8 +342,9 @@ impl LlamaEngine {
     async fn chat_native(&self, request: ChatRequest) -> Result<ChatResponse> {
         let (native, config) = self.native_handle()?;
         let max_tokens = request.max_tokens.unwrap_or(config.max_tokens);
-        let temperature = request.temperature.unwrap_or(config.temperature);
-        let (top_p, top_k, repeat_penalty) = (config.top_p, config.top_k, config.repeat_penalty);
+        // Параметры сэмплинга: из конфига, температура может быть переопределена
+        // запросом (см. SamplingParams::from_config).
+        let params = SamplingParams::from_config(&config, request.temperature);
         let messages = request.messages;
         let started = Instant::now();
 
@@ -370,15 +364,7 @@ impl LlamaEngine {
                     simple_chat_prompt(&messages)
                 }
             };
-            engine.generate(
-                &prompt,
-                max_tokens,
-                temperature,
-                top_p,
-                top_k,
-                repeat_penalty,
-                &[],
-            )
+            engine.generate(&prompt, max_tokens, &params, &[])
         })
         .await
         .map_err(|error| LlmError::Llama(format!("генерация прервана: {error}")))??;
