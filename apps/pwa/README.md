@@ -54,6 +54,16 @@ cargo run -p tensa-server -- C:\path\to\config.toml
 - Service Worker кэширует только статику; `/api/**` никогда не кэшируется.
 - `npm run dev` проксирует `/api` на `http://127.0.0.1:8765` (см. vite.config.js).
 
+## Демо-скриншоты
+
+`pwa/scripts/capture_screens.mjs` (headless Edge + CDP) прогоняет живой сценарий
+(токен → статус → одобрения → создание заметки через форму → поиск → настройки)
+и сохраняет скриншоты в `pwa/screenshots/`:
+
+```powershell
+node pwa/scripts/capture_screens.mjs "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" http://127.0.0.1:8765/app <токен> pwa/screenshots
+```
+
 ## Дальше
 
 - E2E (Playwright, Chrome + Safari) и Lighthouse — следующий шаг по ТЗ;

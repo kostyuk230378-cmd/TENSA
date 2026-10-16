@@ -61,15 +61,15 @@
   {:else}
     <header class="top">
       <span class="brand">Tensa <small>{$t('app.tagline')}</small></span>
-      <nav>
-        {#each NAV as item (item.id)}
-          <button
-            class:active={$screen === item.id}
-            on:click={() => screen.set(item.id)}>{$t(item.key)}</button>
-        {/each}
-      </nav>
       <StatusBar />
     </header>
+    <nav>
+      {#each NAV as item (item.id)}
+        <button
+          class:active={$screen === item.id}
+          on:click={() => screen.set(item.id)}>{$t(item.key)}</button>
+      {/each}
+    </nav>
 
     {#if $error}
       <div class="banner" role="alert">

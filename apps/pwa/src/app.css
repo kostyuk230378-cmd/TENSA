@@ -123,12 +123,10 @@ muted,
 
 .top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 0.7rem;
-  flex-wrap: wrap;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid #263041;
-  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
 }
 
 .brand {
@@ -146,7 +144,9 @@ nav {
   display: flex;
   gap: 0.3rem;
   flex-wrap: wrap;
-  flex: 1;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #263041;
+  margin-bottom: 1rem;
 }
 
 nav button {
