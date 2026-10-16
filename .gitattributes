@@ -1,0 +1,14 @@
+# Нормализация переводов строк и типов файлов (проект кросс-платформенный).
+* text=auto
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.proto text eol=lf
+*.udl text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+Cargo.lock text eol=lf
+*.png binary
+*.jpg binary

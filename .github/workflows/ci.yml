@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: fmt + clippy + tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: Форматирование (cargo fmt)
+        run: cargo fmt --all --check
+
+      - name: Линтер (cargo clippy, без предупреждений)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Тесты (cargo test --workspace)
+        run: cargo test --workspace
+
+  memory-vector:
+    name: tensa-memory (Lance + fastembed)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      # Компиляционная фиксация API lance 13.0 / fastembed 7.1
+      # (ТЗ tensa-memory: tests/api_surface.rs).
+      - name: Тесты памяти с векторными фичами
+        run: cargo test -p tensa-memory --features lance,fastembed
