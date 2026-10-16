@@ -59,3 +59,29 @@ jobs:
       # (ТЗ tensa-memory: tests/api_surface.rs).
       - name: Тесты памяти с векторными фичами
         run: cargo test -p tensa-memory --features lance,fastembed
+
+  msrv:
+    name: MSRV (workspace rust-version)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Версия берётся из Cargo.toml (workspace.package.rust-version) —
+      # джоба не расходится с декларацией.
+      - name: Определить rust-version из Cargo.toml
+        id: msrv
+        run: |
+          version=$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Установка Rust ${{ steps.msrv.outputs.version }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: Проверка сборки на MSRV (cargo check)
+        run: cargo check --workspace --all-targets
