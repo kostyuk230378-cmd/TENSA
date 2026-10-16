@@ -51,6 +51,10 @@ jobs:
       - name: Кэш зависимостей
         uses: Swatinem/rust-cache@v2
 
+      # Build-скрипту lance-encoding нужен protoc (ubuntu-раннер без него).
+      - name: Установка protoc (для build-скриптов lance)
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
       # Компиляционная фиксация API lance 13.0 / fastembed 7.1
       # (ТЗ tensa-memory: tests/api_surface.rs).
       - name: Тесты памяти с векторными фичами

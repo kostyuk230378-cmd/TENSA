@@ -51,7 +51,24 @@ async fn benchmark_and_cache_roundtrip() {
     let cached = benchmark::load_cached(&paths)
         .expect("чтение кэша")
         .expect("результат в кэше");
-    assert_eq!(cached, result);
+
+    // Сравнение по полям: целые — точно, float — с допуском: текстовый
+    // roundtrip f64 (JSON) не обязан быть бит-в-бит идентичным
+    // (на CI зафиксировано расхождение ~2 ULP в последнем разряде).
+    assert_eq!(cached.cpu_score, result.cpu_score);
+    assert_eq!(cached.timestamp, result.timestamp);
+    for (cached_value, result_value) in [
+        (cached.memory_bandwidth_mbps, result.memory_bandwidth_mbps),
+        (cached.disk_read_mbps, result.disk_read_mbps),
+        (cached.disk_write_mbps, result.disk_write_mbps),
+    ] {
+        let diff = (cached_value - result_value).abs();
+        let scale = result_value.abs().max(1.0);
+        assert!(
+            diff / scale < 1e-9,
+            "roundtrip-расхождение: {cached_value} vs {result_value}"
+        );
+    }
 
     let _ = std::fs::remove_dir_all(paths.root());
 }
