@@ -9,6 +9,7 @@ members = [
     "crates/tensa-memory",
     "crates/tensa-nodes",
     "crates/tensa-perf",
+    "crates/tensa-router",
     "crates/tensa-llm",
     "crates/tensa-llm/llama-sys",
     "crates/tensa-llm/llama",
