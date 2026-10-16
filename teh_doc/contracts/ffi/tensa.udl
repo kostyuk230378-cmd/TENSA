@@ -1,812 +1,554 @@
-// Источник: 02-contracts.md (Контракт 9), извлечено 2026-10-08.
-// Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
-// изменения вносить в первичный источник и перегенерировать.
+// Источник: 02-contracts.md (Контракт 9: uniffi UDL).
+// Синхронизировано вручную 2026-10-16 (scripts/extract_contracts.py в репозитории отсутствует).
+
 namespace tensa {
-
     // Инициализация ядра
-
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void init(string config_path);
 
     // Проверка состояния
-
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     HealthStatus health();
 
     // Версия
-
     string version();
-
 };
 
 // === Общие типы ===
 
 [Error]
-
 enum TensaError {
-
     "ConfigError",
-
     "NetworkError",
-
     "ApprovalError",
-
     "MemoryError",
-
     "EmailError",
-
     "CalendarError",
-
     "AppError",
-
     "NodeError",
-
     "InternalError",
-
 };
 
 dictionary HealthStatus {
-
     boolean healthy;
-
     string version;
-
     string uptime;
-
     boolean degraded;
-
     string? degraded_reason;
-
 };
 
 // === ApprovalStore ===
 
 dictionary Action {
-
     string id;
-
     string kind;
-
     string payload;
-
     string status;
-
     i64 created_at;
-
     i64 expires_at;
-
     string? approved_at;
-
     string? executed_at;
-
     string? result;
-
 };
 
 dictionary NewAction {
-
     string kind;
-
     string payload;
-
 };
 
 interface ApprovalStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Action request_action(NewAction action);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Action approve(string id, string approved_by);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Action reject(string id, string rejected_by);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Action> get_pending();
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Action? get_by_id(string id);
-
 };
 
 // === Память ===
 
 dictionary SearchResult {
-
     string document_id;
-
     string source_path;
-
     string chunk_text;
-
     f32 score;
-
     i64 indexed_at;
-
 };
 
 dictionary DocumentMeta {
-
     string document_id;
-
     string source_path;
-
     string title;
-
     string mime_type;
-
     i64 size_bytes;
-
     i64 created_at;
-
     i64 modified_at;
-
     i64 indexed_at;
-
     i32 chunk_count;
-
 };
 
 interface MemoryStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<SearchResult> search(string query, u32 limit);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<SearchResult> search_hybrid(string query, u32 limit);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     DocumentMeta? get_document(string document_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<DocumentMeta> list_documents(u32 limit, u32 offset);
-
 };
 
 // === Core Memory (ADR-021, Контракт 13) ===
 
 enum BlockType {
-
     "Persona",
-
     "Human",
-
     "Tasks",
-
     "Preferences",
-
 };
 
 enum MemoryOrigin {
-
     "Llm",
-
     "User",
-
     "System",
-
 };
 
 dictionary CoreMemoryBlock {
-
     string id;
-
     BlockType block;
-
     string value;
-
     i32 size_chars;
-
     i32 size_tokens;
-
     i64 created_at;
-
     i64 updated_at;
-
     MemoryOrigin updated_by;
-
     string updated_on_node;
-
 };
 
 interface CoreMemoryStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     CoreMemoryBlock get_block(BlockType block);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<CoreMemoryBlock> get_all_blocks();
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     CoreMemoryBlock replace_block(BlockType block, string value, MemoryOrigin origin);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     CoreMemoryBlock append_block(BlockType block, string value, MemoryOrigin origin);
-
 };
 
 // === Заметки ===
 
 dictionary Note {
-
     string id;
-
     string title;
-
     string body;
-
     sequence<string> tags;
-
     i64 created_at;
-
     i64 updated_at;
-
 };
 
 dictionary NewNote {
-
     string title;
-
     string body;
-
     sequence<string> tags;
-
 };
 
 interface NotesStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Note create_note(NewNote note);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Note update_note(Note note);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void delete_note(string id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Note? get_note(string id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Note> search_notes(string query, u32 limit);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Note> list_notes(u32 limit, u32 offset);
-
 };
 
 // === Контакты ===
 
 dictionary Contact {
-
     string id;
-
     string name;
-
     string? email;
-
     string? phone;
-
     string? telegram;
-
     string? whatsapp;
-
     string? notes;
-
     sequence<string> tags;
-
     i64 created_at;
-
     i64 updated_at;
-
 };
 
 dictionary NewContact {
-
     string name;
-
     string? email;
-
     string? phone;
-
     string? telegram;
-
     string? whatsapp;
-
     string? notes;
-
     sequence<string> tags;
-
 };
 
 interface ContactsStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Contact create_contact(NewContact contact);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Contact update_contact(Contact contact);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void delete_contact(string id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Contact? get_contact(string id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Contact? find_by_email(string email);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Contact> find_by_name(string name);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Contact> search_contacts(string query, u32 limit);
-
 };
 
 // === Почта ===
 
 dictionary EmailAccount {
-
     string id;
-
     string label;
-
     string imap_host;
-
     u16 imap_port;
-
     string smtp_host;
-
     u16 smtp_port;
-
 };
 
 dictionary Email {
-
     string id;
-
     string account_id;
-
     string folder;
-
     string from;
-
     string to;
-
     string subject;
-
     string body;
-
     i64 date;
-
     boolean read;
-
     boolean has_attachments;
-
 };
 
 dictionary OutgoingEmail {
-
     string account_id;
-
     string to;
-
     string? cc;
-
     string? bcc;
-
     string subject;
-
     string body;
-
     sequence<string> attachments;
-
 };
 
 interface EmailClient {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void connect(string account_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void disconnect(string account_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<string> list_folders(string account_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Email> fetch_emails(string account_id, string folder, u32 limit);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Email> search(string account_id, string query);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void send(OutgoingEmail email);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void create_draft(OutgoingEmail email);
-
 };
 
 // === Календарь ===
 
 dictionary CalendarEvent {
-
     string id;
-
     string title;
-
     string start;
-
     string end;
-
     string? description;
-
     string? location;
-
     sequence<string> attendees;
-
 };
 
 dictionary NewCalendarEvent {
-
     string title;
-
     string start;
-
     string end;
-
     string? description;
-
     string? location;
-
     sequence<string> attendees;
-
 };
 
 dictionary Conflict {
-
     string event_id;
-
     string title;
-
     string start;
-
     string end;
-
 };
 
 interface CalendarClient {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<CalendarEvent> list_events(string start, string end);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Conflict> check_conflicts(string start, string end);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     CalendarEvent create_event(NewCalendarEvent event);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void delete_event(string id);
-
 };
 
 // === Приложения ===
 
 dictionary AppInfo {
-
     string name;
-
     string path;
-
     string? icon_path;
-
     sequence<string> associations;
-
 };
 
 interface AppLauncher {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void launch(string name);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void open_file(string path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void open_file_with(string name, string path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void open_url(string url);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<AppInfo> list_apps();
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<AppInfo> scan_apps();
 
     boolean supports(string name);
-
 };
 
 // === Узлы ===
 
 dictionary Node {
-
     string node_id;
-
     string name;
-
     string device_type;
-
     string platform;
-
     string role;
-
     string tailscale_ip;
-
     u16 grpc_port;
-
     i64 last_seen;
-
     boolean online;
-
     u64 ram_total_mb;
-
     u64 ram_available_mb;
-
     u32 cpu_cores;
-
     f32 cpu_usage_percent;
-
     boolean has_gpu;
-
     boolean has_npu;
-
     u8? battery_percent;
-
     boolean? battery_charging;
-
     string thermal_status;
-
 };
 
 interface NodeRegistry {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     sequence<Node> list_nodes(boolean online_only);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Node? get_node(string node_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Node? find_heavy();
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void acquire_connection(string node_id, string resource, string? account_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void release_connection(string node_id, string resource, string? account_id);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     string? get_active_connection(string resource, string? account_id);
-
 };
 
 // === Конфигурация ===
 
 dictionary Config {
-
     string node_id;
-
     string language;
-
     string device_type;
-
     string role;
-
     string brain_mode;
-
     string local_model;
-
     string cloud_model;
-
 };
 
 interface ConfigStore {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     Config get_config();
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void update_config(Config config);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     void reload_config();
-
 };
 
 // === Запросы ===
 
 dictionary QueryRequest {
-
     string text;
-
     string language;
-
     boolean use_cloud;
-
 };
 
 dictionary QueryResponse {
-
     string text;
-
     string? action;
-
     string? action_payload;
-
     sequence<ToolCall> tool_calls;
-
     string? reasoning;
-
     boolean degraded;
-
     string model_used;
-
 };
 
 dictionary ToolCall {
-
     string tool;
-
     string params;
-
 };
 
 interface QueryEngine {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     QueryResponse query(QueryRequest request);
-
 };
 
 // === Голос ===
 
 interface VoiceEngine {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
 
-    [Throws=TensaError]
-
+    [Async, Throws=TensaError]
     string transcribe(sequence<u8> audio_data, string format);
-
 };
 
 // === First-Run Wizard (ADR-021, дополнение к tensa-core) ===
 
 dictionary WizardResult {
-
     boolean config_saved;
-
     boolean secrets_saved;
-
     boolean core_memory_initialized;
-
-};
-
-interface FirstRunWizard {
-
-    [Throws=TensaError]
-
-    boolean is_first_run();
-
-    [Throws=TensaError]
-
-    void step_language(string language);
-
-    [Throws=TensaError]
-
-    void step_introduction(
-
-        string owner_name,
-
-        string owner_title,
-
-        string secretary_name,
-
-        string timezone
-
-    );
-
-    [Throws=TensaError]
-
-    void step_models();
-
-    [Throws=TensaError]
-
-    void step_telegram(string bot_token, string owner_chat_id);
-
-    [Throws=TensaError]
-
-    void step_email(EmailAccount account);
-
-    [Throws=TensaError]
-
-    void step_whatsapp(WhatsAppConfig? config);
-
-    [Throws=TensaError]
-
-    void step_tailscale();
-
-    [Throws=TensaError]
-
-    WizardResult step_finish();
-
 };
 
 dictionary WhatsAppConfig {
-
     string access_token;
-
     string phone_number_id;
-
     string waba_id;
+};
 
+interface FirstRunWizard {
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
+    boolean is_first_run();
+
+    [Async, Throws=TensaError]
+    void step_language(string language);
+
+    [Async, Throws=TensaError]
+    void step_introduction(
+        string owner_name,
+        string owner_title,
+        string secretary_name,
+        string timezone
+    );
+
+    [Async, Throws=TensaError]
+    void step_models();
+
+    [Async, Throws=TensaError]
+    void step_telegram(string bot_token, string owner_chat_id);
+
+    [Async, Throws=TensaError]
+    void step_email(EmailAccount account);
+
+    [Async, Throws=TensaError]
+    void step_whatsapp(WhatsAppConfig? config);
+
+    [Async, Throws=TensaError]
+    void step_tailscale();
+
+    [Async, Throws=TensaError]
+    WizardResult step_finish();
 };
