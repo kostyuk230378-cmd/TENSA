@@ -1,0 +1,43 @@
+[package]
+name = "tensa-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI для отладки и управления Tensa: ядро без UI, конфигурация, одобрения, память, узлы, синхронизация, запросы (ТЗ tensa-cli)"
+
+[[bin]]
+name = "tensa"
+path = "src/main.rs"
+
+[dependencies]
+# Внутренние (ТЗ tensa-cli: все крейты)
+tensa-core = { path = "../tensa-core" }
+tensa-approval = { path = "../tensa-approval" }
+tensa-memory = { path = "../tensa-memory" }
+tensa-nodes = { path = "../tensa-nodes" }
+tensa-perf = { path = "../tensa-perf" }
+tensa-router = { path = "../tensa-router" }
+tensa-sync = { path = "../tensa-sync" }
+tensa-llm = { path = "../tensa-llm" }
+
+# Внешние (из workspace; набор по ТЗ tensa-cli)
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+colored.workspace = true
+indicatif.workspace = true
+comfy-table.workspace = true
+
+[features]
+default = []
