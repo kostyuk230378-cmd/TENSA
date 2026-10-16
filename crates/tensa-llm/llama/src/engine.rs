@@ -184,11 +184,25 @@ pub trait LlmEngine: Send + Sync {
     fn model_info(&self) -> Option<ModelInfo>;
 }
 
-/// Внутреннее состояние движка (без нативного слоя — только метаданные).
-#[derive(Debug, Default)]
+/// Внутреннее состояние движка.
+#[derive(Default)]
 struct EngineState {
     config: Option<LlmConfig>,
     info: Option<ModelInfo>,
+    /// Нативный движок llama.cpp (фича `native`). Arc + tokio-Mutex — чтобы
+    /// блокирующая генерация шла в `spawn_blocking`, не удерживая блокировку
+    /// состояния.
+    #[cfg(feature = "native")]
+    native: Option<std::sync::Arc<tokio::sync::Mutex<crate::native::NativeEngine>>>,
+}
+
+impl std::fmt::Debug for EngineState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EngineState")
+            .field("config", &self.config)
+            .field("info", &self.info)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Безопасная реализация движка (RAII-ресурсы появятся с нативным слоем).
@@ -213,6 +227,9 @@ impl LlamaEngine {
         Ok(())
     }
 
+    /// Проверить, что модель загружена (используется заглушечными ветками;
+    /// в нативной сборке состояние проверяется через `native_handle`).
+    #[cfg(not(feature = "native"))]
     fn ensure_loaded(&self) -> Result<()> {
         let st = self
             .inner
@@ -229,35 +246,93 @@ impl LlamaEngine {
     pub fn check_stop(&self, text: &str, stop: &[String]) -> Option<(usize, usize)> {
         detect_stop(text, stop)
     }
-}
 
-#[async_trait]
-impl LlmEngine for LlamaEngine {
-    async fn load(&self, config: LlmConfig) -> Result<()> {
-        self.validate_load(&config)?;
-        // Нативный слой (llama.cpp FFI) — следующий этап ADR-003:
-        // требует LLVM/libclang (bindgen) и закреплённой git-версии llama.cpp.
-        Err(LlmError::EngineUnavailable(
-            "native llama.cpp FFI is not wired yet (ADR-003 level 1); \
-             load() validates config/model file only"
-                .into(),
-        ))
+    /// Взять Arc на нативный движок и конфиг (или `NotLoaded`).
+    #[cfg(feature = "native")]
+    fn native_handle(
+        &self,
+    ) -> Result<(std::sync::Arc<tokio::sync::Mutex<crate::native::NativeEngine>>, LlmConfig)> {
+        let st = self
+            .inner
+            .read()
+            .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
+        let native = st.native.clone().ok_or(LlmError::NotLoaded)?;
+        let config = st.config.clone().ok_or(LlmError::NotLoaded)?;
+        Ok((native, config))
     }
 
-    async fn unload(&self) -> Result<()> {
+    /// Загрузить модель через нативный слой llama.cpp (фича `native`).
+    #[cfg(feature = "native")]
+    async fn load_native(&self, config: LlmConfig) -> Result<()> {
+        let load_config = config.clone();
+        let native =
+            tokio::task::spawn_blocking(move || crate::native::NativeEngine::load(&load_config))
+                .await
+                .map_err(|error| {
+                    LlmError::Llama(format!("загрузка модели прервана: {error}"))
+                })??;
+
+        let info = native.model_info(&config);
         let mut st = self
             .inner
             .write()
             .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
-        st.config = None;
-        st.info = None;
+        st.native = Some(std::sync::Arc::new(tokio::sync::Mutex::new(native)));
+        st.info = Some(info);
+        st.config = Some(config);
+        tracing::info!("модель загружена (нативный llama.cpp)");
         Ok(())
     }
 
-    async fn generate(&self, request: GenerateRequest) -> Result<GenerateResponse> {
+    /// Заглушка загрузки без нативного слоя (честная ошибка, ADR-003).
+    #[cfg(not(feature = "native"))]
+    async fn load_stub(&self, _config: LlmConfig) -> Result<()> {
+        Err(LlmError::EngineUnavailable(
+            "native llama.cpp FFI is not enabled in this build (feature `native`); \
+             load() validates config/model file only (ADR-003)"
+                .into(),
+        ))
+    }
+
+    /// Генерация через нативный слой (фича `native`).
+    #[cfg(feature = "native")]
+    async fn generate_native(&self, request: GenerateRequest) -> Result<GenerateResponse> {
+        let (native, config) = self.native_handle()?;
+        let max_tokens = request.max_tokens.unwrap_or(config.max_tokens);
+        let temperature = request.temperature.unwrap_or(config.temperature);
+        let (top_p, top_k, repeat_penalty) = (config.top_p, config.top_k, config.repeat_penalty);
+        let prompt = request.prompt;
+        let stop = request.stop;
+        let started = Instant::now();
+
+        let output = tokio::task::spawn_blocking(move || {
+            let mut engine = native.blocking_lock();
+            engine.generate(
+                &prompt,
+                max_tokens,
+                temperature,
+                top_p,
+                top_k,
+                repeat_penalty,
+                &stop,
+            )
+        })
+        .await
+        .map_err(|error| LlmError::Llama(format!("генерация прервана: {error}")))??;
+
+        Ok(GenerateResponse {
+            text: output.text,
+            tokens_generated: output.tokens_generated,
+            tokens_prompt: output.tokens_prompt,
+            time_ms: started.elapsed().as_millis() as u64,
+            finish_reason: output.finish_reason,
+        })
+    }
+
+    /// Генерация без нативного слоя (форма ответа — по ТЗ).
+    #[cfg(not(feature = "native"))]
+    async fn generate_stub(&self, request: GenerateRequest) -> Result<GenerateResponse> {
         self.ensure_loaded()?;
-        // Недостижимо в текущей сборке (load всегда Err); при нативном слое —
-        // цикл decode по llama.cpp. Сохраняем форму ответа по ТЗ.
         let started = Instant::now();
         Ok(GenerateResponse {
             text: String::new(),
@@ -268,7 +343,47 @@ impl LlmEngine for LlamaEngine {
         })
     }
 
-    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {
+    /// Чат через нативный слой (chat-шаблон модели + генерация).
+    #[cfg(feature = "native")]
+    async fn chat_native(&self, request: ChatRequest) -> Result<ChatResponse> {
+        let (native, config) = self.native_handle()?;
+        let max_tokens = request.max_tokens.unwrap_or(config.max_tokens);
+        let temperature = request.temperature.unwrap_or(config.temperature);
+        let (top_p, top_k, repeat_penalty) = (config.top_p, config.top_k, config.repeat_penalty);
+        let messages = request.messages;
+        let started = Instant::now();
+
+        let output = tokio::task::spawn_blocking(move || {
+            let mut engine = native.blocking_lock();
+            let prompt = engine.apply_chat_template(&messages)?;
+            engine.generate(
+                &prompt,
+                max_tokens,
+                temperature,
+                top_p,
+                top_k,
+                repeat_penalty,
+                &[],
+            )
+        })
+        .await
+        .map_err(|error| LlmError::Llama(format!("генерация прервана: {error}")))??;
+
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: Role::Assistant,
+                content: output.text,
+            },
+            // [derived] grammar-constrained tool calls — вместе с tensa-tools.
+            tool_calls: Vec::new(),
+            tokens_generated: output.tokens_generated,
+            time_ms: started.elapsed().as_millis() as u64,
+        })
+    }
+
+    /// Чат без нативного слоя (форма ответа — по ТЗ).
+    #[cfg(not(feature = "native"))]
+    async fn chat_stub(&self, request: ChatRequest) -> Result<ChatResponse> {
         self.ensure_loaded()?;
         let started = Instant::now();
         let _ = request;
@@ -283,11 +398,80 @@ impl LlmEngine for LlamaEngine {
         })
     }
 
-    async fn chat_stream(&self, request: ChatRequest) -> Result<ChatStream> {
+    /// Потоковая выдача через нативный слой.
+    #[cfg(feature = "native")]
+    async fn chat_stream_native(&self, request: ChatRequest) -> Result<ChatStream> {
+        // [derived] Поштучная выдача появится с поточным циклом инференса;
+        // контракт потока сохранён: куски текста + пустой финальный.
+        let response = self.chat_native(request).await?;
+        let chunks: Vec<Result<String>> = response
+            .message
+            .content
+            .split_inclusive(char::is_whitespace)
+            .map(|piece| Ok(piece.to_string()))
+            .chain(std::iter::once(Ok(String::new())))
+            .collect();
+        Ok(Box::pin(futures::stream::iter(chunks)))
+    }
+
+    /// Поток без нативного слоя.
+    #[cfg(not(feature = "native"))]
+    async fn chat_stream_stub(&self, request: ChatRequest) -> Result<ChatStream> {
         self.ensure_loaded()?;
         let _ = request;
         let stream = futures::stream::iter(Vec::<Result<String>>::new());
         Ok(Box::pin(stream))
+    }
+}
+
+#[async_trait]
+impl LlmEngine for LlamaEngine {
+    async fn load(&self, config: LlmConfig) -> Result<()> {
+        self.validate_load(&config)?;
+        #[cfg(feature = "native")]
+        let result = self.load_native(config).await;
+        #[cfg(not(feature = "native"))]
+        let result = self.load_stub(config).await;
+        result
+    }
+
+    async fn unload(&self) -> Result<()> {
+        let mut st = self
+            .inner
+            .write()
+            .map_err(|_| LlmError::LockPoisoned("engine".into()))?;
+        st.config = None;
+        st.info = None;
+        #[cfg(feature = "native")]
+        {
+            // Drop освобождает модель и контекст llama.cpp.
+            st.native = None;
+        }
+        Ok(())
+    }
+
+    async fn generate(&self, request: GenerateRequest) -> Result<GenerateResponse> {
+        #[cfg(feature = "native")]
+        let result = self.generate_native(request).await;
+        #[cfg(not(feature = "native"))]
+        let result = self.generate_stub(request).await;
+        result
+    }
+
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {
+        #[cfg(feature = "native")]
+        let result = self.chat_native(request).await;
+        #[cfg(not(feature = "native"))]
+        let result = self.chat_stub(request).await;
+        result
+    }
+
+    async fn chat_stream(&self, request: ChatRequest) -> Result<ChatStream> {
+        #[cfg(feature = "native")]
+        let result = self.chat_stream_native(request).await;
+        #[cfg(not(feature = "native"))]
+        let result = self.chat_stream_stub(request).await;
+        result
     }
 
     async fn health(&self) -> Result<LlmHealth> {

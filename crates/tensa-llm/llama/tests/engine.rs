@@ -66,18 +66,25 @@ async fn load_missing_model_is_not_found() {
 }
 
 #[tokio::test]
-async fn load_existing_file_reports_engine_unavailable() {
+async fn load_existing_file_reports_engine_state() {
     let e = engine();
-    // Реальный файл есть (пустой) — следующий барьер: нативный слой.
+    // Реальный файл есть (пустой) — барьер: нативный слой / валидация GGUF.
     let path = std::env::temp_dir().join(format!("tensa_llm_{}.gguf", std::process::id()));
     std::fs::write(&path, b"not a real gguf").expect("write temp");
     let cfg = config_with_path(path.clone());
-    let err = LlmEngine::load(&e, cfg).await.expect_err("unavailable");
-    match &err {
-        LlmError::EngineUnavailable(msg) => {
-            assert!(msg.contains("ADR-003"), "msg: {msg}");
+    let err = LlmEngine::load(&e, cfg)
+        .await
+        .expect_err("мусорный файл не должен загружаться");
+    if cfg!(feature = "native") {
+        // Нативная сборка: мусорный файл отвергает сам llama.cpp.
+        assert!(matches!(err, LlmError::ModelCorrupted(_)), "got: {err:?}");
+    } else {
+        match &err {
+            LlmError::EngineUnavailable(msg) => {
+                assert!(msg.contains("ADR-003"), "msg: {msg}");
+            }
+            other => panic!("expected EngineUnavailable, got {other:?}"),
         }
-        other => panic!("expected EngineUnavailable, got {other:?}"),
     }
     std::fs::remove_file(&path).ok();
 
@@ -154,7 +161,11 @@ async fn unload_and_health_lifecycle() {
 
     let h = LlmEngine::health(&e).await.expect("health");
     assert!(!h.loaded);
-    assert!(!h.native_engine, "нативный слой ещё не подключён");
+    assert_eq!(
+        h.native_engine,
+        cfg!(feature = "native"),
+        "флаг отражает конфигурацию сборки"
+    );
     assert_eq!(h.context_size, 0);
     assert!(h.model.is_none());
 
@@ -198,11 +209,11 @@ fn stop_check_helper() {
 }
 
 #[test]
-fn native_engine_flag_is_false_until_ffi() {
-    // Константы отражают состояние уровня 1 (tensa-llama-sys);
-    // black_box — чтобы проверка была рантайм-проверкой (лint clippy).
+fn native_engine_flag_matches_build() {
+    // Константы отражают конфигурацию сборки (фича `native`):
+    // black_box — чтобы проверка была рантайм-проверкой (lint clippy).
     let native = std::hint::black_box(NATIVE_ENGINE);
     let ready = std::hint::black_box(tensa_llama_sys::NATIVE_READY);
-    assert!(!native, "нативный движок ещё не скомпилирован");
-    assert!(!ready, "уровень 1 (llama-sys) ещё не подключён");
+    assert_eq!(native, cfg!(feature = "native"));
+    assert_eq!(ready, cfg!(feature = "native"));
 }

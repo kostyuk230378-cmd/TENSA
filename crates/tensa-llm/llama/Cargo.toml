@@ -29,5 +29,8 @@ reqwest = { workspace = true, optional = true }
 default = []
 # HTTP-проверка новой версии llama.cpp (GitHub releases).
 update-http = ["dep:reqwest"]
+# Нативная сборка llama.cpp (TASK-ENV-001): cmake + bindgen + линковка
+# статических библиотек; реальный инференс через FFI.
+native = ["tensa-llama-sys/native"]
 
 [dev-dependencies]

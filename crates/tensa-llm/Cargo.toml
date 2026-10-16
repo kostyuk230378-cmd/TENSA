@@ -16,3 +16,5 @@ tensa-llama = { path = "llama" }
 default = []
 # HTTP-проверка обновлений (ADR-003, уровень 3) — проброс в tensa-llama.
 update-http = ["tensa-llama/update-http"]
+# Нативный инференс llama.cpp (TASK-ENV-001) — проброс в tensa-llama.
+native = ["tensa-llama/native"]

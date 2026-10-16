@@ -17,6 +17,9 @@ pub mod context;
 pub mod engine;
 pub mod error;
 pub mod model;
+/// Нативный движок llama.cpp (фича `native`; TASK-ENV-001).
+#[cfg(feature = "native")]
+mod native;
 pub mod sampling;
 pub mod session;
 pub mod update;
@@ -33,8 +36,8 @@ pub use session::ChatSession;
 pub use update::{UpdateChecker, UpdateFlow, UpdateStage};
 
 /// Нативный движок llama.cpp скомпилирован и доступен?
-/// Сейчас всегда `false` — FFI-слой подключается отдельным этапом (ADR-003).
-pub const NATIVE_ENGINE: bool = false;
+/// Отражает фичу `native` (уровень 1 собран: TASK-ENV-001).
+pub const NATIVE_ENGINE: bool = tensa_llama_sys::NATIVE_READY;
 
 /// Версия крейта.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

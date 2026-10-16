@@ -11,9 +11,11 @@
 //! 3) bindgen-биндинги из `include/llama.h` — нужен libclang, путь в
 //!    `LIBCLANG_PATH` (см. README крейта).
 
+#[cfg(feature = "native")]
 use std::path::{Path, PathBuf};
 
 /// Закреплённая версия llama.cpp (TASK-ENV-001).
+#[cfg(feature = "native")]
 const LLAMA_CPP_TAG: &str = "v0.7.0";
 
 fn main() {
@@ -21,21 +23,26 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LLAMA_CPP_DIR");
     println!("cargo:rerun-if-env-changed=LIBCLANG_PATH");
 
-    if std::env::var("CARGO_FEATURE_NATIVE").is_err() {
+    #[cfg(not(feature = "native"))]
+    {
         // Нативный слой не подключён — см. доккомментарий крейта.
         return;
     }
 
-    let source = native_source_dir();
-    println!(
-        "cargo:rerun-if-changed={}",
-        source.join("CMakeLists.txt").display()
-    );
-    build_native(&source);
-    generate_bindings(&source);
+    #[cfg(feature = "native")]
+    {
+        let source = native_source_dir();
+        println!(
+            "cargo:rerun-if-changed={}",
+            source.join("CMakeLists.txt").display()
+        );
+        build_native(&source);
+        generate_bindings(&source);
+    }
 }
 
 /// Каталог исходников llama.cpp: env `LLAMA_CPP_DIR` или `vendor/llama.cpp`.
+#[cfg(feature = "native")]
 fn native_source_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("LLAMA_CPP_DIR") {
         let path = PathBuf::from(dir);
@@ -59,6 +66,7 @@ fn native_source_dir() -> PathBuf {
 }
 
 /// Собрать llama.cpp статически и сообщить линковщику Rust пути и библиотеки.
+#[cfg(feature = "native")]
 fn build_native(source: &Path) {
     let install_dir = cmake::Config::new(source)
         .define("BUILD_SHARED_LIBS", "OFF")
@@ -101,6 +109,7 @@ fn build_native(source: &Path) {
 }
 
 /// Сгенерировать биндинги bindgen из `include/llama.h`.
+#[cfg(feature = "native")]
 fn generate_bindings(source: &Path) {
     let include = source.join("include");
     let ggml_include = source.join("ggml").join("include");
