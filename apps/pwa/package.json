@@ -1,0 +1,19 @@
+{
+  "name": "tensa-pwa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA-версия Tensa (Svelte): интерфейс к ядру по HTTP API /api/v1",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "svelte": "^5.57.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}
