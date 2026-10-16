@@ -1,0 +1,39 @@
+[package]
+name = "tensa-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "uniffi-обёртка Tensa (Контракт 9): UDL-биндинги для мобильных и настольных клиентов"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# Внутренние
+tensa-approval = { path = "../tensa-approval" }
+tensa-core = { path = "../tensa-core" }
+tensa-memory = { path = "../tensa-memory" }
+tensa-nodes = { path = "../tensa-nodes" }
+
+# Внешние
+uniffi = { workspace = true, features = ["tokio"] }
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+toml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+uniffi = { workspace = true, features = ["build"] }
+
+[lints.clippy]
+# Свежий clippy (1.98+) ругается на const `UNIFFI_META_CONST_UDL_TENSA` в
+# СГЕНЕРИРОВАННОМ uniffi 0.32.2 коде (MetadataBuffer — большой массив);
+# исходники uniffi не наш код и не правятся — гасим точечно для этого крейта.
+# [derived] Осознанное исключение к правилу «без allow как обхода» — на подпись Архитектору.
+large_const_arrays = "allow"
