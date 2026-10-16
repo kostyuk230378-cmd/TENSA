@@ -9,17 +9,18 @@ pub struct TensaPaths {
 }
 
 impl TensaPaths {
-    /// Пути по умолчанию: `~/.tensa/` (через directories).
+    /// Пути по умолчанию: `~/.tensa/` — домашний каталог пользователя
+    /// (Контракт 4: `~/.tensa/approval.db`, `~/.tensa/config.toml`,
+    /// `~/.tensa/memory/`, `~/.tensa/models/` и т. д.).
+    ///
+    /// Платформенные каталоги (`directories`) не используются: контракт
+    /// фиксирует именно `~/.tensa/`. Фолбэк при отсутствии переменных
+    /// окружения — `./.tensa`.
     pub fn default_root() -> PathBuf {
-        directories::ProjectDirs::from("com", "tensorlogix", "tensa")
-            .map(|d| d.data_local_dir().to_path_buf())
-            .unwrap_or_else(|| {
-                // Фолбэк: HOME/.tensa
-                let home = std::env::var("USERPROFILE")
-                    .or_else(|_| std::env::var("HOME"))
-                    .unwrap_or_else(|_| ".".to_string());
-                PathBuf::from(home).join(".tensa")
-            })
+        let home = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home).join(".tensa")
     }
 
     pub fn new() -> Self {
@@ -93,6 +94,18 @@ mod tests {
         );
         assert_eq!(p.notes_db(), PathBuf::from("/tmp/tensa-test/notes.db"));
         assert!(p.memory_dir().ends_with("memory"));
+    }
+
+    #[test]
+    fn default_root_is_dot_tensa_in_home() {
+        let root = TensaPaths::default_root();
+        assert_eq!(
+            root.file_name().and_then(|name| name.to_str()),
+            Some(".tensa")
+        );
+        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+            assert_eq!(root, PathBuf::from(home).join(".tensa"));
+        }
     }
 
     #[test]

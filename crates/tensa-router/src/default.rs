@@ -93,8 +93,9 @@ impl DefaultBrainRouter {
         })
     }
 
-    /// Создать роутер с путём бюджета по умолчанию
-    /// (`<root>/router_budget.json`) — [derived], ТЗ путь не задаёт.
+    /// Создать роутер с путём бюджета по умолчанию:
+    /// `~/.tensa/router_budget.json` (корень — Контракт 4; [derived] само имя
+    /// файла в ТЗ не задано).
     pub fn with_paths(config: RouterConfig, deps: RouterDeps, paths: &TensaPaths) -> Result<Self> {
         Self::new(config, deps, paths.root().join("router_budget.json"))
     }
