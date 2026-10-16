@@ -35,5 +35,5 @@ uniffi = { workspace = true, features = ["build"] }
 # Свежий clippy (1.98+) ругается на const `UNIFFI_META_CONST_UDL_TENSA` в
 # СГЕНЕРИРОВАННОМ uniffi 0.32.2 коде (MetadataBuffer — большой массив);
 # исходники uniffi не наш код и не правятся — гасим точечно для этого крейта.
-# [derived] Осознанное исключение к правилу «без allow как обхода» — на подпись Архитектору.
+# [derived] Осознанное исключение к правилу «без allow как обхода» — утверждено Архитектором (17.10.2026).
 large_const_arrays = "allow"
