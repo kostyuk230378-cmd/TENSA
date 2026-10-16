@@ -1,0 +1,25 @@
+[package]
+name = "tensa-tools"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Мета-крейт инструментов секретаря (ТЗ tensa-tools): Tool + ToolRegistry, первые подкрейты (wol, apps, documents и др. — по плану)"
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../tensa-core" }
+tensa-approval = { path = "../tensa-approval" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
