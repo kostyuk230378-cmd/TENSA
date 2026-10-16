@@ -1,0 +1,40 @@
+[package]
+name = "tensa-memory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Память Tensa: иерархическая память (core/recall/archival, ADR-021), векторный поиск (Lance), эмбеддинги (fastembed), чанкинг, кэш (Контракты 2/13)"
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../tensa-core" }
+tensa-approval = { path = "../tensa-approval" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+sha2.workspace = true
+lru.workspace = true
+sqlx.workspace = true
+
+# Optional: Lance (archival/документы) и fastembed (эмбеддинги)
+lance = { workspace = true, optional = true }
+fastembed = { workspace = true, optional = true }
+
+[features]
+default = []
+# Векторное хранилище Lance (archival memory, документы).
+lance = ["dep:lance"]
+# Локальные эмбеддинги multilingual-e5-small (ONNX).
+fastembed = ["dep:fastembed"]
+
+[dev-dependencies]

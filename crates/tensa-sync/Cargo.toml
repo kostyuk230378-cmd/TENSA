@@ -1,0 +1,57 @@
+[package]
+name = "tensa-sync"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Синхронизация между узлами Tensa: ApprovalStore (постоянно), заметки/контакты (on-demand), heartbeat, соединения, Syncthing (ADR-012, Контракт 8)"
+build = "build.rs"
+
+[dependencies]
+# Внутренние (по ТЗ). tensa-approval/tensa-nodes/tensa-core нужны безусловно:
+# трейт SyncService ссылается на ActionEvent и Node, sync-адаптеры — на Stores.
+tensa-approval = { path = "../tensa-approval" }
+tensa-nodes = { path = "../tensa-nodes" }
+tensa-core = { path = "../tensa-core" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# Optional: gRPC-транспорт (фича grpc — в default), Syncthing REST (syncthing)
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
+tensa-memory = { path = "../tensa-memory", optional = true }
+reqwest = { workspace = true, optional = true }
+
+[build-dependencies]
+# Неопциональны: build.rs компилируется всегда; вызов компиляции proto
+# гейтится переменной CARGO_FEATURE_GRPC (см. build.rs).
+tonic-build = { workspace = true }
+protoc-bin-vendored = "3"
+
+[features]
+# grpc в default — решение Архитектора 2026-10-15. Сборка без транспорта:
+# --no-default-features (ядро логики тестируется без сети).
+default = ["grpc"]
+grpc = [
+    "dep:tonic",
+    "dep:prost",
+    "dep:futures",
+    "dep:tokio-stream",
+    "dep:tensa-memory",
+]
+# Syncthing REST API клиент.
+syncthing = ["dep:reqwest"]
+
+[dev-dependencies]

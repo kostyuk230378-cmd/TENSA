@@ -1,0 +1,18 @@
+[package]
+name = "tensa-llm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Локальный инференс LLM Tensa: FFI к llama.cpp, GGUF, генерация, tool use, reasoning, автообновление с подтверждением (ADR-003, ТЗ tensa-llm)"
+
+[dependencies]
+# Внутренние
+tensa-llama = { path = "llama" }
+
+[features]
+default = []
+# HTTP-проверка обновлений (ADR-003, уровень 3) — проброс в tensa-llama.
+update-http = ["tensa-llama/update-http"]

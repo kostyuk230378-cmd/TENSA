@@ -1,0 +1,27 @@
+[package]
+name = "tensa-nodes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Реестр узлов Tensa (NodeRegistry): heartbeat, роли heavy/thin/auto, ресурсы, управление соединениями (ADR-015, Контракт 7)"
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../tensa-core" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+sqlx.workspace = true
+
+[features]
+default = []

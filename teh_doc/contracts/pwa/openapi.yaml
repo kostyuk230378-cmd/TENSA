@@ -1,0 +1,2586 @@
+# Источник: con_8_9_12.md (Контракт 12 из 02-contracts.md), извлечено 2026-10-08.
+# Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
+# изменения вносить в первичный источник и перегенерировать.
+openapi: 3.0.0
+
+info:
+
+  title: Tensa PWA API
+
+  version: 1.0.0
+
+  description: HTTP API для PWA-версии Tensa
+
+servers:
+
+  - url: http://localhost:8765/api/v1
+
+    description: Локальный
+
+  - url: http://{tailscale_ip}:8765/api/v1
+
+    description: Через Tailscale
+
+    variables:
+
+      tailscale_ip:
+
+        default: "100.64.0.1"
+
+security:
+
+  - BearerAuth: []
+
+paths:
+
+  /health:
+
+    get:
+
+      summary: Проверка состояния
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/HealthStatus'
+
+  /version:
+
+    get:
+
+      summary: Версия
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: string
+
+  /approvals:
+
+    get:
+
+      summary: Очередь одобрений
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Action'
+
+  /approvals/{id}:
+
+    get:
+
+      summary: Получить действие
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Action'
+
+  /approvals/{id}/approve:
+
+    post:
+
+      summary: Одобрить действие
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                approved_by:
+
+                  type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Action'
+
+  /approvals/{id}/reject:
+
+    post:
+
+      summary: Отклонить действие
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                rejected_by:
+
+                  type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Action'
+
+  /search:
+
+    get:
+
+      summary: Поиск по файлам
+
+      parameters:
+
+        - name: q
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 10
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/SearchResult'
+
+  /search/hybrid:
+
+    get:
+
+      summary: Гибридный поиск
+
+      parameters:
+
+        - name: q
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 10
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/SearchResult'
+
+  /documents:
+
+    get:
+
+      summary: Список документов
+
+      parameters:
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 50
+
+        - name: offset
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 0
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/DocumentMeta'
+
+  /documents/{id}:
+
+    get:
+
+      summary: Получить документ
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/DocumentMeta'
+
+  /notes:
+
+    get:
+
+      summary: Список заметок
+
+      parameters:
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 50
+
+        - name: offset
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 0
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Note'
+
+    post:
+
+      summary: Создать заметку
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/NewNote'
+
+      responses:
+
+        '201':
+
+          description: Created
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Note'
+
+  /notes/{id}:
+
+    get:
+
+      summary: Получить заметку
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Note'
+
+    put:
+
+      summary: Обновить заметку
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/Note'
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Note'
+
+    delete:
+
+      summary: Удалить заметку
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /notes/search:
+
+    get:
+
+      summary: Поиск заметок
+
+      parameters:
+
+        - name: q
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 10
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Note'
+
+  /contacts:
+
+    get:
+
+      summary: Список контактов
+
+      parameters:
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 50
+
+        - name: offset
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 0
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Contact'
+
+    post:
+
+      summary: Создать контакт
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/NewContact'
+
+      responses:
+
+        '201':
+
+          description: Created
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Contact'
+
+  /contacts/{id}:
+
+    get:
+
+      summary: Получить контакт
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Contact'
+
+    put:
+
+      summary: Обновить контакт
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/Contact'
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Contact'
+
+    delete:
+
+      summary: Удалить контакт
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /contacts/search:
+
+    get:
+
+      summary: Поиск контактов
+
+      parameters:
+
+        - name: q
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 10
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Contact'
+
+  /email/accounts:
+
+    get:
+
+      summary: Список почтовых ящиков
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/EmailAccount'
+
+  /email/accounts/{id}/connect:
+
+    post:
+
+      summary: Подключиться к ящику
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /email/accounts/{id}/disconnect:
+
+    post:
+
+      summary: Отключиться от ящика
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /email/accounts/{id}/folders:
+
+    get:
+
+      summary: Список папок
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  type: string
+
+  /email/accounts/{id}/emails:
+
+    get:
+
+      summary: Получить письма
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: folder
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: limit
+
+          in: query
+
+          schema:
+
+            type: integer
+
+            default: 50
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Email'
+
+  /email/accounts/{id}/search:
+
+    get:
+
+      summary: Поиск писем
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: q
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Email'
+
+  /email/send:
+
+    post:
+
+      summary: Отправить письмо
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/OutgoingEmail'
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /calendar/events:
+
+    get:
+
+      summary: Список событий
+
+      parameters:
+
+        - name: start
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: end
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/CalendarEvent'
+
+    post:
+
+      summary: Создать событие
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/NewCalendarEvent'
+
+      responses:
+
+        '201':
+
+          description: Created
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/CalendarEvent'
+
+  /calendar/conflicts:
+
+    get:
+
+      summary: Проверить конфликты
+
+      parameters:
+
+        - name: start
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+        - name: end
+
+          in: query
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Conflict'
+
+  /calendar/events/{id}:
+
+    delete:
+
+      summary: Удалить событие
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /apps:
+
+    get:
+
+      summary: Список разрешённых приложений
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/AppInfo'
+
+  /apps/scan:
+
+    post:
+
+      summary: Сканировать систему
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/AppInfo'
+
+  /apps/launch:
+
+    post:
+
+      summary: Запустить приложение
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                name:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /apps/open-file:
+
+    post:
+
+      summary: Открыть файл
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                path:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /apps/open-url:
+
+    post:
+
+      summary: Открыть URL
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                url:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /nodes:
+
+    get:
+
+      summary: Список узлов
+
+      parameters:
+
+        - name: online_only
+
+          in: query
+
+          schema:
+
+            type: boolean
+
+            default: false
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: array
+
+                items:
+
+                  $ref: '#/components/schemas/Node'
+
+  /nodes/{id}:
+
+    get:
+
+      summary: Получить узел
+
+      parameters:
+
+        - name: id
+
+          in: path
+
+          required: true
+
+          schema:
+
+            type: string
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Node'
+
+  /nodes/heavy:
+
+    get:
+
+      summary: Найти heavy-узел
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Node'
+
+  /config:
+
+    get:
+
+      summary: Получить конфигурацию
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/Config'
+
+    patch:
+
+      summary: Обновить конфигурацию
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/Config'
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /config/reload:
+
+    post:
+
+      summary: Перезагрузить конфигурацию
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /query:
+
+    post:
+
+      summary: Текстовый запрос к ядру
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/QueryRequest'
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/QueryResponse'
+
+  /query/stream:
+
+    post:
+
+      summary: Стриминг ответа
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              $ref: '#/components/schemas/QueryRequest'
+
+      responses:
+
+        '200':
+
+          description: SSE stream
+
+          content:
+
+            text/event-stream:
+
+              schema:
+
+                type: string
+
+  /voice/transcribe:
+
+    post:
+
+      summary: Распознать аудио
+
+      requestBody:
+
+        content:
+
+          multipart/form-data:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                audio:
+
+                  type: string
+
+                  format: binary
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: object
+
+                properties:
+
+                  text:
+
+                    type: string
+
+  /events:
+
+    get:
+
+      summary: SSE поток событий
+
+      responses:
+
+        '200':
+
+          description: text/event-stream
+
+          content:
+
+            text/event-stream:
+
+              schema:
+
+                type: string
+
+  /first-run:
+
+    get:
+
+      summary: Проверить первый запуск
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                type: object
+
+                properties:
+
+                  is_first_run:
+
+                    type: boolean
+
+  /first-run/step/language:
+
+    post:
+
+      summary: Шаг 1 — язык
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                language:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/introduction:
+
+    post:
+
+      summary: Шаг 2 — знакомство
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                owner_name:
+
+                  type: string
+
+                owner_title:
+
+                  type: string
+
+                secretary_name:
+
+                  type: string
+
+                timezone:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/models:
+
+    post:
+
+      summary: Шаг 3 — загрузка моделей
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/telegram:
+
+    post:
+
+      summary: Шаг 4 — Telegram
+
+      requestBody:
+
+        content:
+
+          application/json:
+
+            schema:
+
+              type: object
+
+              properties:
+
+                bot_token:
+
+                  type: string
+
+                owner_chat_id:
+
+                  type: string
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/email:
+
+    post:
+
+      summary: Шаг 5 — почта
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/whatsapp:
+
+    post:
+
+      summary: Шаг 6 — WhatsApp
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/tailscale:
+
+    post:
+
+      summary: Шаг 7 — Tailscale
+
+      responses:
+
+        '204':
+
+          description: No Content
+
+  /first-run/step/finish:
+
+    post:
+
+      summary: Шаг 8 — завершение
+
+      responses:
+
+        '200':
+
+          description: OK
+
+          content:
+
+            application/json:
+
+              schema:
+
+                $ref: '#/components/schemas/WizardResult'
+
+components:
+
+  securitySchemes:
+
+    BearerAuth:
+
+      type: http
+
+      scheme: bearer
+
+      bearerFormat: JWT
+
+  schemas:
+
+    HealthStatus:
+
+      type: object
+
+      properties:
+
+        healthy:
+
+          type: boolean
+
+        version:
+
+          type: string
+
+        uptime:
+
+          type: string
+
+        degraded:
+
+          type: boolean
+
+        degraded_reason:
+
+          type: string
+
+          nullable: true
+
+    Action:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        kind:
+
+          type: string
+
+        payload:
+
+          type: string
+
+        status:
+
+          type: string
+
+        created_at:
+
+          type: integer
+
+          format: int64
+
+        expires_at:
+
+          type: integer
+
+          format: int64
+
+    SearchResult:
+
+      type: object
+
+      properties:
+
+        document_id:
+
+          type: string
+
+        source_path:
+
+          type: string
+
+        chunk_text:
+
+          type: string
+
+        score:
+
+          type: number
+
+          format: float
+
+        indexed_at:
+
+          type: integer
+
+          format: int64
+
+    DocumentMeta:
+
+      type: object
+
+      properties:
+
+        document_id:
+
+          type: string
+
+        source_path:
+
+          type: string
+
+        title:
+
+          type: string
+
+        mime_type:
+
+          type: string
+
+        size_bytes:
+
+          type: integer
+
+          format: int64
+
+        created_at:
+
+          type: integer
+
+          format: int64
+
+        modified_at:
+
+          type: integer
+
+          format: int64
+
+        indexed_at:
+
+          type: integer
+
+          format: int64
+
+        chunk_count:
+
+          type: integer
+
+    Note:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        title:
+
+          type: string
+
+        body:
+
+          type: string
+
+        tags:
+
+          type: array
+
+          items:
+
+            type: string
+
+        created_at:
+
+          type: integer
+
+          format: int64
+
+        updated_at:
+
+          type: integer
+
+          format: int64
+
+    NewNote:
+
+      type: object
+
+      properties:
+
+        title:
+
+          type: string
+
+        body:
+
+          type: string
+
+        tags:
+
+          type: array
+
+          items:
+
+            type: string
+
+    Contact:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        name:
+
+          type: string
+
+        email:
+
+          type: string
+
+          nullable: true
+
+        phone:
+
+          type: string
+
+          nullable: true
+
+        telegram:
+
+          type: string
+
+          nullable: true
+
+        whatsapp:
+
+          type: string
+
+          nullable: true
+
+        notes:
+
+          type: string
+
+          nullable: true
+
+        tags:
+
+          type: array
+
+          items:
+
+            type: string
+
+        created_at:
+
+          type: integer
+
+          format: int64
+
+        updated_at:
+
+          type: integer
+
+          format: int64
+
+    NewContact:
+
+      type: object
+
+      properties:
+
+        name:
+
+          type: string
+
+        email:
+
+          type: string
+
+          nullable: true
+
+        phone:
+
+          type: string
+
+          nullable: true
+
+        telegram:
+
+          type: string
+
+          nullable: true
+
+        whatsapp:
+
+          type: string
+
+          nullable: true
+
+        notes:
+
+          type: string
+
+          nullable: true
+
+        tags:
+
+          type: array
+
+          items:
+
+            type: string
+
+    EmailAccount:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        label:
+
+          type: string
+
+        imap_host:
+
+          type: string
+
+        imap_port:
+
+          type: integer
+
+        smtp_host:
+
+          type: string
+
+        smtp_port:
+
+          type: integer
+
+    Email:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        account_id:
+
+          type: string
+
+        folder:
+
+          type: string
+
+        from:
+
+          type: string
+
+        to:
+
+          type: string
+
+        subject:
+
+          type: string
+
+        body:
+
+          type: string
+
+        date:
+
+          type: integer
+
+          format: int64
+
+        read:
+
+          type: boolean
+
+        has_attachments:
+
+          type: boolean
+
+    OutgoingEmail:
+
+      type: object
+
+      properties:
+
+        account_id:
+
+          type: string
+
+        to:
+
+          type: string
+
+        cc:
+
+          type: string
+
+          nullable: true
+
+        bcc:
+
+          type: string
+
+          nullable: true
+
+        subject:
+
+          type: string
+
+        body:
+
+          type: string
+
+        attachments:
+
+          type: array
+
+          items:
+
+            type: string
+
+    CalendarEvent:
+
+      type: object
+
+      properties:
+
+        id:
+
+          type: string
+
+        title:
+
+          type: string
+
+        start:
+
+          type: string
+
+        end:
+
+          type: string
+
+        description:
+
+          type: string
+
+          nullable: true
+
+        location:
+
+          type: string
+
+          nullable: true
+
+        attendees:
+
+          type: array
+
+          items:
+
+            type: string
+
+    NewCalendarEvent:
+
+      type: object
+
+      properties:
+
+        title:
+
+          type: string
+
+        start:
+
+          type: string
+
+        end:
+
+          type: string
+
+        description:
+
+          type: string
+
+          nullable: true
+
+        location:
+
+          type: string
+
+          nullable: true
+
+        attendees:
+
+          type: array
+
+          items:
+
+            type: string
+
+    Conflict:
+
+      type: object
+
+      properties:
+
+        event_id:
+
+          type: string
+
+        title:
+
+          type: string
+
+        start:
+
+          type: string
+
+        end:
+
+          type: string
+
+    AppInfo:
+
+      type: object
+
+      properties:
+
+        name:
+
+          type: string
+
+        path:
+
+          type: string
+
+        icon_path:
+
+          type: string
+
+          nullable: true
+
+        associations:
+
+          type: array
+
+          items:
+
+            type: string
+
+    Node:
+
+      type: object
+
+      properties:
+
+        node_id:
+
+          type: string
+
+        name:
+
+          type: string
+
+        device_type:
+
+          type: string
+
+        platform:
+
+          type: string
+
+        role:
+
+          type: string
+
+        tailscale_ip:
+
+          type: string
+
+        grpc_port:
+
+          type: integer
+
+        last_seen:
+
+          type: integer
+
+          format: int64
+
+        online:
+
+          type: boolean
+
+        ram_total_mb:
+
+          type: integer
+
+          format: int64
+
+        ram_available_mb:
+
+          type: integer
+
+          format: int64
+
+        cpu_cores:
+
+          type: integer
+
+        cpu_usage_percent:
+
+          type: number
+
+          format: float
+
+        has_gpu:
+
+          type: boolean
+
+        has_npu:
+
+          type: boolean
+
+        battery_percent:
+
+          type: integer
+
+          nullable: true
+
+        battery_charging:
+
+          type: boolean
+
+          nullable: true
+
+        thermal_status:
+
+          type: string
+
+    Config:
+
+      type: object
+
+      properties:
+
+        node_id:
+
+          type: string
+
+        language:
+
+          type: string
+
+        device_type:
+
+          type: string
+
+        role:
+
+          type: string
+
+        brain_mode:
+
+          type: string
+
+        local_model:
+
+          type: string
+
+        cloud_model:
+
+          type: string
+
+    QueryRequest:
+
+      type: object
+
+      properties:
+
+        text:
+
+          type: string
+
+        language:
+
+          type: string
+
+        use_cloud:
+
+          type: boolean
+
+    QueryResponse:
+
+      type: object
+
+      properties:
+
+        text:
+
+          type: string
+
+        action:
+
+          type: string
+
+          nullable: true
+
+        action_payload:
+
+          type: string
+
+          nullable: true
+
+        tool_calls:
+
+          type: array
+
+          items:
+
+            $ref: '#/components/schemas/ToolCall'
+
+        reasoning:
+
+          type: string
+
+          nullable: true
+
+        degraded:
+
+          type: boolean
+
+        model_used:
+
+          type: string
+
+    ToolCall:
+
+      type: object
+
+      properties:
+
+        tool:
+
+          type: string
+
+        params:
+
+          type: string
+
+    WizardResult:
+
+      type: object
+
+      properties:
+
+        config_saved:
+
+          type: boolean
+
+        secrets_saved:
+
+          type: boolean
+
+        core_memory_initialized:
+
+          type: boolean

@@ -1,0 +1,136 @@
+// Источник: con_8_9_12.md (Контракт 8 из 02-contracts.md), извлечено 2026-10-08.
+// Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
+// изменения вносить в первичный источник и перегенерировать.
+syntax = "proto3";
+
+package tensa.sync;
+
+import "common.proto";
+
+service SyncService {
+
+  // Синхронизация ApprovalStore
+
+  rpc SyncApprovalEvents(SyncApprovalRequest) returns (stream ApprovalEvent);
+
+  rpc PushApprovalEvent(ApprovalEvent) returns (tensa.common.Result);
+
+  // Синхронизация заметок
+
+  rpc SyncNotes(SyncNotesRequest) returns (stream NoteEvent);
+
+  rpc PushNoteEvent(NoteEvent) returns (tensa.common.Result);
+
+  // Синхронизация контактов
+
+  rpc SyncContacts(SyncContactsRequest) returns (stream ContactEvent);
+
+  rpc PushContactEvent(ContactEvent) returns (tensa.common.Result);
+
+  // Общий поток событий
+
+  rpc SubscribeEvents(SubscribeRequest) returns (stream Event);
+
+}
+
+message SyncApprovalRequest {
+
+  string node_id = 1;
+
+  uint64 last_event_id = 2;
+
+  tensa.common.VectorClock vector_clock = 3;
+
+}
+
+message ApprovalEvent {
+
+  uint64 event_id = 1;
+
+  string action_id = 2;
+
+  string event_type = 3;  // created, approved, rejected, executed, failed, expired
+
+  string event_data = 4;  // JSON
+
+  int64 timestamp = 5;
+
+  string node_id = 6;
+
+  tensa.common.VectorClock vector_clock = 7;
+
+  string operation_id = 8;
+
+}
+
+message SyncNotesRequest {
+
+  string node_id = 1;
+
+  int64 last_updated_at = 2;
+
+  tensa.common.VectorClock vector_clock = 3;
+
+}
+
+message NoteEvent {
+
+  string note_id = 1;
+
+  string event_type = 2;  // created, updated, deleted
+
+  string note_data = 3;   // JSON
+
+  int64 timestamp = 4;
+
+  string node_id = 5;
+
+  tensa.common.VectorClock vector_clock = 6;
+
+}
+
+message SyncContactsRequest {
+
+  string node_id = 1;
+
+  int64 last_updated_at = 2;
+
+  tensa.common.VectorClock vector_clock = 3;
+
+}
+
+message ContactEvent {
+
+  string contact_id = 1;
+
+  string event_type = 2;
+
+  string contact_data = 3;  // JSON
+
+  int64 timestamp = 4;
+
+  string node_id = 5;
+
+  tensa.common.VectorClock vector_clock = 6;
+
+}
+
+message SubscribeRequest {
+
+  string node_id = 1;
+
+  repeated string event_types = 2;  // пусто = все
+
+}
+
+message Event {
+
+  string event_type = 1;
+
+  string data = 2;  // JSON
+
+  int64 timestamp = 3;
+
+  string node_id = 4;
+
+}

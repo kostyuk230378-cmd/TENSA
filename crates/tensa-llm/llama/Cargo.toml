@@ -1,0 +1,33 @@
+[package]
+name = "tensa-llama"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Уровень 2 (ADR-003): безопасная асинхронная обёртка llama.cpp — RAII, Result, tokio (ТЗ tensa-llm)"
+
+[dependencies]
+# Внутренние
+tensa-llama-sys = { path = "../llama-sys" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+futures.workspace = true
+semver.workspace = true
+
+# Optional: проверка обновлений через GitHub API (ADR-003, уровень 3)
+reqwest = { workspace = true, optional = true }
+
+[features]
+default = []
+# HTTP-проверка новой версии llama.cpp (GitHub releases).
+update-http = ["dep:reqwest"]
+
+[dev-dependencies]

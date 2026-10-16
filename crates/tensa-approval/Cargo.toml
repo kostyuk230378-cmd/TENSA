@@ -1,0 +1,25 @@
+[package]
+name = "tensa-approval"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ApprovalStore — центральный элемент безопасности Tensa: очередь одобрения действий (Контракт 1, ТЗ tensa-approval)"
+
+[dependencies]
+# Внешние (из workspace). Внутренние (tensa-core, tensa-sync) появятся по своим ТЗ.
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
+test-utils = []

@@ -1,0 +1,134 @@
+// Источник: con_8_9_12.md (Контракт 8 из 02-contracts.md), извлечено 2026-10-08.
+// Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
+// изменения вносить в первичный источник и перегенерировать.
+syntax = "proto3";
+
+package tensa.common;
+
+// Уникальный идентификатор
+
+message Uuid {
+
+  string value = 1;
+
+}
+
+// Векторные часы для разрешения конфликтов
+
+message VectorClock {
+
+  map<string, uint64> clocks = 1;  // node_id -> counter
+
+}
+
+// Пустой ответ
+
+message Empty {}
+
+// Ошибка
+
+message Error {
+
+  string code = 1;
+
+  string message = 2;
+
+  string details = 3;
+
+}
+
+// Результат операции
+
+message Result {
+
+  bool success = 1;
+
+  Error error = 2;
+
+  string operation_id = 3;  // UUID для идемпотентности
+
+}
+
+// Язык
+
+enum Language {
+
+  LANGUAGE_UNSPECIFIED = 0;
+
+  LANGUAGE_RU = 1;
+
+  LANGUAGE_EN = 2;
+
+}
+
+// Платформа
+
+enum Platform {
+
+  PLATFORM_UNSPECIFIED = 0;
+
+  PLATFORM_WINDOWS = 1;
+
+  PLATFORM_LINUX = 2;
+
+  PLATFORM_ANDROID = 3;
+
+  PLATFORM_MACOS = 4;
+
+  PLATFORM_IOS = 5;
+
+}
+
+// Роль узла
+
+enum NodeRole {
+
+  NODE_ROLE_UNSPECIFIED = 0;
+
+  NODE_ROLE_HEAVY = 1;
+
+  NODE_ROLE_THIN = 2;
+
+  NODE_ROLE_AUTO = 3;
+
+}
+
+// Статус действия ApprovalStore
+
+enum ActionStatus {
+
+  ACTION_STATUS_UNSPECIFIED = 0;
+
+  ACTION_STATUS_PENDING = 1;
+
+  ACTION_STATUS_APPROVED = 2;
+
+  ACTION_STATUS_REJECTED = 3;
+
+  ACTION_STATUS_EXECUTED = 4;
+
+  ACTION_STATUS_FAILED = 5;
+
+  ACTION_STATUS_EXPIRED = 6;
+
+}
+
+// Тип действия
+
+enum ActionKind {
+
+  ACTION_KIND_UNSPECIFIED = 0;
+
+  ACTION_KIND_EMAIL_SEND = 1;
+
+  ACTION_KIND_TELEGRAM_SEND = 2;
+
+  ACTION_KIND_WHATSAPP_SEND = 3;
+
+  ACTION_KIND_CALENDAR_CREATE = 4;
+
+  ACTION_KIND_APP_LAUNCH = 5;
+
+  ACTION_KIND_FILE_OPEN = 6;
+
+}

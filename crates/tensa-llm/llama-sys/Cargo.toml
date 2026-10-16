@@ -1,0 +1,15 @@
+[package]
+name = "tensa-llama-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Уровень 1 (ADR-003): raw FFI-биндинги llama.cpp (bindgen). Нативный слой подключается отдельным этапом"
+
+[dependencies]
+# Пусто: только FFI-декларации, никакой логики (ADR-003, уровень 1).
+
+[build-dependencies]
+# bindgen/cc будут добавлены вместе с нативным слоем (требуется LLVM/libclang).

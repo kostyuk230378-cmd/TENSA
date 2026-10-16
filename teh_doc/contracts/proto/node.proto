@@ -1,0 +1,190 @@
+// Источник: con_8_9_12.md (Контракт 8 из 02-contracts.md), извлечено 2026-10-08.
+// Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
+// изменения вносить в первичный источник и перегенерировать.
+syntax = "proto3";
+
+package tensa.node;
+
+import "common.proto";
+
+service NodeService {
+
+  // Регистрация узла
+
+  rpc Register(RegisterRequest) returns (tensa.common.Result);
+
+  rpc Unregister(UnregisterRequest) returns (tensa.common.Result);
+
+  // Heartbeat
+
+  rpc Heartbeat(HeartbeatRequest) returns (tensa.common.Result);
+
+  rpc StreamHeartbeats(StreamHeartbeatsRequest) returns (stream HeartbeatRequest);
+
+  // Список узлов
+
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+
+  rpc GetNode(GetNodeRequest) returns (Node);
+
+  // Управление соединениями
+
+  rpc AcquireConnection(AcquireConnectionRequest) returns (tensa.common.Result);
+
+  rpc ReleaseConnection(ReleaseConnectionRequest) returns (tensa.common.Result);
+
+  rpc GetActiveConnection(GetActiveConnectionRequest) returns (GetActiveConnectionResponse);
+
+}
+
+message RegisterRequest {
+
+  Node node = 1;
+
+}
+
+message UnregisterRequest {
+
+  string node_id = 1;
+
+}
+
+message Node {
+
+  string node_id = 1;
+
+  string name = 2;
+
+  string device_type = 3;  // desktop, android
+
+  tensa.common.Platform platform = 4;
+
+  tensa.common.NodeRole role = 5;
+
+  string tailscale_ip = 6;
+
+  uint32 grpc_port = 7;
+
+  int64 last_seen = 8;
+
+  bool online = 9;
+
+  uint64 ram_total_mb = 10;
+
+  uint64 ram_available_mb = 11;
+
+  uint32 cpu_cores = 12;
+
+  float cpu_usage_percent = 13;
+
+  bool has_gpu = 14;
+
+  bool has_npu = 15;
+
+  optional uint32 battery_percent = 16;
+
+  optional bool battery_charging = 17;
+
+  string thermal_status = 18;
+
+  NodeResources resources = 19;
+
+  int64 created_at = 20;
+
+  int64 updated_at = 21;
+
+}
+
+message NodeResources {
+
+  bool telegram = 1;
+
+  bool email = 2;
+
+  bool whatsapp = 3;
+
+  bool llm_local = 4;
+
+  bool llm_cloud = 5;
+
+  bool memory_store = 6;
+
+  bool approval_store = 7;
+
+}
+
+message HeartbeatRequest {
+
+  string node_id = 1;
+
+  uint64 ram_available_mb = 2;
+
+  float cpu_usage_percent = 3;
+
+  optional uint32 battery_percent = 4;
+
+  optional bool battery_charging = 5;
+
+  string thermal_status = 6;
+
+  int64 timestamp = 7;
+
+}
+
+message StreamHeartbeatsRequest {
+
+  string node_id = 1;
+
+}
+
+message ListNodesRequest {
+
+  bool online_only = 1;
+
+}
+
+message ListNodesResponse {
+
+  repeated Node nodes = 1;
+
+}
+
+message GetNodeRequest {
+
+  string node_id = 1;
+
+}
+
+message AcquireConnectionRequest {
+
+  string node_id = 1;
+
+  string resource = 2;       // telegram, email, whatsapp
+
+  optional string account_id = 3;  // для email
+
+}
+
+message ReleaseConnectionRequest {
+
+  string node_id = 1;
+
+  string resource = 2;
+
+  optional string account_id = 3;
+
+}
+
+message GetActiveConnectionRequest {
+
+  string resource = 1;
+
+  optional string account_id = 2;
+
+}
+
+message GetActiveConnectionResponse {
+
+  optional string node_id = 1;
+
+}

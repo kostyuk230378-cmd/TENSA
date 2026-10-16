@@ -1,0 +1,32 @@
+[package]
+name = "tensa-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Центральный крейт Tensa: общие типы, конфигурация, заметки/контакты (SQLite+FTS5), координация подсистем, first-run wizard (Контракты 3/4/13)"
+
+[dependencies]
+# Внутренние
+tensa-approval = { path = "../tensa-approval" }
+# tensa-sync не зависимость tensa-core: цикл core↔sync запрещён; координатор
+# подключает sync-сервис в обратном направлении (через трейты) — решено
+# удалить неиспользуемую зависимость 2026-10-15.
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+toml.workspace = true
+directories.workspace = true
+
+[features]
+default = []

@@ -1,0 +1,72 @@
+// Источник: con_8_9_12.md (Контракт 8 из 02-contracts.md), извлечено 2026-10-08.
+// Файл сгенерирован скриптом scripts/extract_contracts.py — не редактировать вручную,
+// изменения вносить в первичный источник и перегенерировать.
+syntax = "proto3";
+
+package tensa.query;
+
+import "common.proto";
+
+import "voice.proto";
+
+service QueryService {
+
+  // Текстовый запрос к ядру
+
+  rpc Query(QueryRequest) returns (QueryResponse);
+
+  rpc StreamQuery(QueryRequest) returns (stream QueryChunk);
+
+  // Голосовой запрос (аудио -> текст -> ответ)
+
+  rpc VoiceQuery(stream tensa.voice.AudioChunk) returns (QueryResponse);
+
+}
+
+message QueryRequest {
+
+  string node_id = 1;
+
+  string text = 2;
+
+  tensa.common.Language language = 3;
+
+  map<string, string> context = 4;
+
+  bool use_cloud = 5;
+
+}
+
+message QueryResponse {
+
+  string text = 1;
+
+  string action = 2;
+
+  string action_payload = 3;        // JSON
+
+  repeated ToolCall tool_calls = 4;
+
+  string reasoning = 5;
+
+  bool degraded = 6;
+
+  string model_used = 7;
+
+}
+
+message ToolCall {
+
+  string tool = 1;
+
+  string params = 2;  // JSON
+
+}
+
+message QueryChunk {
+
+  string text = 1;
+
+  bool done = 2;
+
+}
