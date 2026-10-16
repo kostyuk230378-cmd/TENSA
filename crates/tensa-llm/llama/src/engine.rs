@@ -356,7 +356,20 @@ impl LlamaEngine {
 
         let output = tokio::task::spawn_blocking(move || {
             let mut engine = native.blocking_lock();
-            let prompt = engine.apply_chat_template(&messages)?;
+            let prompt = match engine.apply_chat_template(&messages) {
+                Ok(prompt) => prompt,
+                Err(error) => {
+                    // [derived] llama.cpp 0.7.0 не распознаёт chat-шаблон Gemma 4
+                    // (llama_chat_apply_template -> -1: только список известных
+                    // шаблонов, jinja-парсера нет) — простая ролевая разметка.
+                    // Полноценный рендер шаблона (minijinja) — в бэклоге.
+                    tracing::warn!(
+                        %error,
+                        "chat-шаблон модели не поддержан llama.cpp — простая разметка"
+                    );
+                    simple_chat_prompt(&messages)
+                }
+            };
             engine.generate(
                 &prompt,
                 max_tokens,
@@ -423,6 +436,28 @@ impl LlamaEngine {
         let stream = futures::stream::iter(Vec::<Result<String>>::new());
         Ok(Box::pin(stream))
     }
+}
+
+/// Простая ролевая разметка промпта (fallback, когда llama.cpp не знает
+/// chat-шаблон модели).
+/// [derived] Временный путь; jinja-рендер `tokenizer.chat_template` —
+/// отдельная задача (minijinja в бэклоге).
+#[cfg(feature = "native")]
+fn simple_chat_prompt(messages: &[ChatMessage]) -> String {
+    let mut prompt = String::new();
+    for message in messages {
+        let role = match message.role {
+            Role::System => "System",
+            Role::User => "User",
+            Role::Assistant => "Assistant",
+        };
+        prompt.push_str(role);
+        prompt.push_str(": ");
+        prompt.push_str(&message.content);
+        prompt.push('\n');
+    }
+    prompt.push_str("Assistant:");
+    prompt
 }
 
 #[async_trait]

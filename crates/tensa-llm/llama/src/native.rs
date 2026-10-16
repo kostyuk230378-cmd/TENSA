@@ -24,9 +24,38 @@ static BACKEND_INIT: Once = Once::new();
 /// Однократная инициализация бэкенда llama.cpp за процесс.
 fn ensure_backend() {
     BACKEND_INIT.call_once(|| {
-        // SAFETY: llama_backend_init вызывается ровно один раз (Once).
-        unsafe { sys::llama_backend_init() };
+        // SAFETY: llama_backend_init вызывается ровно один раз (Once);
+        // колбэк логов — статическая функция, живёт весь процесс.
+        unsafe {
+            sys::llama_backend_init();
+            let callback: sys::ggml_log_callback = Some(log_callback);
+            sys::llama_log_set(callback, ptr::null_mut());
+        }
     });
+}
+
+/// Прокси-колбэк логов llama.cpp в `tracing` (иначе ggml пишет в stderr).
+unsafe extern "C" fn log_callback(
+    level: sys::ggml_log_level,
+    text: *const std::os::raw::c_char,
+    _user_data: *mut std::os::raw::c_void,
+) {
+    if text.is_null() {
+        return;
+    }
+    // SAFETY: llama.cpp передаёт валидную C-строку; читаем без владения.
+    let message = unsafe { CStr::from_ptr(text) }.to_string_lossy();
+    let message = message.trim_end();
+    if message.is_empty() {
+        return;
+    }
+    if level >= sys::ggml_log_level_GGML_LOG_LEVEL_ERROR {
+        tracing::error!(target: "llama.cpp", "{message}");
+    } else if level >= sys::ggml_log_level_GGML_LOG_LEVEL_WARN {
+        tracing::warn!(target: "llama.cpp", "{message}");
+    } else {
+        tracing::debug!(target: "llama.cpp", "{message}");
+    }
 }
 
 /// Результат генерации нативного движка.
@@ -452,24 +481,71 @@ fn cstring(value: &str) -> Result<CString> {
     CString::new(value).map_err(|_| LlmError::Config("строка содержит NUL".to_string()))
 }
 
-/// Прочитать строку метаданных модели (`meta_val_str`).
+/// Максимальный размер значения метаданных (защита от патологического роста).
+const META_VALUE_LIMIT: usize = 1 << 20;
+
+/// Результат одного чтения строкового значения метаданных.
+#[derive(Debug, PartialEq)]
+enum MetaRead {
+    /// Ключа нет (или ошибка чтения).
+    Missing,
+    /// Значение усечено буфером — нужен буфер указанного размера.
+    NeedMore(usize),
+    /// Готовое значение.
+    Value(String),
+}
+
+/// Разобрать результат `llama_model_meta_val_str`.
+///
+/// Семантика `snprintf`: возвращается полная длина значения без NUL; если
+/// она не меньше размера буфера — значение усечено и его нужно перечитать
+/// буфером большего размера.
+fn meta_value_chunk(written: i32, buffer: Vec<u8>) -> MetaRead {
+    if written < 0 {
+        return MetaRead::Missing;
+    }
+    let written = written as usize;
+    if written >= buffer.len() {
+        return MetaRead::NeedMore(written + 1);
+    }
+    let mut bytes = buffer;
+    bytes.truncate(written);
+    // Страховка: не тащить NUL-паддинг в String.
+    while bytes.last() == Some(&0) {
+        bytes.pop();
+    }
+    MetaRead::Value(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Прочитать строку метаданных модели (`meta_val_str`) с динамическим
+/// буфером: первый запрос — короткий, при усечении буфер растёт до полной
+/// длины значения (например, chat-шаблон Gemma 4 — ~17 КиБ).
+
 fn read_meta_str(model: *const sys::llama_model, key: &str) -> Option<String> {
     let c_key = CString::new(key).ok()?;
-    let mut buffer = vec![0u8; 8192];
-    // SAFETY: ключ и буфер живут на время вызова.
-    let written = unsafe {
-        sys::llama_model_meta_val_str(
-            model,
-            c_key.as_ptr(),
-            buffer.as_mut_ptr() as *mut i8,
-            buffer.len(),
-        )
-    };
-    if written < 0 {
-        return None;
+    let mut size = 4096usize;
+    loop {
+        let mut buffer = vec![0u8; size];
+        // SAFETY: ключ и буфер живут на время вызова.
+        let written = unsafe {
+            sys::llama_model_meta_val_str(
+                model,
+                c_key.as_ptr(),
+                buffer.as_mut_ptr() as *mut i8,
+                buffer.len(),
+            )
+        };
+        match meta_value_chunk(written, buffer) {
+            MetaRead::Missing => return None,
+            MetaRead::Value(value) => return Some(value),
+            MetaRead::NeedMore(needed) => {
+                if needed > META_VALUE_LIMIT {
+                    return None;
+                }
+                size = needed;
+            }
+        }
     }
-    buffer.truncate((written as usize).min(buffer.len()));
-    Some(String::from_utf8_lossy(&buffer).into_owned())
 }
 
 /// Имя квантизации по коду `llama_ftype` (константы llama.cpp v0.7.0).
@@ -518,4 +594,36 @@ mod tests {
         assert!(cstring("ок\nстрока").is_ok());
         assert!(cstring("nul\0внутри").is_err());
     }
+}
+
+#[test]
+fn meta_value_chunk_reads_normal_value() {
+    let mut buffer = vec![0u8; 32];
+    let value = "Q3_K_S";
+    buffer[..value.len()].copy_from_slice(value.as_bytes());
+    assert_eq!(
+        meta_value_chunk(value.len() as i32, buffer),
+        MetaRead::Value(value.to_string())
+    );
+}
+
+#[test]
+fn meta_value_chunk_requests_bigger_buffer_for_large_value() {
+    let buffer = vec![0u8; 8192];
+    assert_eq!(meta_value_chunk(17_336, buffer), MetaRead::NeedMore(17_337));
+}
+
+#[test]
+fn meta_value_chunk_missing_on_error() {
+    assert_eq!(meta_value_chunk(-1, vec![0u8; 8]), MetaRead::Missing);
+}
+
+#[test]
+fn meta_value_chunk_trims_trailing_nul_padding() {
+    let mut buffer = vec![0u8; 12];
+    buffer[..5].copy_from_slice(b"value");
+    assert_eq!(
+        meta_value_chunk(8, buffer),
+        MetaRead::Value("value".to_string())
+    );
 }
