@@ -1,0 +1,35 @@
+[package]
+name = "tensa-perf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Профилирование устройства и динамическое распределение ролей heavy/thin (ТЗ tensa-perf; ADR-004, ADR-012, ADR-013)"
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../tensa-core" }
+tensa-nodes = { path = "../tensa-nodes" }
+# ModelTier — единый источник (не дублировать; используется и tensa-router).
+tensa-llama = { path = "../tensa-llm/llama" }
+
+# Внешние (из workspace)
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+sysinfo.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true
+
+[features]
+default = []

@@ -8,6 +8,7 @@ members = [
     "crates/tensa-core",
     "crates/tensa-memory",
     "crates/tensa-nodes",
+    "crates/tensa-perf",
     "crates/tensa-llm",
     "crates/tensa-llm/llama-sys",
     "crates/tensa-llm/llama",
@@ -62,6 +63,10 @@ semver = "1.0"
 # API lance 13.0 / fastembed 7.1 проверен: crates/tensa-memory/tests/api_surface.rs.
 lance = "13.0"
 fastembed = "7.1"
+# Профилирование устройства (tensa-perf, ТЗ tensa-perf).
+sysinfo = "0.39"
+# Windows API: батарея (GetSystemPowerStatus); используется под cfg(windows).
+windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
 
 [profile.release]
 opt-level = 3

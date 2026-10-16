@@ -8542,6 +8542,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tensa-perf"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tensa-core",
+ "tensa-llama",
+ "tensa-nodes",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "tensa-sync"
 version = "0.1.0"
 dependencies = [
