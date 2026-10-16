@@ -44,9 +44,7 @@ fn config_for(path: PathBuf) -> LlmConfig {
 #[ignore = "требует скачанную GGUF ~1.6 ГБ; запускать с --ignored"]
 async fn loads_real_model_and_generates() {
     let Some(path) = model_path() else {
-        panic!(
-            "модель не найдена: задайте TENSA_TEST_MODEL или скачайте GGUF в ~/.tensa/models/"
-        );
+        panic!("модель не найдена: задайте TENSA_TEST_MODEL или скачайте GGUF в ~/.tensa/models/");
     };
 
     let engine = LlamaEngine::new();
@@ -86,7 +84,9 @@ async fn loads_real_model_and_generates() {
     assert!(response.tokens_prompt > 0);
 
     LlmEngine::unload(&engine).await.expect("unload");
-    let health = LlmEngine::health(&engine).await.expect("health после unload");
+    let health = LlmEngine::health(&engine)
+        .await
+        .expect("health после unload");
     assert!(!health.loaded);
     assert!(LlmEngine::model_info(&engine).is_none());
 }
@@ -95,9 +95,7 @@ async fn loads_real_model_and_generates() {
 #[ignore = "требует скачанную GGUF ~1.6 ГБ; запускать с --ignored"]
 async fn chat_with_template_generates_reply() {
     let Some(path) = model_path() else {
-        panic!(
-            "модель не найдена: задайте TENSA_TEST_MODEL или скачайте GGUF в ~/.tensa/models/"
-        );
+        panic!("модель не найдена: задайте TENSA_TEST_MODEL или скачайте GGUF в ~/.tensa/models/");
     };
 
     let engine = LlamaEngine::new();

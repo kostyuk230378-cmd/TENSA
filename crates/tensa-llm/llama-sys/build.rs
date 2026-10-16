@@ -23,12 +23,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LLAMA_CPP_DIR");
     println!("cargo:rerun-if-env-changed=LIBCLANG_PATH");
 
-    #[cfg(not(feature = "native"))]
-    {
-        // Нативный слой не подключён — см. доккомментарий крейта.
-        return;
-    }
-
+    // Без фичи `native` крейт компилируется пустым (см. доккомментарий крейта).
     #[cfg(feature = "native")]
     {
         let source = native_source_dir();

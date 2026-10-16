@@ -251,7 +251,10 @@ impl LlamaEngine {
     #[cfg(feature = "native")]
     fn native_handle(
         &self,
-    ) -> Result<(std::sync::Arc<tokio::sync::Mutex<crate::native::NativeEngine>>, LlmConfig)> {
+    ) -> Result<(
+        std::sync::Arc<tokio::sync::Mutex<crate::native::NativeEngine>>,
+        LlmConfig,
+    )> {
         let st = self
             .inner
             .read()
@@ -268,9 +271,7 @@ impl LlamaEngine {
         let native =
             tokio::task::spawn_blocking(move || crate::native::NativeEngine::load(&load_config))
                 .await
-                .map_err(|error| {
-                    LlmError::Llama(format!("загрузка модели прервана: {error}"))
-                })??;
+                .map_err(|error| LlmError::Llama(format!("загрузка модели прервана: {error}")))??;
 
         let info = native.model_info(&config);
         let mut st = self
