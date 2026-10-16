@@ -10,6 +10,7 @@ members = [
     "crates/tensa-nodes",
     "crates/tensa-perf",
     "crates/tensa-router",
+    "crates/tensa-server",
     "crates/tensa-tools",
     "crates/tensa-cli",
     "crates/tensa-llm",

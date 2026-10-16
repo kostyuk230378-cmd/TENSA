@@ -1,0 +1,35 @@
+[package]
+name = "tensa-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "HTTP-бэкенд PWA (Контракт 12): axum-роутер поверх существующих крейтов Tensa (health/approvals/notes/events, Bearer-токен)"
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../tensa-core" }
+tensa-approval = { path = "../tensa-approval" }
+
+# Внешние (из workspace)
+axum.workspace = true
+tower-http.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+# ServiceExt::oneshot для интеграционных тестов роутера.
+tower.workspace = true
+
+[features]
+default = []
