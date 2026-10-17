@@ -40,7 +40,26 @@ pub fn routes(static_dir: &Path) -> Router<AppState> {
     Router::new()
         .route("/", get(index))
         .route("/app", get(index))
+        // Плавающий виджет: отдельный путь вне scope service worker (/static),
+        // иначе WebView2 отдаёт закешированную старую версию.
+        .route("/widget", get(widget))
         .nest_service("/static", ServeDir::new(static_dir))
+}
+
+/// `GET /widget`: плавающий виджет (тот же widget.html, без SW-кеша).
+async fn widget(State(state): State<AppState>) -> Response {
+    let path = state.static_dir.join("widget.html");
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], bytes).into_response(),
+        Err(err) => {
+            tracing::warn!(path = %path.display(), error = %err, "widget.html не найден");
+            (
+                [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                "widget.html не найден — пересоберите PWA",
+            )
+                .into_response()
+        }
+    }
 }
 
 /// `GET /` и `GET /app`: отдать `index.html` собранной PWA.

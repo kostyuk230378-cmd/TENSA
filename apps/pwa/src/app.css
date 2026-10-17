@@ -4,15 +4,19 @@
  */
 
 :root {
-  --bg: #111827;
-  --bg-soft: #1f2937;
-  --card: #1b2433;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
-  --accent: #38bdf8;
-  --ok: #34d399;
-  --bad: #f87171;
-  --warn: #fbbf24;
+  /* Брендбук TensorLogix (TLX): HUD / Dark. */
+  --bg: #09090b;
+  --bg-soft: #121215;
+  --card: #121215;
+  --text: #ffffff;
+  --muted: #a1a1aa;
+  --accent: #00f0ff;
+  --ok: #00ff66;
+  --bad: #ff0055;
+  --warn: #ffb800;
+  --border: rgba(255, 255, 255, 0.1);
+  --grid: #27272a;
+  --mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   --radius: 12px;
   color-scheme: dark;
 }
@@ -27,7 +31,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.45;
 }
@@ -40,7 +44,7 @@ button {
   font: inherit;
   color: var(--text);
   background: var(--bg-soft);
-  border: 1px solid #374151;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.5rem 0.9rem;
   cursor: pointer;
@@ -58,7 +62,7 @@ button:disabled {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0b1220;
+  color: #041014;
   font-weight: 600;
 }
 
@@ -66,8 +70,8 @@ input,
 textarea {
   font: inherit;
   color: var(--text);
-  background: var(--bg-soft);
-  border: 1px solid #374151;
+  background: rgba(9, 9, 11, 0.9);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.5rem 0.7rem;
   width: 100%;
@@ -145,7 +149,7 @@ nav {
   gap: 0.3rem;
   flex-wrap: wrap;
   padding-bottom: 0.6rem;
-  border-bottom: 1px solid #263041;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1rem;
 }
 
@@ -164,7 +168,7 @@ nav button.active {
   justify-content: space-between;
   align-items: center;
   gap: 0.6rem;
-  background: #3f2330;
+  background: rgba(255, 0, 85, 0.12);
   border: 1px solid var(--bad);
   border-radius: var(--radius);
   padding: 0.5rem 0.8rem;

@@ -1,6 +1,10 @@
 package com.tensorlogix.tensa;
 
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -112,6 +116,56 @@ public class SettingsActivity extends android.app.Activity {
             }
         });
         root.addView(installButton);
+
+        TextView overlayCaption = new TextView(this);
+        overlayCaption.setText("Плавающий виджет");
+        overlayCaption.setTextSize(18);
+        overlayCaption.setPadding(0, 28, 0, 4);
+        root.addView(overlayCaption);
+
+        final TextView overlayStatus = new TextView(this);
+        overlayStatus.setText(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && Settings.canDrawOverlays(this)
+                ? "Разрешение «поверх приложений» выдано."
+                : "Нужно разрешение «Поверх других приложений».");
+        overlayStatus.setPadding(0, 4, 0, 8);
+        root.addView(overlayStatus);
+
+        Button overlayStart = new Button(this);
+        overlayStart.setText("Включить виджет");
+        overlayStart.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && !Settings.canDrawOverlays(SettingsActivity.this)) {
+                    Intent intent = new Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                    return;
+                }
+                Intent service = new Intent(SettingsActivity.this, OverlayService.class)
+                        .putExtra("server", Prefs.server(SettingsActivity.this));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(service);
+                } else {
+                    startService(service);
+                }
+                overlayStatus.setText("Виджет запущен — зелёная пилюля поверх приложений.");
+            }
+        });
+        root.addView(overlayStart);
+
+        Button overlayStop = new Button(this);
+        overlayStop.setText("Остановить виджет");
+        overlayStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stopService(new Intent(SettingsActivity.this, OverlayService.class));
+                overlayStatus.setText("Виджет остановлен.");
+            }
+        });
+        root.addView(overlayStop);
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);

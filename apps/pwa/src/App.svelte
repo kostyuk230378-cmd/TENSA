@@ -181,8 +181,8 @@
   }
 
   .bottom button.active {
-    background: rgba(96, 165, 250, 0.18);
-    border-color: rgba(96, 165, 250, 0.5);
+    background: rgba(0, 240, 255, 0.14);
+    border-color: rgba(0, 240, 255, 0.45);
   }
 
   .badge {
@@ -193,7 +193,7 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 9px;
-    background: #ef4444;
+    background: #ff0055;
     color: #fff;
     font-size: 11px;
     line-height: 18px;
@@ -208,8 +208,10 @@
     z-index: 30;
     padding: 10px;
     border-radius: 16px;
-    background: #131a24;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(18, 18, 21, 0.74);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   }
 

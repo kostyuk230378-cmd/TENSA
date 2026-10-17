@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tensa</title>
+    <style>
+      /* Брендбук TensorLogix (TLX): HUD / cyberpunk / minimalism.
+         Background Deep Space #09090B, Surface #121215, Grid #27272A,
+         Primary Neon #00F0FF, Success Green #00FF66, Alert #FF0055,
+         Warning #FFB800; границы 1px rgba(255,255,255,.1), стекло blur(12px). */
+      :root {
+        --bg: #09090b;
+        --surface: #121215;
+        --grid: #27272a;
+        --cyan: #00f0ff;
+        --green: #00ff66;
+        --red: #ff0055;
+        --yellow: #ffb800;
+        --text: #ffffff;
+        --text2: #a1a1aa;
+        --muted: #52525b;
+        --border: rgba(255, 255, 255, 0.1);
+        --glass: rgba(18, 18, 21, 0.97);
+        --ui: "Inter", "Manrope", "Segoe UI", system-ui, sans-serif;
+        --mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        overflow: hidden;
+        font-family: var(--ui);
+        color: var(--text);
+        user-select: none;
+      }
+
+      .stage { position: relative; width: 100vw; height: 100vh; }
+
+      /* Лампочка уведомлений: тёмное стекло, предупреждающий жёлтый. */
+      .bulb {
+        position: absolute;
+        top: 2px;
+        right: 14px;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--glass);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.55);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        z-index: 5;
+      }
+
+      .bulb svg { width: 22px; height: 22px; }
+
+      .badge {
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: var(--red);
+        color: #fff;
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 18px;
+        text-align: center;
+        box-shadow: 0 0 12px rgba(255, 0, 85, 0.6);
+      }
+
+      /* Пилюля Tensa: Success Green, свечение, зоны-кнопки. */
+      .pill {
+        position: absolute;
+        left: 4px;
+        right: 4px;
+        bottom: 4px;
+        height: 88px;
+        border-radius: 44px;
+        background:
+          radial-gradient(120% 160% at 20% 0%, rgba(255, 255, 255, 0.35), transparent 45%),
+          linear-gradient(150deg, #00ff66 0%, #00e05a 55%, #00b34a 100%);
+        box-shadow:
+          0 0 0 1px rgba(0, 255, 102, 0.45),
+          0 0 28px rgba(0, 255, 102, 0.35),
+          0 14px 34px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        cursor: grab;
+      }
+
+      .zone {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(6, 40, 18, 0.35);
+        background: rgba(255, 255, 255, 0.14);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: background 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .zone:hover {
+        background: rgba(255, 255, 255, 0.28);
+        box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+      }
+
+      .zone svg { width: 26px; height: 26px; }
+
+      .letter {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        line-height: 1;
+        color: #062b12;
+      }
+
+      /* Развёрнутая панель: тёмное стекло HUD. */
+      .panel {
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+        background: var(--glass);
+        border: 1px solid var(--border);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.4),
+          0 0 34px rgba(0, 240, 255, 0.18),
+          0 24px 60px rgba(0, 0, 0, 0.65);
+        display: none;
+        flex-direction: column;
+        padding: 12px;
+        overflow: hidden;
+      }
+
+      .panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 24px 24px;
+        opacity: 0.9;
+      }
+
+      .panel > * { position: relative; }
+
+      .expanded .panel { display: flex; }
+      .expanded .pill { display: none; }
+      .expanded .bulb { display: none; }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 2px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-title {
+        font-weight: 600;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+        flex: 1;
+      }
+
+      .mono { font-family: var(--mono); }
+
+      .icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        font-size: 16px;
+        color: var(--text2);
+      }
+
+      .icon-btn:hover {
+        color: var(--cyan);
+        border-color: rgba(0, 240, 255, 0.5);
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+      }
+
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 2px 8px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--grid) transparent;
+      }
+
+      .bubble {
+        background: rgba(18, 18, 21, 0.75);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin: 0 0 8px;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--text);
+      }
+
+      .bubble.user {
+        border-color: rgba(0, 240, 255, 0.35);
+        box-shadow: inset 3px 0 0 var(--cyan);
+      }
+
+      .bubble.error {
+        border-color: rgba(255, 0, 85, 0.45);
+        color: #ffd7e3;
+      }
+
+      .bubble .meta {
+        display: block;
+        margin-top: 6px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .file {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        margin: 6px 0;
+        font-size: 13px;
+      }
+
+      .file-name {
+        border: 0;
+        background: none;
+        padding: 0;
+        text-align: left;
+        font: inherit;
+        color: var(--cyan);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .file-actions { display: flex; gap: 6px; }
+
+      .mini-btn {
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        background: transparent;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--cyan);
+        text-decoration: none;
+      }
+
+      .mini-btn:hover { box-shadow: 0 0 12px rgba(0, 240, 255, 0.35); }
+
+      .mini-btn.ok { color: var(--green); border-color: rgba(0, 255, 102, 0.5); }
+      .mini-btn.no { color: var(--red); border-color: rgba(255, 0, 85, 0.5); }
+
+      .composer { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+      .composer input {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 12px;
+        font-size: 14px;
+        font-family: var(--ui);
+        background: rgba(9, 9, 11, 0.9);
+        color: var(--text);
+        outline: none;
+      }
+
+      .composer input:focus {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.35), 0 0 18px rgba(0, 240, 255, 0.18);
+      }
+
+      .composer button {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 240, 255, 0.6);
+        background: var(--cyan);
+        color: #041014;
+        font-size: 18px;
+        cursor: pointer;
+        box-shadow: 0 0 18px rgba(0, 240, 255, 0.4);
+      }
+
+      .menu {
+        position: absolute;
+        right: 10px;
+        bottom: 102px;
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 6px;
+        display: none;
+        flex-direction: column;
+        min-width: 190px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 240, 255, 0.12);
+        z-index: 10;
+      }
+
+      .menu.open { display: flex; }
+
+      .menu button {
+        border: 0;
+        background: transparent;
+        color: var(--text2);
+        text-align: left;
+        padding: 10px 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .menu button:hover { background: rgba(0, 240, 255, 0.1); color: var(--cyan); }
+      .menu button.danger:hover { background: rgba(255, 0, 85, 0.12); color: var(--red); }
+
+      .muted { color: var(--muted); font-size: 12px; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .spacer { flex: 1; }
+
+      .status { font-family: var(--mono); font-size: 11px; letter-spacing: 0.5px; }
+      .status.pending { color: var(--yellow); }
+      .status.approved { color: var(--green); }
+      .status.rejected { color: var(--red); }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <button class="bulb" id="bulb" title="Уведомления и одобрения" aria-label="Уведомления">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ffb800" stroke-width="1.8">
+          <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.8 10.6c.6.5.8 1.1.8 2.1h6c0-1 .2-1.6.8-2.1A6 6 0 0 0 12 3z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="badge" id="badge" hidden>0</span>
+      </button>
+
+      <div class="pill" id="pill" title="Tensa — потяни, чтобы переместить">
+        <button class="zone" id="mic" title="Голосовой ввод" aria-label="Микрофон">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#062b12" stroke-width="1.8">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="zone" id="letter" title="Открыть Tensa" aria-label="T">
+          <span class="letter">T</span>
+        </button>
+        <button class="zone" id="dots" title="Меню" aria-label="Меню">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#062b12" stroke-width="1.8">
+            <circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="menu" id="menu">
+        <button data-view="approvals">Одобрения</button>
+        <button data-view="settings">Настройки</button>
+        <button data-view="chat">Чат</button>
+        <button id="collapse">Свернуть</button>
+        <button id="quit" class="danger">Выход</button>
+      </div>
+
+      <div class="panel" id="panel">
+        <div class="panel-head">
+          <button class="icon-btn" id="back" title="Свернуть">←</button>
+          <div class="panel-title"><span id="panel-title">Tensa</span> <span class="muted mono">// TLX</span></div>
+          <button class="icon-btn" id="gear" title="Настройки">⚙</button>
+        </div>
+        <div class="content" id="content"></div>
+        <div class="composer" id="composer">
+          <input id="input" placeholder="Спросите Tensa…" autocomplete="off" />
+          <button id="send" title="Отправить">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const sendIpc = (message) => {
+        if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(message);
+      };
+
+      const stage = document.getElementById('stage');
+      const content = document.getElementById('content');
+      const composer = document.getElementById('composer');
+      const input = document.getElementById('input');
+      const badge = document.getElementById('badge');
+      const menu = document.getElementById('menu');
+      const title = document.getElementById('panel-title');
+
+      let view = 'chat';
+      let expanded = false;
+      let messages = [];
+
+      function setExpanded(next) {
+        expanded = next;
+        stage.classList.toggle('expanded', next);
+        sendIpc(next ? 'expand' : 'collapse');
+        if (next) { render(); setTimeout(() => input.focus(), 120); }
+      }
+
+      function renderChat() {
+        title.textContent = 'Tensa';
+        composer.style.display = 'flex';
+        content.innerHTML = '';
+        for (const message of messages) {
+          const bubble = document.createElement('div');
+          bubble.className = `bubble ${message.role}`;
+          bubble.textContent = message.text;
+          if (message.meta) {
+            const meta = document.createElement('span');
+            meta.className = 'meta';
+            meta.textContent = message.meta;
+            bubble.appendChild(meta);
+          }
+          content.appendChild(bubble);
+          for (const file of message.files || []) {
+            const row = document.createElement('div');
+            row.className = 'file';
+            const name = document.createElement('button');
+            name.className = 'file-name';
+            name.textContent = file.name;
+            name.title = file.path;
+            name.onclick = () => openFile(file);
+            const actions = document.createElement('div');
+            actions.className = 'file-actions';
+            const download = document.createElement('a');
+            download.className = 'mini-btn';
+            download.textContent = 'Скачать';
+            download.href = `/api/v1/files/download?path=${encodeURIComponent(file.path)}`;
+            download.download = file.name;
+            actions.appendChild(download);
+            row.append(name, actions);
+            content.appendChild(row);
+          }
+        }
+        if (!messages.length) {
+          const hint = document.createElement('div');
+          hint.className = 'bubble';
+          hint.textContent = 'Спросите Tensa: найду файлы на дисках, отправлю письмо, покажу одобрения.';
+          content.appendChild(hint);
+        }
+        content.scrollTop = content.scrollHeight;
+      }
+
+      async function renderApprovals() {
+        title.textContent = 'Одобрения';
+        composer.style.display = 'none';
+        content.innerHTML = '<div class="bubble">Загрузка…</div>';
+        try {
+          const response = await fetch('/api/v1/approvals');
+          const actions = await response.json();
+          content.innerHTML = '';
+          if (!actions.length) {
+            content.innerHTML = '<div class="bubble">Ожидающих действий нет.</div>';
+            return;
+          }
+          for (const action of actions) {
+            const row = document.createElement('div');
+            row.className = 'file';
+            const label = document.createElement('div');
+            label.innerHTML = `<b>${action.kind}</b><br><span class="status ${action.status}">${action.status}</span> <span class="muted mono">${action.id.slice(0, 8)}</span>`;
+            row.appendChild(label);
+            if (action.status === 'pending') {
+              const actionsBox = document.createElement('div');
+              actionsBox.className = 'file-actions';
+              const ok = document.createElement('button');
+              ok.className = 'mini-btn ok';
+              ok.textContent = '✔';
+              ok.onclick = () => decide(action.id, 'approve');
+              const no = document.createElement('button');
+              no.className = 'mini-btn no';
+              no.textContent = '✖';
+              no.onclick = () => decide(action.id, 'reject');
+              actionsBox.append(ok, no);
+              row.appendChild(actionsBox);
+            }
+            content.appendChild(row);
+          }
+        } catch (error) {
+          content.innerHTML = `<div class="bubble error">${error.message}</div>`;
+        }
+      }
+
+      async function renderSettings() {
+        title.textContent = 'Настройки';
+        composer.style.display = 'none';
+        content.innerHTML = '<div class="bubble">Загрузка…</div>';
+        try {
+          const [version, accounts] = await Promise.all([
+            fetch('/api/v1/version').then((r) => r.text()),
+            fetch('/api/v1/email/accounts').then((r) => r.json()),
+          ]);
+          const list = accounts.map((a) => `${a.label || a.id}: ${a.email}`).join('<br>') || '—';
+          content.innerHTML = `
+            <div class="bubble"><b>Ядро</b><br><span class="mono">${version}</span></div>
+            <div class="bubble"><b>Почта</b><br>${list}</div>
+            <div class="bubble"><b>Модель</b><br><span class="mono">gemma-4-E2B-it-XS-TS-Q3_K_S.gguf</span><br><span class="muted">~1.73 ГБ, локально. Облако (26B) — ключ OpenRouter в secrets.toml. Токен на этом ПК не нужен.</span></div>`;
+        } catch (error) {
+          content.innerHTML = `<div class="bubble error">${error.message}</div>`;
+        }
+      }
+
+      function render() {
+        if (view === 'approvals') return renderApprovals();
+        if (view === 'settings') return renderSettings();
+        return renderChat();
+      }
+
+      async function send() {
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        messages.push({ role: 'user', text });
+        renderChat();
+        try {
+          const response = await fetch('/api/v1/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const reply = await response.json();
+          const files = (reply.action_payload && reply.action_payload.files) || [];
+          messages.push({
+            role: 'assistant',
+            text: reply.text,
+            files,
+            meta: reply.model_used ? `${reply.model_used}${reply.degraded ? ' · локальная' : ''}` : '',
+          });
+        } catch (error) {
+          messages.push({ role: 'error', text: `Ошибка: ${error.message}` });
+        }
+        renderChat();
+      }
+
+      async function openFile(file) {
+        try {
+          const response = await fetch('/api/v1/files/open', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: file.path }),
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (error) {
+          messages.push({ role: 'error', text: `Не открылось: ${error.message}` });
+          renderChat();
+        }
+      }
+
+      async function decide(id, kind) {
+        await fetch(`/api/v1/approvals/${id}/${kind}`, { method: 'POST' });
+        renderApprovals();
+        refreshBadge();
+      }
+
+      async function refreshBadge() {
+        try {
+          const response = await fetch('/api/v1/approvals');
+          const actions = await response.json();
+          const pending = actions.filter((a) => a.status === 'pending').length;
+          badge.hidden = pending === 0;
+          badge.textContent = String(pending);
+        } catch {
+          badge.hidden = true;
+        }
+      }
+
+      document.getElementById('mic').onclick = () => { view = 'chat'; setExpanded(true); };
+      document.getElementById('letter').onclick = () => { view = 'chat'; setExpanded(true); };
+      document.getElementById('dots').onclick = (event) => {
+        event.stopPropagation();
+        menu.classList.toggle('open');
+      };
+      document.getElementById('bulb').onclick = () => { view = 'approvals'; setExpanded(true); render(); };
+      document.getElementById('back').onclick = () => setExpanded(false);
+      document.getElementById('gear').onclick = () => { view = 'settings'; render(); };
+      document.getElementById('collapse').onclick = () => { menu.classList.remove('open'); setExpanded(false); };
+      document.getElementById('quit').onclick = () => { menu.classList.remove('open'); sendIpc('quit'); };
+      document.getElementById('send').onclick = send;
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); send(); }
+        if (event.key === 'Escape') setExpanded(false);
+      });
+
+      menu.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const next = target.dataset.view;
+        if (next) {
+          view = next;
+          menu.classList.remove('open');
+          setExpanded(true);
+          render();
+        }
+      });
+
+      const pill = document.getElementById('pill');
+      pill.addEventListener('mousedown', (event) => {
+        if (event.button !== 0) return;
+        if (event.target.closest('button')) return;
+        sendIpc('drag');
+      });
+
+      document.addEventListener('mousedown', (event) => {
+        if (!menu.contains(event.target) && !event.target.closest('#dots')) {
+          menu.classList.remove('open');
+        }
+      });
+
+      // Предпросмотр развёрнутого состояния в браузере: widget.html#expanded
+      const previewExpanded =
+        new URLSearchParams(location.search).get('expanded') === '1' ||
+        location.hash === '#expanded';
+      if (previewExpanded) {
+        expanded = true;
+        stage.classList.add('expanded');
+        render();
+      }
+
+      refreshBadge();
+      setInterval(refreshBadge, 15000);
+    </script>
+  </body>
+</html>
