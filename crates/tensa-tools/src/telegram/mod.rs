@@ -248,6 +248,13 @@ impl TelegramService {
         }
         audit::record(&self.root, NAME, "bot start", "ok");
 
+        // Сторож очереди: карточки с кнопками на новые действия (propose → push).
+        let watcher = self.clone();
+        let watcher_store = store.clone();
+        tokio::spawn(async move {
+            watcher.watch_new_actions(watcher_store).await;
+        });
+
         let mut offset: Option<i64> = None;
         loop {
             match self.client.get_updates(offset, 25).await {
@@ -266,6 +273,42 @@ impl TelegramService {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
+        }
+    }
+
+    /// Фоновый сторож очереди: присылает карточку с кнопками на каждое новое
+    /// ожидающее действие.
+    ///
+    /// Так владельцу не нужно самому спрашивать `/approvals`: `propose`
+    /// (LLM/CLI) сразу приводит к сообщению с ✔/✖. При старте присылаются
+    /// все уже ожидающие действия (после перезапуска бот не теряет очередь).
+    async fn watch_new_actions(self: Arc<Self>, store: Arc<dyn ApprovalStore>) {
+        let mut seen: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
+        loop {
+            match store.get_pending().await {
+                Ok(pending) => {
+                    for action in pending {
+                        if seen.insert(action.id) {
+                            match handlers::send_action_card(self.as_ref(), &action).await {
+                                Ok(()) => audit::record(
+                                    &self.root,
+                                    NAME,
+                                    &format!("notify {}", action.id),
+                                    "ok",
+                                ),
+                                Err(error) => tracing::warn!(
+                                    error = %error,
+                                    "telegram: не удалось отправить карточку действия"
+                                ),
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(error = %error, "telegram: сторож очереди: get_pending не удался");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
     }
 }

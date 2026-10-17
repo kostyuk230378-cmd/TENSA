@@ -93,29 +93,7 @@ async fn handle_command(
                 .send_to_owner(&format!("Ожидают решения: {}", pending.len()))
                 .await?;
             for action in pending.iter().take(APPROVALS_LIMIT) {
-                let payload = action.payload.to_string();
-                let short = if payload.chars().count() > 160 {
-                    let mut text: String = payload.chars().take(160).collect();
-                    text.push('…');
-                    text
-                } else {
-                    payload
-                };
-                let caption = format!(
-                    "{} · {}\n{}\nid: {}",
-                    action.kind.as_str(),
-                    action.status.as_str(),
-                    short,
-                    action.id
-                );
-                service
-                    .client()
-                    .send_message(
-                        service.owner_chat_id(),
-                        &caption,
-                        Some(callbacks::keyboard(&action.id)),
-                    )
-                    .await?;
+                send_action_card(service, action).await?;
             }
         }
         "/approve" => decide_by_command(service, store, argument, Decision::Approve).await?,
@@ -143,6 +121,40 @@ async fn handle_command(
             }
         }
     }
+    Ok(())
+}
+
+/// Отправить владельцу карточку действия с кнопками решения.
+///
+/// Используется и командой `/approvals`, и сторожем очереди в сервисе:
+/// владельцу не нужно самому спрашивать — карточка приходит на новое действие.
+pub(super) async fn send_action_card(
+    service: &TelegramService,
+    action: &tensa_approval::Action,
+) -> Result<(), TelegramError> {
+    let payload = action.payload.to_string();
+    let short = if payload.chars().count() > 160 {
+        let mut text: String = payload.chars().take(160).collect();
+        text.push('…');
+        text
+    } else {
+        payload
+    };
+    let caption = format!(
+        "{} · {}\n{}\nid: {}",
+        action.kind.as_str(),
+        action.status.as_str(),
+        short,
+        action.id
+    );
+    service
+        .client()
+        .send_message(
+            service.owner_chat_id(),
+            &caption,
+            Some(callbacks::keyboard(&action.id)),
+        )
+        .await?;
     Ok(())
 }
 
