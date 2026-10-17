@@ -26,8 +26,11 @@ pub enum TelegramError {
     Approval(#[from] tensa_approval::ApprovalError),
 
     /// Транспортная ошибка (сеть, TLS, таймаут).
-    #[error("telegram: HTTP-ошибка: {0}")]
-    Http(#[from] reqwest::Error),
+    ///
+    /// [derived] Текст — БЕЗ URL и токена: `reqwest::Error` в Display содержит
+    /// URL запроса, а в URL бота лежит токен (секрет в лог не попадает).
+    #[error("telegram: сетевая ошибка: {0}")]
+    Transport(String),
 
     /// Bot API вернул `ok: false`.
     #[error("telegram: API вернул {status}: {description}")]
@@ -48,10 +51,23 @@ pub enum TelegramError {
     },
 }
 
+/// Транспортные ошибки reqwest — без URL (в URL бота лежит токен).
+impl From<reqwest::Error> for TelegramError {
+    fn from(error: reqwest::Error) -> Self {
+        let reason = if error.is_timeout() {
+            "таймаут запроса"
+        } else if error.is_connect() {
+            "не удалось соединиться"
+        } else {
+            "ошибка транспорта"
+        };
+        Self::Transport(reason.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn missing_credential_message_is_clear() {
         let text = TelegramError::MissingCredential.to_string();

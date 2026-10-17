@@ -251,10 +251,26 @@ async fn apply_decision(
                 Decision::Approve => "✔ Подтверждено",
                 Decision::Reject => "✖ Отклонено",
             };
-            let text = format!(
+            let mut text = format!(
                 "{verb} владельцем (telegram)\nстатус: {}",
                 action.status.as_str()
             );
+
+            // Одобренную telegram-отправку исполняем сразу — цикл закрывается
+            // в один клик: propose → ✔ → сообщение ушло.
+            if matches!(decision, Decision::Approve) && action.kind.as_str() == "telegram_send" {
+                match service.execute_approved(store, action.id).await {
+                    Ok(executed) => {
+                        text = format!(
+                            "{verb} и исполнено (telegram)\nстатус: {}",
+                            executed.status.as_str()
+                        );
+                    }
+                    Err(error) => {
+                        tracing::warn!(error = %error, "telegram: исполнение одобренного не удалось");
+                    }
+                }
+            }
             match message_id {
                 Some(message_id) => {
                     let _ = service

@@ -30,7 +30,7 @@ impl TelegramClient {
     pub fn new(credential: impl Into<String>) -> Result<Self, TelegramError> {
         let http = reqwest::Client::builder()
             .build()
-            .map_err(TelegramError::Http)?;
+            .map_err(TelegramError::from)?;
         Ok(Self {
             credential: credential.into(),
             http,
@@ -57,9 +57,9 @@ impl TelegramClient {
             request = request.timeout(timeout);
         }
 
-        let response = request.send().await.map_err(TelegramError::Http)?;
+        let response = request.send().await.map_err(TelegramError::from)?;
         let status = response.status().as_u16();
-        let text = response.text().await.map_err(TelegramError::Http)?;
+        let text = response.text().await.map_err(TelegramError::from)?;
 
         let envelope: ApiEnvelope<T> =
             serde_json::from_str(&text).map_err(|error| TelegramError::Protocol {
