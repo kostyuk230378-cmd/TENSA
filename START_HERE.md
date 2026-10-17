@@ -1,11 +1,21 @@
 ```markdown
 # START HERE — для GLM 5.3
 
-**Версия:** 0.1.0
-**Дата:** 2026-10-06
-**Статус:** Утверждено
+**Версия:** 0.2.0-dev
+**Дата:** 2026-10-17
+**Статус:** В работе — Фаза 3 (документация и сборка релиза)
 
 ---
+
+## Текущее состояние (2026-10-17)
+
+- Релиз **v0.1.0**: `TensaSetup.exe` (Windows, 213 МБ, e5-small в комплекте) и `Tensa.apk`
+  (Android, 239 МБ, нативный клиент) — GitHub Releases.
+- Тесты: `cargo test --workspace` — 356 passed (1 ignored); feature-прогоны: memory
+  (Lance+fastembed) — 35 (1 ignored), llama native — 36 (2 ignored); clippy `-D warnings` — 0; CI зелёный.
+- Сервер: `/query` (облако OpenRouter / локальная GGUF с fallback), календарь (конфликты + ICS),
+  почтовые аккаунты, приём модели e5 из APK; память `tensa memory` на реальной модели.
+- Дальше: README/документы → пересборка установщиков → Release v0.2.0 → публикация (пост + заявка).
 
 ## Кто ты
 

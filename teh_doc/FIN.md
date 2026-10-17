@@ -295,3 +295,15 @@ tensa/
 - `Contract_13.md` — Core Memory.
 - `dop_tz.md` — Дополнение к ТЗ tensa-memory.
 - `dop_tz_core.md` — Дополнение к ТЗ tensa-core.
+
+
+## Состояние на 2026-10-17
+
+- Код: 14 членов воркспейса (ядро Rust: core/approval/memory/llm/router/tools/server/cli/ffi/nodes/perf/sync,
+  обёртки llama.cpp), PWA (Svelte 5), Android (нативный Java-клиент), Windows-установщик (NSIS).
+- Тесты: workspace 356 passed (1 ignored); memory Lance+fastembed 35 (1 ignored); llama native 36
+  (2 ignored). fmt/clippy чисто; CI зелёный.
+- Реализовано сверх документации: `POST /query` (облако/локальная GGUF с fallback), календарь
+  (guard конфликтов + ICS), почтовые аккаунты, `/models/embedder` (приём e5-small из APK),
+  `tensa memory` на реальной модели, установщики Windows/Android с моделью в комплекте.
+- Артефакты: GitHub Releases v0.1.0 — TensaSetup.exe (213 МБ) и Tensa.apk (239 МБ).

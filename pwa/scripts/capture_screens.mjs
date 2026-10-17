@@ -142,13 +142,13 @@ try {
   await shot('02-status.png');
 
   // 2. Одобрения (очередь пуста — честный текст).
-  await evaluate(`document.querySelectorAll('nav button')[1]?.click(); true`);
+  await evaluate(`document.querySelectorAll('nav button')[2]?.click(); true`);
   await sleep(700);
   console.log('одобрения:', await evaluate(`document.querySelector('main')?.innerText?.slice(0, 160) ?? ''`));
   await shot('03-approvals.png');
 
   // 3. Заметки: создание через настоящую форму (Svelte bind:value — событие input).
-  await evaluate(`document.querySelectorAll('nav button')[2]?.click(); true`);
+  await evaluate(`document.querySelectorAll('nav button')[3]?.click(); true`);
   await sleep(700);
   await evaluate(`(() => {
     const title = document.getElementById('note-title');
@@ -164,7 +164,7 @@ try {
   await shot('04-notes.png');
 
   // 4. Поиск по созданной заметке.
-  await evaluate(`document.querySelectorAll('nav button')[3]?.click(); true`);
+  await evaluate(`document.querySelectorAll('nav button')[4]?.click(); true`);
   await sleep(600);
   await evaluate(`(() => {
     const input = document.querySelector('.searchbar input');
@@ -179,7 +179,7 @@ try {
 
   // 5. Настройки: перед кадром очищаем поле токена в форме (токен не должен
   // попадать в демо-скриншоты; в localStorage значение не затрагивается).
-  await evaluate(`document.querySelectorAll('nav button')[5]?.click(); true`);
+  await evaluate(`document.querySelectorAll('nav button')[6]?.click(); true`);
   await sleep(600);
   await evaluate(`(() => {
     const input = document.getElementById('settings-token');
@@ -188,6 +188,25 @@ try {
   })()`);
   await sleep(200);
   await shot('06-settings.png');
+
+  // 6. Чат через ядро: сообщение → ответ (локальная GGUF может думать до минуты).
+  await evaluate(`document.querySelectorAll('nav button')[0]?.click(); true`);
+  await sleep(600);
+  await evaluate(`(() => {
+    const input = document.querySelector('main textarea');
+    if (input) { input.value = 'Скажи одним предложением, кто ты.'; input.dispatchEvent(new Event('input', { bubbles: true })); }
+    return true;
+  })()`);
+  await sleep(200);
+  await evaluate(`[...document.querySelectorAll('main button')].find((b) => b.textContent.includes('Отправить'))?.click(); true`);
+  let chatText = '';
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    await sleep(2000);
+    chatText = await evaluate(`document.querySelector('main')?.innerText ?? ''`);
+    if (chatText.includes('Tensa:') && !chatText.includes('Tensa: …')) break;
+  }
+  console.log('чат:', chatText.slice(0, 260));
+  await shot('07-chat.png');
 
   cdp.close();
   console.log('готово');

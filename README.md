@@ -1,99 +1,69 @@
-# Tensa — Документация
+# Tensa
 
-**Версия:** 0.1.0
-**Дата:** 2026-10-06
-**Статус:** Техническая документация завершена
+[![CI](https://github.com/kostyuk230378-cmd/TENSA/actions/workflows/ci.yml/badge.svg)](https://github.com/kostyuk230378-cmd/TENSA/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#лицензия)
 
----
+**Персональный ИИ-секретарь, который работает на ваших устройствах и делает только то, что вы одобрили.**
 
-## О проекте
+Tensa — self-hosted секретарь для одного человека: документы, почта, календарь, заметки,
+контакты. Модель — локальная (llama.cpp, GGUF) или облачная (OpenRouter); всё, что меняет мир
+за пределами приложения — отправить письмо, поставить встречу, запустить программу — проходит
+через `ApprovalStore`: сначала одобрение владельца, потом выполнение, с аудитом.
 
-**Tensa** — персональный ИИ-секретарь. Работает на нескольких
-узлах (десктоп, Android), синхронизируется, использует локальную
-и облачную LLM, работает с документами, почтой, календарём,
-Telegram, приложениями.
-
-**Ключевые принципы:**
-- Privacy-first (локальные модели, Tailscale, без облака Tensa).
-- Безопасность (ApprovalStore, белый список приложений, аудит).
-- Кроссплатформенность (Windows, Linux, Android; macOS, iOS — после MVP).
-- Open-source (текущий этап), с планами коммерциализации.
-- Разработка силами AI-ассистента (GLM 5.3) под архитектурным руководством.
+Ядро — Rust-воркспейс (14 членов: ядро и обёртки llama.cpp). Клиенты: **PWA** (Svelte 5),
+**Android** (нативный клиент, APK) и **Windows-установщик** (ядро + CLI + Telegram-бот + PWA).
+Синхронизация узлов (gRPC) — в разработке.
 
 ---
 
-## Структура документации
+## Что уже работает
 
-| Папка | Для кого | Что внутри |
-|---|---|---|
-| `FROM_GLM/` | **GLM 5.3** | Руководство: как работать, формат задач, тесты, ревью, CI |
-| `teh_doc/` | **GLM 5.3** | Техническая документация: ADR, контракты, ТЗ, примеры |
-| `PRODUCT DOC/` | Люди | Продуктовая документация |
-| `Guide/` | Люди | Руководства пользователя |
+| Контур | Возможности |
+|---|---|
+| **HTTP-ядро** | `/health`, `/version`, заметки (CRUD + FTS5-поиск), очередь одобрений (approve/reject), SSE `/events`, календарь (guard конфликтов + ICS), почтовые аккаунты, `POST /query` (облако/локальная модель с fallback), приём модели эмбеддингов из APK |
+| **Память** | иерархическая память (core/recall/archival, ADR-021), семантический поиск на `intfloat/multilingual-e5-small`: `tensa memory index / search / list / delete` (проверено на реальной модели) |
+| **Инструменты** | Telegram-бот «@your_tensa_bot» (`/status`, `/approvals`, `/approve`, `/reject`, inline-кнопки, сторож очереди), email через SMTP (lettre, STARTTLS/implicit TLS), документы PDF/DOCX/PPTX/XLSX/TXT/MD, Wake-on-LAN |
+| **PWA** | Чат (через ядро), Статус, Одобрения, Заметки, Поиск, Настройки — Svelte 5, SSE, i18n ru/en, PWA-манифест, офлайн-оболочка |
+| **Android (APK)** | Чат через ядро (резерв — прямой OpenRouter), Одобрения, Заметки, Поиск по заметкам, Почта (аккаунты), Календарь (список + создание, 409-конфликт), Статус, Настройки; кнопка **«Установить модель»** — передаёт e5-small из assets в ядро |
+| **Windows** | `TensaSetup.exe`: ядро + CLI + Telegram-бот + PWA + **модель e5-small в комплекте**; ярлыки, деинсталлятор; ставится без админа в `%LOCALAPPDATA%\Tensa` |
 
----
+## Модели
 
-## Для GLM 5.3 (AI-разработчик)
+- **Эмбеддер памяти e5-small** (`intfloat/multilingual-e5-small`) — **в комплекте** установщика
+  Windows и APK; работает офлайн, сеть не нужна.
+- **Локальная LLM** — GGUF в `~/.tensa/models` (по умолчанию `gemma-4-E2B-it-…`; ярлык
+  «Tensa (download models)» качает публичную сборку). Локальный инференс — llama.cpp внутри ядра.
+- **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
+  или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
+  Ключ выдаётся на https://openrouter.ai/keys.
 
-**Начни с:** `START_HERE.md`
+## Быстрый старт
 
-### Что прочитать
+1. Скачайте `TensaSetup.exe` из [Releases](https://github.com/kostyuk230378-cmd/TENSA/releases) и установите.
+2. Запустите ярлык **Tensa** — откроется браузер на `http://127.0.0.1:8765/app`
+   (окно консоли держит сервер; закрыли — сервер остановлен).
+3. Токен доступа — файл `%USERPROFILE%\.tensa\pwa_token`; вставьте его на экране подключения PWA.
+4. Телефон: установите APK (Release или `http://<ip-пк>:8765/static/Tensa.apk`), в Настройках
+   укажите адрес ядра (например `http://192.0.2.10:8765`) и тот же токен.
+5. Проверка памяти на ПК:
+   `tensa-cli.exe -c %USERPROFILE%\.tensa\config.toml memory index <файл>` →
+   `tensa-cli.exe … memory search "запрос"`.
 
-**1. Руководство для GLM (`FROM_GLM/`):**
-- `00-overview.md` — твоя роль, принципы.
-- `01-task-format.md` — формат задач.
-- `02-testing.md` — тестирование.
-- `03-review.md` — ревью.
-- `04-documentation.md` — документирование.
-- `05-rollback.md` — откат.
-- `06-cargo-workspace.md` — Cargo workspace.
-- `07-ci.md` — CI/CD.
-- `system_prompt_tensa.md` — **системный промпт для LLM Tensa**.
+## Тесты и качество
 
-**2. Техническая документация (`teh_doc/`):**
-- `00-index.md` — оглавление.
-- `01-adr.md` — 20 ADR.
-- `ADR-021.md` — иерархическая память (дополнение).
-- `02-contracts.md` — 12 контрактов.
-- `Contract_13.md` — Core Memory (дополнение).
-- `03-specs.md` — 14 ТЗ.
-- `dop_tz.md` — дополнение к ТЗ `tensa-memory`.
-- `dop_tz_core.md` — дополнение к ТЗ `tensa-core`.
-- `04-examples.md` — примеры кода.
-- `FIN.md` — финальная сводка.
+- `cargo test --workspace` — **356 passed, 0 failed, 1 ignored** (48 тестовых бинарей);
+- feature-прогоны: `tensa-memory --features lance,fastembed` — **35 passed** (1 ignored),
+  `tensa-llama --features native` — **36 passed** (2 ignored — требуют реальную GGUF-модель);
+- `cargo clippy --workspace --all-targets -- -D warnings` — 0 предупреждений; `cargo fmt --check` — чисто;
+- MSRV — 1.95; CI (GitHub Actions): fmt + clippy + tests, MSRV-проверка, memory-job (Lance + fastembed) — зелёные.
 
-### Что НЕ читать
+## Документация
 
-- `PRODUCT DOC/` — для людей, не для тебя.
-- `Guide/` — для пользователей, не для тебя.
+- `teh_doc/` — техническая документация: 21 ADR, 13 контрактов, 14 ТЗ, `FIN.md` (финальная сводка);
+- `START_HERE.md` — инструкция AI-разработчику проекта;
+- `PRODUCT DOC/` — продуктовая документация (PD_1–7), `Guide/` — руководства пользователя;
+- `README_DOCS.md` — прежний индекс документации.
 
----
+## Лицензия
 
-## Для людей
-
-### Продуктовая документация (`PRODUCT DOC/`)
-
-- `PD_1.md` — Описание продукта.
-- `PD_2.md` — Целевая аудитория.
-- `PD_3.md` — Бизнес-модель.
-- `PD_4.md` — Roadmap.
-- `PD_5.md` — Память и персона.
-- `PD_6.md` — Маркетинговые материалы.
-- `PD_7.md` — Пользовательские руководства.
-
-### Руководства (`Guide/`)
-
-- `always_on_setup.md` — настройка ПК.
-- `tailscale_guide.md` — настройка Tailscale.
-- `ios_install.md` — установка на iPhone (PWA).
-- `whatsapp_setup.md` — настройка WhatsApp Cloud API.
-- `sysadmin_guide.md` — установка в корпоративной сети.
-- `wol_setup.md` — настройка Wake-on-LAN (v0.2+).
-
----
-
-## Связанные документы
-
-- `START_HERE.md` — для GLM 5.3.
-- `teh_doc/00-index.md` — оглавление технической документации.
-- `PRODUCT DOC/PD_1.md` — описание продукта.
+MIT OR Apache-2.0.
