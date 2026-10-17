@@ -38,6 +38,11 @@ WoL-крейты не используются.
 Настройки: токен бота — `TELEGRAM_BOT_TOKEN` → `secrets.toml`;
 чат владельца — `secrets.telegram.owner_chat_id` → `config.telegram.owner_chat_id`.
 
+**Прокси (важно):** `reqwest` читает только переменные окружения
+`HTTPS_PROXY`/`HTTP_PROXY`; системный прокси Windows (WinINET) не подхватывается.
+Если сеть ходит через прокси, задайте переменную перед запуском, например:
+`$env:HTTPS_PROXY='http://127.0.0.1:10809'`.
+
 Цикл одобрения (LLM-инициированные отправки):
 
 1. `TelegramService::propose_send(text, store)` — создаёт действие

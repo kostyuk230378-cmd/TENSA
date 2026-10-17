@@ -233,12 +233,19 @@ impl TelegramService {
         self: Arc<Self>,
         store: Arc<dyn ApprovalStore>,
     ) -> Result<(), TelegramError> {
-        let me = self.client.get_me().await?;
-        tracing::info!(
-            bot = me.username.as_deref().unwrap_or("(без username)"),
-            owner = %self.owner_chat_id,
-            "telegram: бот запущен (long polling)"
-        );
+        // Стартовый getMe — только информативный: сбой сети/прокси не должен
+        // убивать процесс (цикл ниже сам повторяет запросы).
+        match self.client.get_me().await {
+            Ok(me) => tracing::info!(
+                bot = me.username.as_deref().unwrap_or("(без username)"),
+                owner = %self.owner_chat_id,
+                "telegram: бот запущен (long polling)"
+            ),
+            Err(error) => tracing::warn!(
+                error = %error,
+                "telegram: getMe не удался на старте — продолжаем опрос"
+            ),
+        }
         audit::record(&self.root, NAME, "bot start", "ok");
 
         let mut offset: Option<i64> = None;
