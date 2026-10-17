@@ -56,10 +56,15 @@ async fn run() -> tensa_server::Result<()> {
     let access = load_or_create_token(&paths.root()).await?;
 
     let state = AppState::new(Arc::new(approvals), Arc::new(notes), access);
-    // ТЗ apps/pwa: локальный порт ядра 8765 (Tailscale-адрес — снаружи).
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8765));
+    // Адрес сервера: по умолчанию — только локально (ТЗ apps/pwa: 127.0.0.1:8765);
+    // для доступа с телефона/по Tailscale задаётся TENSA_BIND=0.0.0.0:8765.
+    let raw_addr = std::env::var("TENSA_BIND").unwrap_or_else(|_| "127.0.0.1:8765".to_string());
+    let addr: std::net::SocketAddr = raw_addr.parse().map_err(|error| {
+        tensa_server::ServerError::BadRequest(format!("TENSA_BIND «{raw_addr}»: {error}"))
+    })?;
     tracing::info!(
         config = %config_path.display(),
+        bind = %addr,
         "запуск HTTP-бэкенда PWA (токен: файл pwa_token в корне данных)"
     );
     serve(addr, state).await
