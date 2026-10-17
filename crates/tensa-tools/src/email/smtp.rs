@@ -5,7 +5,7 @@
 //! Сборка письма отделена от сети — тестируется без сокетов.
 
 use lettre::message::header::ContentType;
-use lettre::message::{Mailbox, Message};
+use lettre::message::{Attachment, Mailbox, Message, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 
@@ -28,6 +28,8 @@ pub struct OutgoingEmail {
     pub subject: String,
     /// Текст.
     pub body: String,
+    /// Вложение (путь к файлу), если нужно приложить документ.
+    pub attachment: Option<std::path::PathBuf>,
 }
 
 /// Собрать MIME-письмо (без сети).
@@ -61,10 +63,42 @@ pub fn build_message(account: &Account, email: &OutgoingEmail) -> Result<Message
         );
     }
 
+    if let Some(path) = &email.attachment {
+        let data = std::fs::read(path).map_err(EmailError::Io)?;
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| "attachment".to_string());
+        let part = Attachment::new(file_name).body(data, content_type_for(path));
+        let multipart = MultiPart::mixed()
+            .singlepart(SinglePart::plain(email.body.clone()))
+            .singlepart(part);
+        return builder
+            .multipart(multipart)
+            .map_err(|error| EmailError::MessageBuild(error.to_string()));
+    }
+
     builder
         .header(ContentType::TEXT_PLAIN)
         .body(email.body.clone())
         .map_err(|error| EmailError::MessageBuild(error.to_string()))
+}
+
+/// MIME-тип вложения по расширению (fallback — octet-stream).
+fn content_type_for(path: &std::path::Path) -> ContentType {
+    let ext = path
+        .extension()
+        .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let mime = match ext.as_str() {
+        "pdf" => "application/pdf",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "txt" | "md" | "csv" | "log" => "text/plain",
+        _ => "application/octet-stream",
+    };
+    ContentType::parse(mime).unwrap_or(ContentType::TEXT_PLAIN)
 }
 
 /// Отправить письмо через SMTP-транспорт lettre.
@@ -134,6 +168,7 @@ mod tests {
             bcc: None,
             subject: "Проверка почты".to_string(),
             body: "Plain body text.".to_string(),
+            attachment: None,
         }
     }
 

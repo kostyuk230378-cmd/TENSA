@@ -77,6 +77,7 @@ async fn run() -> tensa_server::Result<()> {
         .with_calendar(calendar)
         .with_email_accounts(email_accounts)
         .with_data_root(paths.root())
+        .with_config_path(config_path.clone())
         .with_files(files.clone(), index_dirs.clone());
 
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).

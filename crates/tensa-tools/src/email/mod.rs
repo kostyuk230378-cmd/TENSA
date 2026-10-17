@@ -189,6 +189,27 @@ impl EmailService {
         audit::record(&self.root, NAME, &format!("execute {}", action.id), "ok");
         Ok(executed)
     }
+
+    /// Отправить письмо сразу — для явной команды владельца («отправь файл
+    /// на почту»). Действие пишется в аудит; очередь одобрения не используется
+    /// (команда человека и есть одобрение).
+    pub async fn send_now(&self, email: OutgoingEmail) -> Result<(), EmailError> {
+        let accounts = self.accounts();
+        let account = match &email.account_id {
+            Some(id) => accounts
+                .into_iter()
+                .find(|account| &account.id == id)
+                .ok_or_else(|| EmailError::MissingAccount(id.clone()))?,
+            None => accounts
+                .into_iter()
+                .next()
+                .ok_or_else(|| EmailError::MissingAccount("(любой)".to_string()))?,
+        };
+        let credential = self.credential(&account)?;
+        smtp::send(&account, &credential, &email).await?;
+        audit::record(&self.root, NAME, "send_now", "ok");
+        Ok(())
+    }
 }
 
 /// Письмо из payload действия (`email_send`).
@@ -213,6 +234,7 @@ fn outgoing_from_payload(payload: &Value) -> Result<OutgoingEmail, EmailError> {
         bcc: optional("bcc"),
         subject: field("subject").unwrap_or_default(),
         body: field("body").unwrap_or_default(),
+        attachment: optional("attachment").map(std::path::PathBuf::from),
     })
 }
 
@@ -269,6 +291,10 @@ impl Tool for EmailTool {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string(),
+            attachment: params
+                .get("attachment")
+                .and_then(Value::as_str)
+                .map(std::path::PathBuf::from),
             body: params
                 .get("body")
                 .and_then(Value::as_str)
@@ -304,6 +330,7 @@ mod tests {
             bcc: None,
             subject: "тема".to_string(),
             body: "текст".to_string(),
+            attachment: None,
         }
     }
 

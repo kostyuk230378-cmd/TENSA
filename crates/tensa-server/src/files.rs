@@ -123,30 +123,62 @@ impl FilesIndex {
 
     /// Найти файлы по запросу (имя + содержимое).
     pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<FileHit>> {
-        // Сначала строгий запрос (все значимые слова), если пусто — мягкий (OR):
-        // так «Договор ВСТК» не забивается файлами, где есть только «договор».
-        let Some((strict, loose)) = fts_queries(query) else {
+        // Сначала строгий запрос (все значимые слова), если пусто — мягкий (OR);
+        // затем отсекаем хвосты: оставляем только файлы с максимальным покрытием
+        // значимых слов, иначе README/доки забивают выдачу.
+        let Some((strict, loose, words)) = fts_queries(query) else {
             return Ok(Vec::new());
         };
         let pool = self.pool().await?;
+        let candidates = (limit * 5).clamp(10, 100);
         let mut rows = self
-            .run_match(pool, &strict, limit)
+            .run_match(pool, &strict, candidates)
             .await
             .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
         if rows.is_empty() {
             rows = self
-                .run_match(pool, &loose, limit)
+                .run_match(pool, &loose, candidates)
                 .await
                 .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
         }
-        Ok(rows
+
+        let scored: Vec<(usize, usize, FileHit)> = rows
             .into_iter()
-            .map(|(path, name, snippet)| FileHit {
-                path,
-                name,
-                snippet,
+            .map(|(path, name, snippet, text)| {
+                let name_lower = name.to_lowercase();
+                let text_lower = text.to_lowercase();
+                let matches = words
+                    .iter()
+                    .filter(|word| name_lower.contains(*word) || text_lower.contains(*word))
+                    .count();
+                let name_matches = words
+                    .iter()
+                    .filter(|word| name_lower.contains(*word))
+                    .count();
+                (
+                    matches,
+                    name_matches,
+                    FileHit {
+                        path,
+                        name,
+                        snippet,
+                    },
+                )
             })
-            .collect())
+            .collect();
+
+        let best = scored
+            .iter()
+            .map(|(matches, _, _)| *matches)
+            .max()
+            .unwrap_or(0);
+        let mut kept: Vec<(usize, usize, FileHit)> = scored
+            .into_iter()
+            .filter(|(matches, _, _)| *matches >= best)
+            .collect();
+        kept.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+        kept.truncate(limit);
+        Ok(kept.into_iter().map(|(_, _, hit)| hit).collect())
     }
 
     /// Выполнить MATCH-запрос (вес имени 50, текста 1).
@@ -155,9 +187,9 @@ impl FilesIndex {
         pool: &SqlitePool,
         match_query: &str,
         limit: usize,
-    ) -> std::result::Result<Vec<(String, String, String)>, sqlx::Error> {
-        sqlx::query_as::<_, (String, String, String)>(
-            "SELECT f.path, f.name, snippet(files_fts, 1, '«', '»', '…', 18) \
+    ) -> std::result::Result<Vec<(String, String, String, String)>, sqlx::Error> {
+        sqlx::query_as::<_, (String, String, String, String)>(
+            "SELECT f.path, f.name, snippet(files_fts, 1, '«', '»', '…', 18), f.text \
              FROM files_fts JOIN files f ON f.id = files_fts.rowid \
              WHERE files_fts MATCH ? ORDER BY bm25(files_fts, 50.0, 1.0) LIMIT ?",
         )
@@ -477,7 +509,7 @@ pub fn default_scan_roots() -> Vec<PathBuf> {
 }
 
 /// Построить FTS5-запрос: термины длиной от 3 символов, префиксный поиск, OR.
-fn fts_queries(raw: &str) -> Option<(String, String)> {
+fn fts_queries(raw: &str) -> Option<(String, String, Vec<String>)> {
     // Служебные слова поиска не должны попадать в выдачу (иначе «файлы»/
     // «найди» находят сам репозиторий вместо документов пользователя).
     const STOPWORDS: [&str; 14] = [
@@ -497,6 +529,7 @@ fn fts_queries(raw: &str) -> Option<(String, String)> {
         "search",
     ];
     let mut terms: Vec<String> = Vec::new();
+    let mut plain: Vec<String> = Vec::new();
     for word in raw.split(|c: char| !c.is_alphanumeric()) {
         let word = word.trim();
         if word.chars().count() < 3 {
@@ -508,12 +541,14 @@ fn fts_queries(raw: &str) -> Option<(String, String)> {
         }
         let escaped = word.replace('"', "\"\"");
         terms.push(format!("\"{escaped}\"*"));
+        plain.push(word.to_lowercase());
     }
     if terms.is_empty() {
         return None;
     }
     terms.dedup();
-    Some((terms.join(" AND "), terms.join(" OR ")))
+    plain.dedup();
+    Some((terms.join(" AND "), terms.join(" OR "), plain))
 }
 
 /// Человеческий список найденных файлов (прямой ответ без LLM).
@@ -611,12 +646,37 @@ mod tests {
 
     #[test]
     fn fts_query_builds_strict_and_loose() {
-        let (strict, loose) = fts_queries("Найди документ ВСТК").expect("запрос");
+        let (strict, loose, words) = fts_queries("Найди документ ВСТК").expect("запрос");
         assert_eq!(strict, "\"ВСТК\"*");
         assert_eq!(loose, "\"ВСТК\"*");
-        let (strict, loose) = fts_queries("Договор ВСТК").expect("запрос");
+        assert_eq!(words, vec!["встк".to_string()]);
+        let (strict, loose, _) = fts_queries("Договор ВСТК").expect("запрос");
         assert_eq!(strict, "\"Договор\"* AND \"ВСТК\"*");
         assert_eq!(loose, "\"Договор\"* OR \"ВСТК\"*");
         assert!(fts_queries("и в").is_none());
+    }
+
+    #[tokio::test]
+    async fn search_cuts_irrelevant_tail() {
+        let index = index();
+        index
+            .upsert_text(
+                r"C:\Docs\Договор ВСТК.docx",
+                "Договор ВСТК.docx",
+                "договор поставки встк",
+            )
+            .await
+            .expect("a");
+        index
+            .upsert_text(
+                r"C:\Docs\Другое.docx",
+                "Другое.docx",
+                "договор аренды офиса",
+            )
+            .await
+            .expect("b");
+        let hits = index.search("Договор ВСТК", 10).await.expect("поиск");
+        assert_eq!(hits.len(), 1, "файл без ВСТК не должен попадать");
+        assert!(hits[0].name.contains("ВСТК"));
     }
 }

@@ -74,6 +74,8 @@ pub struct AppState {
     pub email_accounts: Vec<AccountInfo>,
     /// Корень данных ядра (модели и пр.).
     pub data_root: PathBuf,
+    /// Путь к config.toml (для почтового сервиса и секретов).
+    pub config_path: PathBuf,
     /// Индекс локальных файлов (поиск по имени и содержимому).
     pub files: Arc<FilesIndex>,
     /// Каталоги, которые индексируются.
@@ -107,6 +109,7 @@ impl AppState {
             calendar: Arc::new(CalendarStore::in_memory()),
             email_accounts: Vec::new(),
             data_root: PathBuf::from("."),
+            config_path: PathBuf::from("config.toml"),
             files: Arc::new(FilesIndex::disabled()),
             index_dirs: Vec::new(),
             access,
@@ -149,6 +152,12 @@ impl AppState {
     /// Корень данных (каталог моделей).
     pub fn with_data_root(mut self, root: impl Into<PathBuf>) -> Self {
         self.data_root = root.into();
+        self
+    }
+
+    /// Путь к config.toml (почта читает config + secrets).
+    pub fn with_config_path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.config_path = path.into();
         self
     }
 

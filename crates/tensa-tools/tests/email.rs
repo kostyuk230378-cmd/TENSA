@@ -58,6 +58,7 @@ fn sample_email() -> OutgoingEmail {
         bcc: None,
         subject: "тема письма".to_string(),
         body: "текст письма".to_string(),
+        attachment: None,
     }
 }
 

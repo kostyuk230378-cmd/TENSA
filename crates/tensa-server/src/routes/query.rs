@@ -26,6 +26,145 @@ pub struct QueryBody {
     pub model: Option<String>,
 }
 
+/// Явная команда «отправь файл на почту»: (адрес, запрос файла).
+fn parse_email_intent(text: &str) -> Option<(Option<String>, String)> {
+    let lower = text.to_lowercase();
+    let send = lower.contains("отправ") || lower.contains("send") || lower.contains("пошл");
+    let mail = lower.contains("почт")
+        || lower.contains("email")
+        || lower.contains("e-mail")
+        || lower.contains("mail");
+    if !(send && mail) {
+        return None;
+    }
+    let to = text.split_whitespace().find_map(|word| {
+        let trimmed = word.trim_matches(|c: char| {
+            !(c.is_alphanumeric() || c == '@' || c == '.' || c == '_' || c == '-')
+        });
+        if trimmed.contains('@') && trimmed.contains('.') {
+            Some(trimmed.to_string())
+        } else {
+            None
+        }
+    });
+    let stop = [
+        "отправь",
+        "отправить",
+        "отправ",
+        "send",
+        "пошли",
+        "пожалуйста",
+        "мне",
+        "на",
+        "почту",
+        "почта",
+        "почтой",
+        "email",
+        "e-mail",
+        "mail",
+        "себе",
+        "файл",
+        "файлы",
+        "документ",
+        "документы",
+    ];
+    let mut parts: Vec<&str> = Vec::new();
+    for word in text.split_whitespace() {
+        if word.contains('@') || stop.contains(&word.to_lowercase().as_str()) {
+            continue;
+        }
+        parts.push(word);
+    }
+    Some((to, parts.join(" ")))
+}
+
+/// Отправить найденный файл на почту (явная команда владельца).
+async fn send_file_by_email(
+    state: &AppState,
+    original: &str,
+    recipient: Option<String>,
+    file_query: String,
+) -> Result<Json<QueryResponse>> {
+    use std::path::{Path, PathBuf};
+    use tensa_tools::email::{EmailService, OutgoingEmail};
+
+    let service = EmailService::from_files(&state.config_path)
+        .map_err(|error| ServerError::Unavailable(format!("почта: {error}")))?;
+    let query = if file_query.trim().is_empty() {
+        original.to_string()
+    } else {
+        file_query
+    };
+    let hits = state
+        .files
+        .search(&query, 6)
+        .await
+        .map_err(|error| ServerError::Storage(format!("поиск файла: {error}")))?;
+    let hit = hits.into_iter().find(|hit| is_document(&hit.path));
+    let Some(hit) = hit else {
+        return Ok(Json(QueryResponse {
+            text: "Не нашёл файл для отправки — назови его точнее (например, «… 2 ВАРИАНТА.docx»)."
+                .to_string(),
+            action: None,
+            action_payload: None,
+            tool_calls: Vec::new(),
+            reasoning: None,
+            degraded: false,
+            model_used: "email".to_string(),
+            node_used: "local".to_string(),
+            tokens_used: Some(0),
+        }));
+    };
+    let name = Path::new(&hit.path)
+        .file_name()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+    let to = recipient
+        .or_else(|| {
+            service
+                .accounts()
+                .first()
+                .map(|account| account.email.clone())
+        })
+        .ok_or_else(|| {
+            ServerError::Unavailable(
+                "нет почтового аккаунта: добавьте [email.accounts.<id>] в config.toml".to_string(),
+            )
+        })?;
+    let email = OutgoingEmail {
+        account_id: None,
+        to: to.clone(),
+        cc: None,
+        bcc: None,
+        subject: format!("Tensa: {name}"),
+        body: format!("Файл: {}\n\nОтправлено секретарём Tensa.", hit.path),
+        attachment: Some(PathBuf::from(&hit.path)),
+    };
+    service
+        .send_now(email)
+        .await
+        .map_err(|error| ServerError::Unavailable(format!("отправка: {error}")))?;
+    Ok(Json(QueryResponse {
+        text: format!("Отправил «{name}» на {to}."),
+        action: Some("email".to_string()),
+        action_payload: Some(serde_json::json!({ "file": hit.path, "to": to })),
+        tool_calls: Vec::new(),
+        reasoning: None,
+        degraded: false,
+        model_used: "email".to_string(),
+        node_used: "local".to_string(),
+        tokens_used: Some(0),
+    }))
+}
+
+/// Документ, который можно отправить вложением.
+fn is_document(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    [".docx", ".pdf", ".xlsx", ".pptx", ".txt", ".md"]
+        .iter()
+        .any(|ext| lower.ends_with(ext))
+}
+
 /// `POST /query` — ответ модели через шлюз ядра.
 pub async fn query(
     State(state): State<AppState>,
@@ -41,6 +180,11 @@ pub async fn query(
     let mut request = QueryRequest::text(text.clone());
     if body.use_cloud.unwrap_or(false) {
         request.use_cloud = true;
+    }
+
+    // Явная команда «отправь файл на почту» — сразу отправляем вложением.
+    if let Some((recipient, file_query)) = parse_email_intent(&text) {
+        return send_file_by_email(&state, &text, recipient, file_query).await;
     }
 
     // Локальные файлы этого ПК: на «найди …» отвечаем списком сразу,
@@ -112,6 +256,19 @@ mod tests {
             PwaToken::new("test-token-1234567890"),
         )
         .with_query(Arc::new(QueryService::disabled()))
+    }
+
+    #[test]
+    fn email_intent_parses() {
+        let (to, query) =
+            parse_email_intent("Отправь КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ 2 ВАРИАНТА.docx мне на почту")
+                .expect("команда почты");
+        assert!(to.is_none());
+        assert!(query.to_lowercase().contains("коммерческое"));
+        assert!(query.to_lowercase().contains(".docx"));
+        let (to, _) = parse_email_intent("отправь файл на email boss@example.com").expect("адрес");
+        assert_eq!(to.as_deref(), Some("boss@example.com"));
+        assert!(parse_email_intent("найди файлы с договором").is_none());
     }
 
     #[tokio::test]
