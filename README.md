@@ -49,6 +49,21 @@ Tensa — self-hosted секретарь для одного человека: �
    `tensa-cli.exe -c %USERPROFILE%\.tensa\config.toml memory index <файл>` →
    `tensa-cli.exe … memory search "запрос"`.
 
+
+## Скачать
+
+Актуальный релиз — **[v0.2.0](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.0)**:
+
+| Платформа | Файл | Размер |
+|---|---|---|
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.0/TensaSetup.exe) | 214 МБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.0/Tensa.apk) | 239 МБ |
+
+## Скриншоты
+
+![Чат через ядро](https://raw.githubusercontent.com/kostyuk230378-cmd/TENSA/main/pwa/screenshots/07-chat.png)
+![Статус ядра](https://raw.githubusercontent.com/kostyuk230378-cmd/TENSA/main/pwa/screenshots/02-status.png)
+
 ## Тесты и качество
 
 - `cargo test --workspace` — **356 passed, 0 failed, 1 ignored** (48 тестовых бинарей);
