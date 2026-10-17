@@ -52,10 +52,48 @@ public final class Http {
         return request("POST", url, bearer, json);
     }
 
+    /**
+     * POST-поток (большие файлы: модель эмбеддингов из assets APK).
+     *
+     * Тело читается поблочно (chunked), память не растёт с размером файла.
+     */
+    public static Response postStream(String url, String bearer, InputStream body, String contentType)
+            throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            connection.setReadTimeout(UPLOAD_READ_TIMEOUT_MS);
+            connection.setDoOutput(true);
+            connection.setChunkedStreamingMode(64 * 1024);
+            connection.setRequestProperty("Content-Type", contentType);
+            if (bearer != null && !bearer.isEmpty()) {
+                connection.setRequestProperty("Authorization", "Bearer " + bearer);
+            }
+            try (OutputStream out = connection.getOutputStream()) {
+                byte[] chunk = new byte[64 * 1024];
+                int read;
+                while ((read = body.read(chunk)) > 0) {
+                    out.write(chunk, 0, read);
+                }
+            }
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 400 ? connection.getErrorStream()
+                    : connection.getInputStream();
+            String text = stream == null ? "" : readAll(stream);
+            return new Response(status, text);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     /** DELETE-запрос. */
     public static Response delete(String url, String bearer) throws IOException {
         return request("DELETE", url, bearer, null);
     }
+
+    /** Таймаут загрузки файла (модель 224 МБ по Wi-Fi). */
+    private static final int UPLOAD_READ_TIMEOUT_MS = 600000;
 
     private static Response request(String method, String url, String bearer, String body)
             throws IOException {

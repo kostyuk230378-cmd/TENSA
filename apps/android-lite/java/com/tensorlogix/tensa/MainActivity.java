@@ -58,6 +58,9 @@ public class MainActivity extends android.app.Activity {
         root.addView(menuButton("Чат (OpenRouter)", ChatActivity.class));
         root.addView(menuButton("Одобрения", ApprovalsActivity.class));
         root.addView(menuButton("Заметки", NotesActivity.class));
+        root.addView(menuButton("Поиск", SearchActivity.class));
+        root.addView(menuButton("Почта", EmailActivity.class));
+        root.addView(menuButton("Календарь", CalendarActivity.class));
         root.addView(menuButton("Статус ядра", StatusActivity.class));
         root.addView(menuButton("Настройки", SettingsActivity.class));
 

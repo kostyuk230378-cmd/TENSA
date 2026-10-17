@@ -35,6 +35,9 @@
         </activity>
 
         <activity android:name=".ChatActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".SearchActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".EmailActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".CalendarActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".ApprovalsActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".NotesActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".SettingsActivity" android:configChanges="orientation|screenSize|keyboardHidden" />

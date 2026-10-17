@@ -9,11 +9,14 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
 /**
- * Чат с большой моделью через OpenRouter.
+ * Чат: основной путь — ядро Tensa (`POST /api/v1/query`), оно само выбирает
+ * облако OpenRouter (ключ в secrets.toml) или локальную GGUF.
  *
- * Простой одноколоночный экран: история (в памяти), поле ввода, кнопка.
- * Ответ приходит в фоне, UI-поток не блокируется.
+ * Если ядро ответило «не настроено» (503), а в настройках есть ключ
+ * OpenRouter — резервный прямой вызов OpenRouter с телефона.
  */
 public class ChatActivity extends android.app.Activity {
 
@@ -35,10 +38,17 @@ public class ChatActivity extends android.app.Activity {
         root.setPadding(20, 20, 20, 12);
 
         TextView title = new TextView(this);
-        title.setText("Чат · " + Prefs.model(this));
+        title.setText("Чат · ядро Tensa");
         title.setTextSize(16);
-        title.setPadding(0, 0, 0, 8);
+        title.setPadding(0, 0, 0, 2);
         root.addView(title);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setTextSize(12);
+        subtitle.setText("Облако (ключ в secrets.toml) или локальная модель; "
+                + "резерв — прямой OpenRouter из настроек");
+        subtitle.setPadding(0, 0, 0, 8);
+        root.addView(subtitle);
 
         conversation = new TextView(this);
         conversation.setTextSize(16);
@@ -87,8 +97,7 @@ public class ChatActivity extends android.app.Activity {
         Background.run(new Background.Task<String>() {
             @Override
             public String run() throws Exception {
-                return OpenRouterClient.chat(Prefs.openRouterKey(ChatActivity.this),
-                        Prefs.model(ChatActivity.this), text);
+                return ask(text);
             }
         }, new Background.Callback<String>() {
             @Override
@@ -101,6 +110,36 @@ public class ChatActivity extends android.app.Activity {
                 replaceLastLine("Tensa: ошибка — " + error.getMessage());
             }
         });
+    }
+
+    /** Ядро, при 503/сетевой ошибке — прямой OpenRouter (ключ из настроек). */
+    private String ask(String text) throws Exception {
+        String server = Prefs.server(ChatActivity.this);
+        String bearer = Prefs.coreToken(ChatActivity.this);
+        if (!bearer.isEmpty()) {
+            try {
+                JSONObject response = CoreClient.query(server, bearer, text);
+                String answer = response.optString("text", "");
+                boolean degraded = response.optBoolean("degraded", false);
+                String model = response.optString("model_used", "");
+                return answer + (degraded ? "  ·  локальная модель" : "")
+                        + (model.isEmpty() ? "" : "\n[" + model + "]");
+            } catch (Exception coreError) {
+                String directKey = Prefs.openRouterKey(ChatActivity.this);
+                if (directKey.isEmpty()) {
+                    throw new Exception("ядро: " + coreError.getMessage()
+                            + " (прямой OpenRouter не настроен)");
+                }
+                // Резерв: прямой вызов облака с телефона.
+            }
+        } else {
+            String directKey = Prefs.openRouterKey(ChatActivity.this);
+            if (directKey.isEmpty()) {
+                throw new Exception("не задан ни токен ядра, ни ключ OpenRouter — Настройки");
+            }
+        }
+        return "напрямую OpenRouter:\n" + OpenRouterClient.chat(
+                Prefs.openRouterKey(ChatActivity.this), Prefs.model(ChatActivity.this), text);
     }
 
     /** Добавить строку в переписку и прокрутить вниз. */
