@@ -10,6 +10,7 @@ use serde::Deserialize;
 use tensa_router::models::{QueryRequest, QueryResponse};
 
 use crate::error::{Result, ServerError};
+use crate::files::{build_context, format_hits, looks_like_file_search};
 use crate::state::AppState;
 
 /// Тело запроса `/query`.
@@ -37,9 +38,30 @@ pub async fn query(
         ));
     }
 
-    let mut request = QueryRequest::text(text);
+    let mut request = QueryRequest::text(text.clone());
     if body.use_cloud.unwrap_or(false) {
         request.use_cloud = true;
+    }
+
+    // Локальные файлы этого ПК: на «найди …» отвечаем списком сразу,
+    // иначе подмешиваем найденные фрагменты в контекст модели.
+    let hits = state.files.search(&text, 6).await.unwrap_or_default();
+    if !hits.is_empty() {
+        if looks_like_file_search(&text) {
+            return Ok(Json(QueryResponse {
+                text: format_hits(&hits),
+                action: None,
+                action_payload: None,
+                tool_calls: Vec::new(),
+                reasoning: None,
+                degraded: false,
+                model_used: "files".to_string(),
+                node_used: "local".to_string(),
+                tokens_used: Some(0),
+            }));
+        }
+        let context = build_context(&hits);
+        request.text = format!("{context}\n\nВопрос пользователя: {text}");
     }
 
     let response = state.query.query(&request, body.model.as_deref()).await?;

@@ -8,6 +8,7 @@ pub mod approvals;
 pub mod calendar;
 pub mod email;
 pub mod events;
+pub mod files;
 pub mod health;
 pub mod notes;
 pub mod query;
@@ -56,6 +57,10 @@ pub fn api() -> Router<AppState> {
         .route("/calendar/events/:id", delete(calendar::remove))
         // Почта: аккаунты из конфига (отправка — контур tensa-tools).
         .route("/email/accounts", get(email::accounts))
+        // Локальные файлы: индекс и поиск (секретарь ищет документы сам).
+        .route("/files/status", get(files::status))
+        .route("/files/index", post(files::index))
+        .route("/files/search", get(files::search))
         // Модель эмбеддингов: статус и приём файлов из APK.
         .route("/models/embedder", get(models_upload::status))
         .route(

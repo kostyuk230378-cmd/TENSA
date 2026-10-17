@@ -68,11 +68,28 @@ async fn run() -> tensa_server::Result<()> {
         paths.root().join("calendar.json"),
     ));
     let email_accounts = tensa_server::routes::email::accounts_from_config(&config.email);
+    let files = Arc::new(tensa_server::files::FilesIndex::new(
+        paths.root().join("files.db"),
+    ));
+    let index_dirs = index_dirs(&config, &paths);
     let state = AppState::new(Arc::new(approvals), Arc::new(notes), access)
         .with_query(Arc::new(query))
         .with_calendar(calendar)
         .with_email_accounts(email_accounts)
-        .with_data_root(paths.root());
+        .with_data_root(paths.root())
+        .with_files(files.clone(), index_dirs.clone());
+
+    // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).
+    if std::env::var("TENSA_INDEX_ON_START").as_deref() != Ok("0") && !index_dirs.is_empty() {
+        let files = files.clone();
+        let dirs = index_dirs.clone();
+        tokio::spawn(async move {
+            match files.scan(&dirs).await {
+                Ok(count) => tracing::info!(indexed = count, dirs = dirs.len(), "автоиндексация файлов"),
+                Err(error) => tracing::warn!(error = %error, "автоиндексация файлов"),
+            }
+        });
+    }
     // Адрес сервера: по умолчанию — только локально (ТЗ apps/pwa: 127.0.0.1:8765);
     // для доступа с телефона/по Tailscale задаётся TENSA_BIND=0.0.0.0:8765.
     let raw_addr = std::env::var("TENSA_BIND").unwrap_or_else(|_| "127.0.0.1:8765".to_string());
@@ -85,6 +102,49 @@ async fn run() -> tensa_server::Result<()> {
         "запуск HTTP-бэкенда PWA (токен: файл pwa_token в корне данных)"
     );
     serve(addr, state).await
+}
+
+/// Каталоги индексации: `[documents] folders` из конфига или
+/// Documents/Desktop/Downloads профиля пользователя.
+fn index_dirs(config: &Config, paths: &TensaPaths) -> Vec<std::path::PathBuf> {
+    // Переопределение для тестов и нестандартных раскладок: каталоги через ';'.
+    if let Ok(raw) = std::env::var("TENSA_INDEX_DIRS") {
+        let dirs: Vec<std::path::PathBuf> = raw
+            .split(';')
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(std::path::PathBuf::from)
+            .filter(|path| path.is_dir())
+            .collect();
+        if !dirs.is_empty() {
+            return dirs;
+        }
+    }
+
+    if let Some(folders) = config
+        .documents
+        .get("folders")
+        .and_then(|value| value.as_array())
+    {
+        let configured: Vec<std::path::PathBuf> = folders
+            .iter()
+            .filter_map(|value| value.as_str())
+            .map(std::path::PathBuf::from)
+            .filter(|path| path.is_dir())
+            .collect();
+        if !configured.is_empty() {
+            return configured;
+        }
+    }
+    let _ = paths;
+    let home = std::env::var("USERPROFILE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    ["Documents", "Desktop", "Downloads"]
+        .iter()
+        .map(|name| home.join(name))
+        .filter(|path| path.is_dir())
+        .collect()
 }
 
 /// Логи в stderr; уровень — из `RUST_LOG`, по умолчанию info.

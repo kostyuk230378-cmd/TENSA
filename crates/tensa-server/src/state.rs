@@ -11,6 +11,7 @@ use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
 use crate::calendar::CalendarStore;
+use crate::files::FilesIndex;
 use crate::query::QueryService;
 use crate::routes::email::AccountInfo;
 
@@ -73,6 +74,10 @@ pub struct AppState {
     pub email_accounts: Vec<AccountInfo>,
     /// Корень данных ядра (модели и пр.).
     pub data_root: PathBuf,
+    /// Индекс локальных файлов (поиск по имени и содержимому).
+    pub files: Arc<FilesIndex>,
+    /// Каталоги, которые индексируются.
+    pub index_dirs: Vec<PathBuf>,
     /// Bearer-доступ PWA. Значение не логируется и наружу не отдаётся:
     /// обработчикам доступна только проверка [`AppState::token_matches`].
     access: PwaToken,
@@ -102,6 +107,8 @@ impl AppState {
             calendar: Arc::new(CalendarStore::in_memory()),
             email_accounts: Vec::new(),
             data_root: PathBuf::from("."),
+            files: Arc::new(FilesIndex::disabled()),
+            index_dirs: Vec::new(),
             access,
             events,
             static_dir: PathBuf::from(DEFAULT_STATIC_DIR),
@@ -142,6 +149,13 @@ impl AppState {
     /// Корень данных (каталог моделей).
     pub fn with_data_root(mut self, root: impl Into<PathBuf>) -> Self {
         self.data_root = root.into();
+        self
+    }
+
+    /// Индекс файлов и каталоги сканирования.
+    pub fn with_files(mut self, files: Arc<FilesIndex>, dirs: Vec<PathBuf>) -> Self {
+        self.files = files;
+        self.index_dirs = dirs;
         self
     }
 

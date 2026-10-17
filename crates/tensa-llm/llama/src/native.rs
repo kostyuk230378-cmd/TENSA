@@ -46,7 +46,13 @@ unsafe extern "C" fn log_callback(
     // SAFETY: llama.cpp передаёт валидную C-строку; читаем без владения.
     let message = unsafe { CStr::from_ptr(text) }.to_string_lossy();
     let message = message.trim_end();
-    if message.is_empty() {
+    // llama.cpp иногда шлёт сообщения из одной пунктуации («.»): это не
+    // ошибка и не должно спамить лог тысячами строк.
+    if message.is_empty()
+        || message
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .is_empty()
+    {
         return;
     }
     if level >= sys::ggml_log_level_GGML_LOG_LEVEL_ERROR {

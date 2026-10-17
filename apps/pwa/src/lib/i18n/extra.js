@@ -12,8 +12,8 @@ export const ru = {
   'nav.menu': 'Меню',
   'chat.title': 'Чат',
   'chat.subtitle':
-    'По умолчанию — локальная модель на этом ПК. Облако (OpenRouter) — ' +
-    'опция для больших моделей (26B и выше).',
+    'Локальная модель на этом ПК; ищет по вашим файлам (Документы, Рабочий стол, ' +
+    'Загрузки). Облако (OpenRouter) — опция для больших моделей (26B).',
   'chat.modelHint':
     'Локальная модель: gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ) в ~/.tensa/models ' +
     '(скачать — ярлык «Tensa (download models)»). Облако: ключ OpenRouter в ' +
@@ -38,8 +38,8 @@ export const en = {
   'nav.menu': 'Menu',
   'chat.title': 'Chat',
   'chat.subtitle':
-    'Local model on this PC by default. Cloud (OpenRouter) is an option for ' +
-    'large models (26B and above).',
+    'Local model on this PC; searches your files (Documents, Desktop, Downloads). ' +
+    'Cloud (OpenRouter) is an option for large models (26B).',
   'chat.modelHint':
     'Local model: gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 GB) in ~/.tensa/models ' +
     '(download via the "Tensa (download models)" shortcut). Cloud: OpenRouter key in ' +

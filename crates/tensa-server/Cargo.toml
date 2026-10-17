@@ -14,6 +14,7 @@ tensa-core = { path = "../tensa-core" }
 tensa-approval = { path = "../tensa-approval" }
 tensa-router = { path = "../tensa-router" }
 tensa-llm = { path = "../tensa-llm" }
+tensa-tools = { path = "../tensa-tools" }
 
 # Внешние (из workspace)
 axum.workspace = true
@@ -24,6 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 async-trait.workspace = true
+sqlx.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 rand.workspace = true
