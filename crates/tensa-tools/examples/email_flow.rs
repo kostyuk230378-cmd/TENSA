@@ -79,6 +79,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                         bcc: None,
                         subject,
                         body,
+                        attachment: None,
                     },
                     &store,
                 )
