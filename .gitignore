@@ -3,3 +3,5 @@
 /crates/tensa-llm/llama-sys/vendor/
 # PWA-фронтенд: зависимости npm не версионируем (артефакт сборки — pwa/static/).
 apps/pwa/node_modules/
+# Сборочные артефакты Android-клиента (keystore, промежуточные файлы).
+apps/android-lite/build/

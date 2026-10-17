@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tensa Android (lite) — нативный клиент секретаря ([derived]).
+
+  Это НЕ Flutter-приложение из ТЗ apps/android (тот этап — с uniffi-мостом,
+  overlay-виджетом и локальной моделью на телефоне), а нативный Java-клиент
+  платформенными View, который закрывает полный пользовательский контур:
+  чат с большой моделью через OpenRouter, очередь одобрений, заметки, поиск,
+  статус и настройки; работа с локальным ядром Tensa по HTTP.
+
+  Сборка: apps/android-lite/build_apk.ps1 (aapt2 + javac + d8 + apksigner,
+  без Gradle — минимальный тулчейн, ставится без админ-прав).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.tensorlogix.tensa"
+    android:versionCode="1"
+    android:versionName="0.1.0">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Tensa"
+        android:usesCleartextTraffic="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:theme="@android:style/Theme.NoTitleBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ChatActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".ApprovalsActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".NotesActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".SettingsActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".StatusActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+    </application>
+</manifest>
