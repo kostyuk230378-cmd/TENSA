@@ -50,10 +50,18 @@ New-Item -ItemType Directory -Force (Join-Path $build 'classes') | Out-Null
 Remove-Item (Join-Path $build 'classes\*') -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $build 'd8') -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Output '== aapt2 link (манифест) =='
+Write-Output '== aapt2 link (манифест + assets) =='
+$assetsDir = Join-Path $here 'assets'
+$assetsArgs = @()
+if (Test-Path (Join-Path $assetsDir 'multilingual-e5-small\model_O4.onnx')) {
+    $assetsArgs = @('-A', $assetsDir)
+    Write-Output 'assets: модель e5-small включена в APK'
+} else {
+    Write-Warning "Нет assets\multilingual-e5-small — APK будет без модели"
+}
 & (Join-Path $bt 'aapt2.exe') link -o (Join-Path $build 'base.apk') `
     -I $platform --manifest (Join-Path $here 'AndroidManifest.xml') `
-    --min-sdk-version 26 --target-sdk-version 34
+    --min-sdk-version 26 --target-sdk-version 34 @assetsArgs
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link failed' }
 
 Write-Output '== javac (все классы приложения) =='

@@ -14,6 +14,7 @@
 
   import StatusBar from './lib/components/StatusBar.svelte';
   import FirstRun from './routes/FirstRun.svelte';
+  import Chat from './routes/Chat.svelte';
   import Status from './routes/Status.svelte';
   import Approvals from './routes/Approvals.svelte';
   import Notes from './routes/Notes.svelte';
@@ -23,6 +24,7 @@
 
   /** Навигация: id экрана ←→ ключ перевода. */
   const NAV = [
+    { id: 'chat', key: 'nav.chat' },
     { id: 'status', key: 'nav.status' },
     { id: 'approvals', key: 'nav.approvals' },
     { id: 'notes', key: 'nav.notes' },
@@ -79,7 +81,9 @@
     {/if}
 
     <main>
-      {#if $screen === 'status'}
+      {#if $screen === 'chat'}
+        <Chat />
+      {:else if $screen === 'status'}
         <Status />
       {:else if $screen === 'approvals'}
         <Approvals />

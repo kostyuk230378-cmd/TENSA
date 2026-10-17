@@ -258,9 +258,7 @@ mod tests {
     #[test]
     fn monthly_limit_blocks() {
         let (tracker, dir) = tracker();
-        tracker
-            .record_usage_on(today(), 0, 10.0)
-            .expect("запись");
+        tracker.record_usage_on(today(), 0, 10.0).expect("запись");
         assert!(tracker.check_available().is_err());
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -16,7 +16,7 @@ path = "src/main.rs"
 # Внутренние (ТЗ tensa-cli: все крейты)
 tensa-core = { path = "../tensa-core" }
 tensa-approval = { path = "../tensa-approval" }
-tensa-memory = { path = "../tensa-memory" }
+tensa-memory = { path = "../tensa-memory", features = ["fastembed"] }
 tensa-nodes = { path = "../tensa-nodes" }
 tensa-perf = { path = "../tensa-perf" }
 tensa-router = { path = "../tensa-router" }

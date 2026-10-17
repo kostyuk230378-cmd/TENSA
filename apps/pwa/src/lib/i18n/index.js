@@ -8,8 +8,13 @@ import { derived } from 'svelte/store';
 import { language } from '../stores/ui';
 import ru from './ru.json';
 import en from './en.json';
+import * as extra from './extra.js';
 
-const dictionaries = { ru, en };
+/** Словари с дополнительными строками (экран «Чат»). */
+const dictionaries = {
+  ru: { ...ru, ...extra.ru },
+  en: { ...en, ...extra.en },
+};
 
 /** Функция перевода для текущего языка. */
 export const t = derived(language, (lang) => {

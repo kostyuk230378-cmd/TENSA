@@ -5,3 +5,10 @@
 apps/pwa/node_modules/
 # Сборочные артефакты Android-клиента (keystore, промежуточные файлы).
 apps/android-lite/build/
+
+# Большие бинарные артефакты: собираются скриптами, публикуются в GitHub Releases.
+apps/android-lite/assets/
+apps/android-lite/Tensa.apk
+apps/android-lite/Tensa.apk.idsig
+pwa/static/Tensa.apk
+apps/desktop-lite/TensaSetup.exe

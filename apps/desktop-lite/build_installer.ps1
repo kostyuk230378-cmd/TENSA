@@ -44,8 +44,26 @@ try {
     New-Item -ItemType Directory -Force (Join-Path $pwaOut 'static') | Out-Null
     Copy-Item (Join-Path $repo 'pwa\static\*') (Join-Path $pwaOut 'static') -Recurse -Force
 
+    # Vite при пересборке вычищает outDir — APK в поставку Windows не входит
+    # (он крупный; телефон ставит его из GitHub Releases или с сервера ядра).
+    Remove-Item (Join-Path $pwaOut 'static\Tensa.apk') -Force -ErrorAction SilentlyContinue
+
+    # Локальная модель эмбеддингов e5-small — прямо в поставку (Требование Архитектора).
+    $modelsSrc = if ($env:TENSA_MODELS_SRC) { $env:TENSA_MODELS_SRC } else { 'C:\tensa-build\models' }
+    $modelsOut = Join-Path $stage 'models\multilingual-e5-small'
+    if (Test-Path (Join-Path $modelsSrc 'multilingual-e5-small')) {
+        Remove-Item (Join-Path $stage 'models') -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force $modelsOut | Out-Null
+        Copy-Item (Join-Path $modelsSrc 'multilingual-e5-small\*') $modelsOut -Recurse -Force
+        Write-Output ("модель в поставке: {0:N1} МБ" -f ((Get-ChildItem $modelsOut -Recurse -File | Measure-Object Length -Sum).Sum / 1MB))
+    } else {
+        throw "Нет файлов модели в $modelsSrc — модель обязана быть в установщике (TENSA_MODELS_SRC)"
+    }
+
     Copy-Item (Join-Path $here 'Tensa.cmd') $stage -Force
     Copy-Item (Join-Path $here 'TensaBot.cmd') $stage -Force
+    Copy-Item (Join-Path $here 'download_models.ps1') $stage -Force
+    Copy-Item (Join-Path $here 'DownloadModels.cmd') $stage -Force
     Copy-Item (Join-Path $here 'README.txt') $stage -Force
 
     Write-Output '== иконка (ico из PWA-иконки) =='

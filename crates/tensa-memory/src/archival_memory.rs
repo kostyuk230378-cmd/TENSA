@@ -102,6 +102,25 @@ impl SqliteArchivalMemoryStore {
             .await?;
         rows.iter().map(entry_from_row).collect()
     }
+
+    /// Количество записей в архиве (`memory list`/stats).
+    pub async fn count_entries(&self) -> Result<i64> {
+        self.run_schema_all().await?;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM archival_entries")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(row.0)
+    }
+
+    /// Последние записи архива (новые первыми) — для `memory list`.
+    pub async fn recent_entries(&self, limit: usize) -> Result<Vec<ArchivalEntry>> {
+        self.run_schema_all().await?;
+        let rows = sqlx::query("SELECT * FROM archival_entries ORDER BY created_at DESC LIMIT ?")
+            .bind(limit as i64)
+            .fetch_all(&self.pool)
+            .await?;
+        rows.iter().map(entry_from_row).collect()
+    }
 }
 
 /// Таблица archival_entries (Контракт 2 — archival на SQLite до фичи lance). [derived]

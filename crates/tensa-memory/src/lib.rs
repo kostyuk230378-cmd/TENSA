@@ -20,6 +20,8 @@ pub mod config;
 pub mod core_memory;
 pub mod embedder;
 pub mod error;
+#[cfg(feature = "fastembed")]
+pub mod fastembed_embedder;
 pub mod manager;
 pub mod models;
 pub mod recall_memory;
@@ -33,6 +35,8 @@ pub use config::MemoryConfigSection;
 pub use core_memory::{estimate_tokens, init_default_blocks, SqliteCoreMemoryStore};
 pub use embedder::{cosine_similarity, Embedder, HashEmbedder};
 pub use error::{MemoryError, Result};
+#[cfg(feature = "fastembed")]
+pub use fastembed_embedder::FastEmbedder;
 pub use manager::{DefaultMemoryManager, MemoryManager};
 pub use models::{
     ArchivalEntry, BlockType, CoreMemoryBlock, CoreMemoryConfig, CoreMemoryHistory, Document,
