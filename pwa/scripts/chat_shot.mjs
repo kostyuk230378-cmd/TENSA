@@ -114,7 +114,7 @@ try {
   await evaluate(`(() => {
     const input = document.querySelector('main textarea');
     if (!input) { return false; }
-    input.value = 'Скажи одним предложением, кто ты.';
+    input.value = ${JSON.stringify(process.env.TENSA_QUERY || 'Скажи одним предложением, кто ты.')};
     input.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   })()`);

@@ -90,7 +90,11 @@
       <span class="who">
         {message.role === 'user' ? $t('chat.you') : message.role === 'assistant' ? 'Tensa' : '!'}
       </span>
-      <p>{message.text}</p>
+      {#if message.files.length}
+        <p class="muted small">{message.text.split('\n')[0]}</p>
+      {:else}
+        <p>{message.text}</p>
+      {/if}
       {#if message.files.length}
         <ul class="files">
           {#each message.files as file (file.path)}
