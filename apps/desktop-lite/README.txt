@@ -31,6 +31,10 @@ Tensa 0.1.0 — установщик для Windows
     %USERPROFILE%\.tensa\models\multilingual-e5-small (сеть не нужна).
     Модель используется командами `tensa-cli memory index/search/list`
     (семантический поиск по файлам) — проверено на реальной модели.
+  - ПОИСК ПО ФАЙЛАМ: индексируются ВСЕ локальные диски (кроме системных каталогов:
+    Windows, Program Files, ProgramData, AppData и т. п.). Первый проход может занять
+    часы — он идёт в фоне и не мешает работе; повторные — только изменённые файлы.
+    Свои каталоги: TENSA_INDEX_DIRS=C:\Docs;D:\Договоры или [documents] folders.
   - ЛОКАЛЬНАЯ модель (проектная): gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ,
     TheStageAI/gemma-4-E2B-it-GGUF — самый лёгкий квант, XS-TS-Q3_K_S) в
     %USERPROFILE%\.tensa\models. Ярлык «Tensa (download models)» скачивает её и

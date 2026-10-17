@@ -12,8 +12,8 @@ export const ru = {
   'nav.menu': 'Меню',
   'chat.title': 'Чат',
   'chat.subtitle':
-    'Локальная модель на этом ПК; ищет по вашим файлам (Документы, Рабочий стол, ' +
-    'Загрузки). Облако (OpenRouter) — опция для больших моделей (26B).',
+    'Локальная модель на этом ПК; ищет по всем локальным дискам (кроме системных ' +
+    'каталогов). Облако (OpenRouter) — опция для больших моделей (26B).',
   'chat.modelHint':
     'Локальная модель: gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ) в ~/.tensa/models ' +
     '(скачать — ярлык «Tensa (download models)»). Облако: ключ OpenRouter в ' +
@@ -30,6 +30,13 @@ export const ru = {
     'OpenRouter в secrets.toml (облако, опционально).',
   'chat.badKey': 'OpenRouter: неверный ключ (401)',
   'chat.error': 'Ошибка',
+  'settings.files': 'Файлы на дисках',
+  'settings.filesIndexed': 'файлов в индексе',
+  'settings.filesScanned': 'просмотрено',
+  'settings.filesUpdated': 'обновлено',
+  'settings.filesScanning': 'идёт индексация',
+  'settings.filesDirs': 'диски',
+  'settings.filesReindex': 'Обновить индекс',
 };
 
 /** Английские строки. */
@@ -56,4 +63,11 @@ export const en = {
     'key to secrets.toml (cloud, optional).',
   'chat.badKey': 'OpenRouter: invalid key (401)',
   'chat.error': 'Error',
+  'settings.files': 'Files on disks',
+  'settings.filesIndexed': 'indexed files',
+  'settings.filesScanned': 'scanned',
+  'settings.filesUpdated': 'updated',
+  'settings.filesScanning': 'indexing in progress',
+  'settings.filesDirs': 'drives',
+  'settings.filesReindex': 'Reindex files',
 };

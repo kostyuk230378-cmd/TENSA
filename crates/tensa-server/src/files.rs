@@ -8,7 +8,7 @@
 //! или значения по умолчанию.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -48,8 +48,14 @@ pub struct FilesStatus {
     pub files: i64,
     /// Время последней индексации (unix seconds), 0 — пусто.
     pub updated_at: i64,
-    /// Каталоги, которые сканируются.
+    /// Каталоги, которые сканируются (корни локальных дисков).
     pub dirs: Vec<String>,
+    /// Сколько файлов просмотрено в текущем/последнем проходе.
+    pub scanned: u64,
+    /// Сколько файлов добавлено/обновлено в текущем/последнем проходе.
+    pub indexed_run: u64,
+    /// Каталог, который обрабатывается сейчас.
+    pub current_dir: String,
 }
 
 /// Индекс файлов (ленивое подключение к SQLite).
@@ -57,6 +63,9 @@ pub struct FilesIndex {
     db: PathBuf,
     pool: OnceCell<SqlitePool>,
     scanning: Arc<AtomicBool>,
+    scanned: Arc<AtomicU64>,
+    indexed_run: Arc<AtomicU64>,
+    current_dir: Arc<std::sync::Mutex<String>>,
 }
 
 impl FilesIndex {
@@ -66,6 +75,9 @@ impl FilesIndex {
             db,
             pool: OnceCell::new(),
             scanning: Arc::new(AtomicBool::new(false)),
+            scanned: Arc::new(AtomicU64::new(0)),
+            indexed_run: Arc::new(AtomicU64::new(0)),
+            current_dir: Arc::new(std::sync::Mutex::new(String::new())),
         }
     }
 
@@ -147,11 +159,19 @@ impl FilesIndex {
             .fetch_one(pool)
             .await
             .map_err(|e| FilesError::Storage(format!("время: {e}")))?;
+        let current_dir = self
+            .current_dir
+            .lock()
+            .map(|value| value.clone())
+            .unwrap_or_default();
         Ok(FilesStatus {
             scanning: self.scanning.load(Ordering::Relaxed),
             files: count.0,
             updated_at: updated.0.unwrap_or(0),
             dirs: dirs.iter().map(|dir| dir.display().to_string()).collect(),
+            scanned: self.scanned.load(Ordering::Relaxed),
+            indexed_run: self.indexed_run.load(Ordering::Relaxed),
+            current_dir,
         })
     }
 
@@ -160,6 +180,8 @@ impl FilesIndex {
         if self.scanning.swap(true, Ordering::SeqCst) {
             return Ok(0);
         }
+        self.scanned.store(0, Ordering::Relaxed);
+        self.indexed_run.store(0, Ordering::Relaxed);
         let result = self.scan_inner(dirs).await;
         self.scanning.store(false, Ordering::SeqCst);
         result
@@ -174,6 +196,9 @@ impl FilesIndex {
         while let Some((dir, depth)) = queue.pop() {
             if depth > MAX_DEPTH {
                 continue;
+            }
+            if let Ok(mut current) = self.current_dir.lock() {
+                *current = dir.display().to_string();
             }
             let entries = match std::fs::read_dir(&dir) {
                 Ok(entries) => entries,
@@ -204,6 +229,7 @@ impl FilesIndex {
                 if name.starts_with('.') || !supported(&path) {
                     continue;
                 }
+                self.scanned.fetch_add(1, Ordering::Relaxed);
                 let metadata = match entry.metadata() {
                     Ok(metadata) => metadata,
                     Err(_) => continue,
@@ -233,6 +259,7 @@ impl FilesIndex {
                 self.upsert(&path, &name, metadata.len(), mtime, &text)
                     .await?;
                 indexed += 1;
+                self.indexed_run.fetch_add(1, Ordering::Relaxed);
             }
         }
         Ok(indexed)
@@ -331,11 +358,11 @@ const SCHEMA: &[&str] = &[
 ];
 
 /// Максимальная глубина обхода.
-const MAX_DEPTH: u8 = 6;
-/// Максимум файлов за проход.
-const MAX_FILES: usize = 5000;
-/// Максимальный размер файла (25 МБ).
-const MAX_FILE_BYTES: u64 = 25 * 1024 * 1024;
+const MAX_DEPTH: u8 = 64;
+/// Предохранитель от бесконечного прохода.
+const MAX_FILES: usize = 2_000_000;
+/// Максимальный размер файла (50 МБ).
+const MAX_FILE_BYTES: u64 = 50 * 1024 * 1024;
 
 /// Служебные каталоги, которые не индексируем.
 fn should_skip_dir(name: &str) -> bool {
@@ -347,9 +374,21 @@ fn should_skip_dir(name: &str) -> bool {
             | "windows"
             | "program files"
             | "program files (x86)"
+            | "programdata"
             | "target"
             | "$recycle.bin"
+            | "system volume information"
+            | "recovery"
+            | "msocache"
+            | "perflogs"
+            | "$windows.~ws"
+            | "$windows.~bt"
+            | "config.msi"
             | ".cache"
+            | ".cargo"
+            | ".rustup"
+            | ".tensa"
+            | "tensa-tools"
             | "onedrivetemp"
     ) || name.starts_with('.')
 }
@@ -364,6 +403,32 @@ fn supported(path: &Path) -> bool {
         ext.as_str(),
         "pdf" | "docx" | "pptx" | "xlsx" | "txt" | "md" | "csv" | "log" | "json"
     )
+}
+
+/// Корни всех локальных (fixed) дисков — стандартный набор для индексации.
+///
+/// CD/DVD, сетевые и съёмные диски не обходим (медленные/нестабильные).
+/// Системные каталоги исключает [`should_skip_dir`].
+#[cfg(windows)]
+pub fn default_scan_roots() -> Vec<PathBuf> {
+    use windows_sys::Win32::Storage::FileSystem::GetDriveTypeW;
+    let mut roots = Vec::new();
+    for letter in b'A'..=b'Z' {
+        let root = format!("{}:\\", letter as char);
+        let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
+        // SAFETY: передаём валидную NUL-терминированную строку.
+        let drive_type = unsafe { GetDriveTypeW(wide.as_ptr()) };
+        if drive_type == 3 /* DRIVE_FIXED */ && std::path::Path::new(&root).is_dir() {
+            roots.push(PathBuf::from(root));
+        }
+    }
+    roots
+}
+
+/// Не-Windows: корень файловой системы.
+#[cfg(not(windows))]
+pub fn default_scan_roots() -> Vec<PathBuf> {
+    vec![PathBuf::from("/")]
 }
 
 /// Построить FTS5-запрос: термины длиной от 3 символов, префиксный поиск, OR.

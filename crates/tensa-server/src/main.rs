@@ -139,14 +139,8 @@ fn index_dirs(config: &Config, paths: &TensaPaths) -> Vec<std::path::PathBuf> {
         }
     }
     let _ = paths;
-    let home = std::env::var("USERPROFILE")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from("."));
-    ["Documents", "Desktop", "Downloads"]
-        .iter()
-        .map(|name| home.join(name))
-        .filter(|path| path.is_dir())
-        .collect()
+    // По умолчанию — все локальные диски (требование владельца: искать везде).
+    tensa_server::files::default_scan_roots()
 }
 
 /// Логи в stderr; уровень — из `RUST_LOG`, по умолчанию info.

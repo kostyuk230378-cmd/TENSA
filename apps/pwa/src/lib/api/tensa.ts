@@ -123,6 +123,24 @@ export interface NodeInfo {
   thermal_status?: string;
 }
 
+/** Файл, найденный локальным индексом (`GET /files/search`). */
+export interface FileHit {
+  path: string;
+  name: string;
+  snippet: string;
+}
+
+/** Состояние локального индекса файлов (`GET /files/status`). */
+export interface FilesStatus {
+  scanning: boolean;
+  files: number;
+  updated_at: number;
+  dirs: string[];
+  scanned: number;
+  indexed_run: number;
+  current_dir: string;
+}
+
 /** Ответ ядра на запрос к модели (`POST /query`, Контракт 12). */
 export interface QueryResponse {
   text: string;
@@ -188,6 +206,9 @@ export interface TensaClient {
   reject(id: string, rejectedBy?: string): Promise<Action>;
   listNodes(params?: { onlineOnly?: boolean }): Promise<NodeInfo[]>;
   query(text: string, options?: { useCloud?: boolean; model?: string }): Promise<QueryResponse>;
+  filesStatus(): Promise<FilesStatus>;
+  filesIndex(): Promise<unknown>;
+  searchFiles(query: string, limit?: number): Promise<FileHit[]>;
 }
 
 /**
@@ -289,6 +310,13 @@ export function createTensaClient(options: TensaClientOptions = {}): TensaClient
     // Маршрут есть в контракте (Контракт 9), но MVP-бэкенд отвечает 501.
     listNodes: ({ onlineOnly = false } = {}) =>
       request<NodeInfo[]>('GET', '/nodes', { online_only: onlineOnly ? 'true' : undefined }),
+
+    filesStatus: () => request<FilesStatus>('GET', '/files/status'),
+
+    filesIndex: () => request<unknown>('POST', '/files/index', {}, {}),
+
+    searchFiles: (query, limit = 10) =>
+      request<FileHit[]>('GET', '/files/search', { q: query, limit }),
 
     query: (text, options = {}) =>
       request<QueryResponse>('POST', '/query', {}, {
