@@ -35,6 +35,12 @@ use crate::Tool;
 pub use bot::{TelegramClient, Update};
 pub use error::TelegramError;
 
+/// Период опроса очереди сторожем (секунды).
+///
+/// [derived] 5 минут — компромисс: пуш-уведомления не должны сыпаться
+/// каждые секунды; свежий список в любой момент доступен по /approvals.
+const QUEUE_WATCH_INTERVAL_SECS: u64 = 300;
+
 /// Имя инструмента в реестре.
 pub const NAME: &str = "telegram";
 
@@ -308,7 +314,7 @@ impl TelegramService {
                     tracing::warn!(error = %error, "telegram: сторож очереди: get_pending не удался");
                 }
             }
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(QUEUE_WATCH_INTERVAL_SECS)).await;
         }
     }
 }
