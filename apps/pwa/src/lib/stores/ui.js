@@ -42,7 +42,7 @@ export const baseUrl = writable(readStorage(BASE_KEY));
 export const language = writable(readStorage(LANG_KEY) || 'ru');
 
 /** Текущий экран (см. навигацию в App.svelte). */
-export const screen = writable('status');
+export const screen = writable('chat');
 
 /** Локальный доступ: запросы с этого ПК не требуют токена (сервер, loopback). */
 export const localAccess = writable(false);

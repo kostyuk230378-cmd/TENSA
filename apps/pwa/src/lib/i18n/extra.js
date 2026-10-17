@@ -9,13 +9,15 @@
 /** Русские строки. */
 export const ru = {
   'nav.chat': 'Чат',
+  'nav.menu': 'Меню',
   'chat.title': 'Чат',
   'chat.subtitle':
     'По умолчанию — локальная модель на этом ПК. Облако (OpenRouter) — ' +
     'опция для больших моделей (26B и выше).',
   'chat.modelHint':
-    'Локальная модель: GGUF в ~/.tensa/models (скачать — ярлык «Tensa (download models)»). ' +
-    'Облако: ключ OpenRouter в ~/.tensa/secrets.toml → [openrouter] credential.',
+    'Локальная модель: gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ) в ~/.tensa/models ' +
+    '(скачать — ярлык «Tensa (download models)»). Облако: ключ OpenRouter в ' +
+    '~/.tensa/secrets.toml → [openrouter] credential.',
   'chat.placeholder': 'Сообщение Tensa…',
   'chat.send': 'Отправить',
   'chat.you': 'Вы',
@@ -33,13 +35,15 @@ export const ru = {
 /** Английские строки. */
 export const en = {
   'nav.chat': 'Chat',
+  'nav.menu': 'Menu',
   'chat.title': 'Chat',
   'chat.subtitle':
     'Local model on this PC by default. Cloud (OpenRouter) is an option for ' +
     'large models (26B and above).',
   'chat.modelHint':
-    'Local model: GGUF in ~/.tensa/models (download via the "Tensa (download models)" shortcut). ' +
-    'Cloud: OpenRouter key in ~/.tensa/secrets.toml → [openrouter] credential.',
+    'Local model: gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 GB) in ~/.tensa/models ' +
+    '(download via the "Tensa (download models)" shortcut). Cloud: OpenRouter key in ' +
+    '~/.tensa/secrets.toml → [openrouter] credential.',
   'chat.placeholder': 'Message Tensa…',
   'chat.send': 'Send',
   'chat.you': 'You',

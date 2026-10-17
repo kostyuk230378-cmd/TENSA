@@ -31,10 +31,10 @@ Tensa 0.1.0 — установщик для Windows
     %USERPROFILE%\.tensa\models\multilingual-e5-small (сеть не нужна).
     Модель используется командами `tensa-cli memory index/search/list`
     (семантический поиск по файлам) — проверено на реальной модели.
-  - ЛОКАЛЬНАЯ модель (по умолчанию): gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.6 ГБ,
-    https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF) в
-    %USERPROFILE%\.tensa\models. Ярлык «Tensa (download models)» скачивает её
-    (или положите любой свой .gguf) — чат работает без интернета и ключей.
+  - ЛОКАЛЬНАЯ модель (проектная): gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ,
+    TheStageAI/gemma-4-E2B-it-GGUF — самый лёгкий квант, XS-TS-Q3_K_S) в
+    %USERPROFILE%\.tensa\models. Ярлык «Tensa (download models)» скачивает её и
+    проверяет SHA256 (d1e358e0…4c3b5); чат работает без интернета и ключей.
   - БОЛЬШИЕ модели (облако, опционально): ключ OpenRouter в
     %USERPROFILE%\.tensa\secrets.toml → [openrouter] credential = "sk-or-…"
     (или https://openrouter.ai/keys). Ядро само выберет облако, если ключ задан.

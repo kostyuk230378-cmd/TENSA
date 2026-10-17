@@ -22,6 +22,8 @@ $ErrorActionPreference = 'Stop'
 
 $gemmaUrl = 'https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-XS-TS-Q3_K_S.gguf'
 $gemmaFile = 'gemma-4-E2B-it-XS-TS-Q3_K_S.gguf'
+# SHA256 файла (LFS oid TheStageAI/gemma-4-E2B-it-GGUF) — проверка после скачивания.
+$gemmaSha256 = 'd1e358e0a9f945084e8757090684ef698f9e99f41693dcd465f5aeaa3564c3b5'
 $whisperUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin'
 $whisperFile = 'ggml-base.bin'
 
@@ -58,6 +60,11 @@ function Get-Model {
     & curl.exe -L --retry 3 -C - -o $tmp $Url
     if ($LASTEXITCODE -ne 0) {
         throw "не удалось скачать $Name (curl exit $LASTEXITCODE)"
+    }
+    $actual = (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLower()
+    if ($Name -eq $gemmaFile -and $actual -ne $gemmaSha256) {
+        Remove-Item $tmp -Force
+        throw "SHA256 не совпал для $Name (получено $actual) — скачивание отменено"
     }
     Move-Item $tmp $target -Force
     Write-Output "    готово: $target"

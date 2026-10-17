@@ -315,9 +315,18 @@ fn build_local(
 }
 
 /// Первый `*.gguf` в каталоге моделей.
+///
+/// Приоритет — проектная модель TheStageAI `gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`
+/// (~1.73 ГБ, самый лёгкий квант); иначе — любой другой GGUF (по имени).
 #[cfg(feature = "native")]
 fn find_gguf(paths: &TensaPaths) -> Option<PathBuf> {
-    let mut candidates: Vec<PathBuf> = std::fs::read_dir(paths.models_dir())
+    const PROJECT_MODEL: &str = "gemma-4-E2B-it-XS-TS-Q3_K_S.gguf";
+    let model_dir = paths.models_dir();
+    let project = model_dir.join(PROJECT_MODEL);
+    if project.is_file() {
+        return Some(project);
+    }
+    let mut candidates: Vec<PathBuf> = std::fs::read_dir(&model_dir)
         .ok()?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())

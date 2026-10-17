@@ -31,9 +31,10 @@ Tensa — self-hosted секретарь для одного человека: �
 
 - **Эмбеддер памяти e5-small** (`intfloat/multilingual-e5-small`) — **в комплекте** установщика
   Windows и APK; работает офлайн, сеть не нужна.
-- **Локальная LLM** — [`TheStageAI/gemma-4-E2B-it-GGUF`](https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF)
-  (`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`, ~1.6 ГБ) в `~/.tensa/models`; ярлык
-  «Tensa (download models)» скачивает её. Локальный инференс — llama.cpp внутри ядра.
+- **Локальная LLM** — проектный квант [`TheStageAI/gemma-4-E2B-it-GGUF`](https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF):
+  **`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`** (~1.73 ГБ, самый лёгкий по памяти) в
+  `~/.tensa/models`; ярлык «Tensa (download models)» скачивает её и сверяет SHA256.
+  Локальный инференс — llama.cpp внутри ядра.
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
   Ключ выдаётся на https://openrouter.ai/keys.
