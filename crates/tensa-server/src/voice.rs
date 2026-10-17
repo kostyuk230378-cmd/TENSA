@@ -30,7 +30,26 @@ impl VoiceService {
     pub fn new(root: &Path) -> Self {
         let nested = root.join("models").join("whisper").join("ggml-base.bin");
         let flat = root.join("models").join("ggml-base.bin");
-        let model = if nested.is_file() { nested } else { flat };
+        // Установщик кладёт модель рядом с exe (models\whisper), а пользовательские
+        // данные живут в ~/.tensa — поэтому смотрим оба места.
+        let exe_models = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|dir| dir.join("models")));
+        let installed = exe_models
+            .as_ref()
+            .map(|dir| dir.join("whisper").join("ggml-base.bin"));
+        let installed_flat = exe_models.map(|dir| dir.join("ggml-base.bin"));
+        let model = if nested.is_file() {
+            nested
+        } else if flat.is_file() {
+            flat
+        } else if installed.as_ref().is_some_and(|path| path.is_file()) {
+            installed.unwrap_or_default()
+        } else if installed_flat.as_ref().is_some_and(|path| path.is_file()) {
+            installed_flat.unwrap_or_default()
+        } else {
+            nested
+        };
         let helper = std::env::var_os("TENSA_WHISPER")
             .map(PathBuf::from)
             .or_else(|| {
