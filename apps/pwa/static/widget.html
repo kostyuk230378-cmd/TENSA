@@ -773,6 +773,7 @@
           processor.connect(context.destination);
           recorder = { context, stream, source, processor, chunks, rate: context.sampleRate };
           setMicRecording(true);
+          input.placeholder = 'Говорите… нажмите микрофон, чтобы закончить';
         } catch (error) {
           recorder = null;
           setMicRecording(false);
@@ -791,6 +792,7 @@
         current.stream.getTracks().forEach((track) => track.stop());
         const samples = downsample(mergeChunks(current.chunks), current.rate, 16000);
         current.context.close();
+        input.placeholder = 'Распознаю…';
         if (samples.length < 1600) {
           messages.push({ role: 'error', text: 'Слишком короткая запись.' });
           renderChat();
@@ -808,12 +810,14 @@
             return response.json();
           })
           .then((data) => {
+            input.placeholder = 'Спросите Tensa…';
             if (data.text) {
               input.value = `${input.value ? `${input.value} ` : ''}${data.text}`.trim();
               input.focus();
             }
           })
           .catch((error) => {
+            input.placeholder = 'Спросите Tensa…';
             messages.push({ role: 'error', text: `Голос: ${error.message}` });
             renderChat();
           });
