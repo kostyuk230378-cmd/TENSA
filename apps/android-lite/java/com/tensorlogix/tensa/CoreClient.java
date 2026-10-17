@@ -19,6 +19,13 @@ public final class CoreClient {
     private CoreClient() {
     }
 
+    /** Проверить, что адрес ядра задан. */
+    private static void requireServer(String server) {
+        if (server == null || server.trim().isEmpty()) {
+            throw new IllegalStateException("Не задан адрес ядра — откройте Настройки");
+        }
+    }
+
     /** Проверить, что Bearer задан. */
     private static void requireBearer(String bearer) {
         if (bearer == null || bearer.trim().isEmpty()) {
@@ -43,6 +50,7 @@ public final class CoreClient {
 
     /** GET с проверкой статуса. */
     private static String get(String server, String bearer, String path) throws Exception {
+        requireServer(server);
         requireBearer(bearer);
         Http.Response response = Http.get(server + path, bearer.trim());
         if (!response.ok()) {
@@ -54,6 +62,7 @@ public final class CoreClient {
     /** POST с проверкой статуса. */
     private static String post(String server, String bearer, String path, String body)
             throws Exception {
+        requireServer(server);
         requireBearer(bearer);
         Http.Response response = Http.postJson(server + path, bearer.trim(), body);
         if (!response.ok()) {
@@ -64,6 +73,7 @@ public final class CoreClient {
 
     /** DELETE с проверкой статуса. */
     private static void delete(String server, String bearer, String path) throws Exception {
+        requireServer(server);
         requireBearer(bearer);
         Http.Response response = Http.delete(server + path, bearer.trim());
         if (!response.ok()) {
@@ -158,6 +168,7 @@ public final class CoreClient {
     /** Передать один файл модели в ядро (поток из assets). */
     public static void uploadEmbedderFile(String server, String bearer, String name,
                                           InputStream stream) throws Exception {
+        requireServer(server);
         requireBearer(bearer);
         Http.Response response = Http.postStream(
                 server + "/api/v1/models/embedder/" + name,

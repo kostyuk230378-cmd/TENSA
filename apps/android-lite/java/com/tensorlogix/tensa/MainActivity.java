@@ -74,7 +74,9 @@ public class MainActivity extends android.app.Activity {
         super.onResume();
         boolean core = !Prefs.coreToken(this).isEmpty();
         boolean cloud = !Prefs.openRouterKey(this).isEmpty();
-        status.setText("Ядро: " + Prefs.server(this) + (core ? "  ·  токен ✓" : "  ·  токен —")
+        String server = Prefs.server(this);
+        status.setText("Ядро: " + (server.isEmpty() ? "не задан" : server)
+                + (core ? "  ·  токен ✓" : "  ·  токен —")
                 + "\nOpenRouter: " + Prefs.model(this) + (cloud ? "  ·  ключ ✓" : "  ·  ключ —"));
     }
 }

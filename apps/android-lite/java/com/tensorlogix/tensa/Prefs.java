@@ -14,7 +14,7 @@ public final class Prefs {
 
     /** Имя файла настроек. */
     private static final String FILE = "tensa";
-    /** Адрес сервера ядра (например http://192.0.2.10:8765). */
+    /** Адрес сервера ядра (задаётся пользователем в Настройках). */
     private static final String KEY_SERVER = "server";
     /** Bearer-токен API ядра (файл pwa_token на ПК). */
     private static final String KEY_CORE_TOKEN = "core_token";
@@ -24,7 +24,7 @@ public final class Prefs {
     private static final String KEY_MODEL = "openrouter_model";
 
     /** Адрес сервера по умолчанию (ПК в локальной сети). */
-    public static final String DEFAULT_SERVER = "http://192.0.2.10:8765";
+    public static final String DEFAULT_SERVER = "";
     /** Модель OpenRouter по умолчанию. */
     public static final String DEFAULT_MODEL = "openai/gpt-4o-mini";
 
@@ -72,6 +72,6 @@ public final class Prefs {
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);
         }
-        return value.isEmpty() ? DEFAULT_SERVER : value;
+        return value;
     }
 }

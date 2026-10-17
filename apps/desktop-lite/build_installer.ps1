@@ -23,9 +23,11 @@ if (-not (Test-Path $makensis)) { throw "Не найден makensis: $makensis" 
 if (-not (Test-Path $cargo)) { throw "Не найден cargo: $cargo" }
 
 Write-Output '== release-сборки (server, cli, bot) =='
+# Пути сборки не должны нести имя пользователя в бинарниках (private data).
+$env:RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~"
 Push-Location $repo
 try {
-    & $cargo build --release -p tensa-server | Out-Null
+    & $cargo build --release -p tensa-server --features native | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'release tensa-server failed' }
     & $cargo build --release -p tensa-cli | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'release tensa-cli failed' }

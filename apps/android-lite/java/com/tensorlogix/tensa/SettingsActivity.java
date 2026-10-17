@@ -67,6 +67,7 @@ public class SettingsActivity extends android.app.Activity {
 
         final EditText server = addField(root, "Адрес ядра Tensa (ПК в Wi-Fi)",
                 Prefs.server(this), InputType.TYPE_TEXT_VARIATION_URI);
+        server.setHint("http://<ip-пк>:8765");
         final EditText coreToken = addField(root, "Токен ядра (файл pwa_token)",
                 Prefs.coreToken(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         final EditText openRouter = addField(root, "Ключ OpenRouter (sk-or-…)",
