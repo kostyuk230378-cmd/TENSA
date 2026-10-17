@@ -76,10 +76,6 @@ pub async fn search(
         return Err(ServerError::BadRequest("параметр q обязателен".to_string()));
     }
     let limit = query.limit.clamp(1, 50);
-    let hits = state
-        .files
-        .search(text, limit)
-        .await
-        .map_err(map_error)?;
+    let hits = state.files.search(text, limit).await.map_err(map_error)?;
     Ok(Json(hits))
 }

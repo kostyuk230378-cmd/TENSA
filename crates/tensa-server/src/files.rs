@@ -128,7 +128,11 @@ impl FilesIndex {
         .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
         Ok(rows
             .into_iter()
-            .map(|(path, name, snippet)| FileHit { path, name, snippet })
+            .map(|(path, name, snippet)| FileHit {
+                path,
+                name,
+                snippet,
+            })
             .collect())
     }
 
@@ -147,10 +151,7 @@ impl FilesIndex {
             scanning: self.scanning.load(Ordering::Relaxed),
             files: count.0,
             updated_at: updated.0.unwrap_or(0),
-            dirs: dirs
-                .iter()
-                .map(|dir| dir.display().to_string())
-                .collect(),
+            dirs: dirs.iter().map(|dir| dir.display().to_string()).collect(),
         })
     }
 
@@ -246,11 +247,20 @@ impl FilesIndex {
                 .fetch_optional(pool)
                 .await
                 .map_err(|e| FilesError::Storage(format!("проверка: {e}")))?;
-        Ok(matches!(row, Some((old_size, old_mtime)) if old_size == size as i64 && old_mtime == mtime))
+        Ok(
+            matches!(row, Some((old_size, old_mtime)) if old_size == size as i64 && old_mtime == mtime),
+        )
     }
 
     /// Записать/обновить файл и его текст в FTS.
-    async fn upsert(&self, path: &Path, name: &str, size: u64, mtime: i64, text: &str) -> Result<()> {
+    async fn upsert(
+        &self,
+        path: &Path,
+        name: &str,
+        size: u64,
+        mtime: i64,
+        text: &str,
+    ) -> Result<()> {
         let pool = self.pool().await?;
         let path_text = path.to_string_lossy().to_string();
         let dir = path
@@ -397,7 +407,15 @@ pub fn looks_like_file_search(text: &str) -> bool {
     let first = first.trim_matches(|c: char| !c.is_alphanumeric());
     matches!(
         first,
-        "найди" | "найти" | "поищи" | "поиск" | "где" | "покажи" | "find" | "search" | "locate"
+        "найди"
+            | "найти"
+            | "поищи"
+            | "поиск"
+            | "где"
+            | "покажи"
+            | "find"
+            | "search"
+            | "locate"
     )
 }
 

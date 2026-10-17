@@ -85,7 +85,9 @@ async fn run() -> tensa_server::Result<()> {
         let dirs = index_dirs.clone();
         tokio::spawn(async move {
             match files.scan(&dirs).await {
-                Ok(count) => tracing::info!(indexed = count, dirs = dirs.len(), "автоиндексация файлов"),
+                Ok(count) => {
+                    tracing::info!(indexed = count, dirs = dirs.len(), "автоиндексация файлов")
+                }
                 Err(error) => tracing::warn!(error = %error, "автоиндексация файлов"),
             }
         });
