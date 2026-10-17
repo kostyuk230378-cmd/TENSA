@@ -48,10 +48,20 @@ pub async fn query(
     let hits = state.files.search(&text, 6).await.unwrap_or_default();
     if !hits.is_empty() {
         if looks_like_file_search(&text) {
+            let payload = serde_json::json!({
+                "files": hits
+                    .iter()
+                    .map(|hit| serde_json::json!({
+                        "path": hit.path,
+                        "name": hit.name,
+                        "snippet": hit.snippet,
+                    }))
+                    .collect::<Vec<_>>()
+            });
             return Ok(Json(QueryResponse {
                 text: format_hits(&hits),
-                action: None,
-                action_payload: None,
+                action: Some("files".to_string()),
+                action_payload: Some(payload),
                 tool_calls: Vec::new(),
                 reasoning: None,
                 degraded: false,

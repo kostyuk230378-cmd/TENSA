@@ -209,6 +209,8 @@ export interface TensaClient {
   filesStatus(): Promise<FilesStatus>;
   filesIndex(): Promise<unknown>;
   searchFiles(query: string, limit?: number): Promise<FileHit[]>;
+  openFile(path: string): Promise<unknown>;
+  downloadFile(path: string): Promise<Blob>;
 }
 
 /**
@@ -317,6 +319,23 @@ export function createTensaClient(options: TensaClientOptions = {}): TensaClient
 
     searchFiles: (query, limit = 10) =>
       request<FileHit[]>('GET', '/files/search', { q: query, limit }),
+
+    openFile: (path) => request<unknown>('POST', '/files/open', {}, { path }),
+
+    downloadFile: async (path) => {
+      const url = `${readBaseUrl()}/files/download?path=${encodeURIComponent(path)}`;
+      const headers: Record<string, string> = {};
+      const token = readToken();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await doFetch(url, { headers });
+      if (!response.ok) {
+        const body = await readBody(response);
+        throw new ApiError(response.status, `загрузка файла: ${response.status}`, body);
+      }
+      return await response.blob();
+    },
 
     query: (text, options = {}) =>
       request<QueryResponse>('POST', '/query', {}, {

@@ -61,6 +61,8 @@ pub fn api() -> Router<AppState> {
         .route("/files/status", get(files::status))
         .route("/files/index", post(files::index))
         .route("/files/search", get(files::search))
+        .route("/files/open", post(files::open_file))
+        .route("/files/download", get(files::download))
         // Модель эмбеддингов: статус и приём файлов из APK.
         .route("/models/embedder", get(models_upload::status))
         .route(

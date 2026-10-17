@@ -5,6 +5,7 @@
 //! `POST /files/index`, `GET /files/search?q=`.
 
 use axum::extract::{Query, State};
+use axum::response::IntoResponse;
 use axum::Json;
 use serde::Deserialize;
 use serde_json::json;
@@ -64,6 +65,105 @@ pub async fn index(State(state): State<AppState>) -> Result<Json<serde_json::Val
         "started": true,
         "dirs": dirs.iter().map(|dir| dir.display().to_string()).collect::<Vec<_>>(),
     })))
+}
+
+/// Тело запроса «открыть файл».
+#[derive(Debug, Deserialize)]
+pub struct OpenBody {
+    /// Путь, который вернул поиск.
+    pub path: String,
+}
+
+/// `POST /files/open` — открыть файл на этом ПК программой по умолчанию.
+///
+/// Открываются только файлы из индекса (произвольный путь не подсунуть).
+pub async fn open_file(
+    State(state): State<AppState>,
+    Json(body): Json<OpenBody>,
+) -> Result<Json<serde_json::Value>> {
+    let path = body.path.trim().to_string();
+    if path.is_empty() {
+        return Err(ServerError::BadRequest("path обязателен".to_string()));
+    }
+    let indexed = state.files.search_exact(&path).await.map_err(map_error)?;
+    if !indexed {
+        return Err(ServerError::NotFound(
+            "файл не найден в индексе".to_string(),
+        ));
+    }
+    open_with_default_app(&path)?;
+    Ok(Json(json!({ "opened": true, "path": path })))
+}
+
+/// `GET /files/download?path=` — отдать файл (телефон/браузер).
+pub async fn download(
+    State(state): State<AppState>,
+    Query(query): Query<OpenBody>,
+) -> Result<axum::response::Response> {
+    let path = query.path.trim().to_string();
+    if path.is_empty() {
+        return Err(ServerError::BadRequest("path обязателен".to_string()));
+    }
+    let indexed = state.files.search_exact(&path).await.map_err(map_error)?;
+    if !indexed {
+        return Err(ServerError::NotFound(
+            "файл не найден в индексе".to_string(),
+        ));
+    }
+    let data = tokio::fs::read(&path).await.map_err(ServerError::Io)?;
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+    let disposition = format!("attachment; filename*=UTF-8''{}", urlencode(&name));
+    Ok((
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "application/octet-stream".to_string(),
+            ),
+            (axum::http::header::CONTENT_DISPOSITION, disposition),
+        ],
+        data,
+    )
+        .into_response())
+}
+
+/// Процентное кодирование имени файла для Content-Disposition.
+fn urlencode(value: &str) -> String {
+    let mut out = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Открыть файл штатным приложением (Windows: start, прочие: xdg-open).
+fn open_with_default_app(path: &str) -> Result<()> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .arg("/C")
+            .arg("start")
+            .arg("")
+            .arg(path)
+            .spawn()
+            .map_err(|error| ServerError::Storage(format!("открытие файла: {error}")))?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|error| ServerError::Storage(format!("открытие файла: {error}")))?;
+        Ok(())
+    }
 }
 
 /// `GET /files/search?q=&limit=` — поиск по имени и содержимому.

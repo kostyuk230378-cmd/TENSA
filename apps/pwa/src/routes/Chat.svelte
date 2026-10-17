@@ -1,7 +1,7 @@
 <!--
-  Экран «Чат»: по умолчанию — локальная модель ядра (GGUF). Облако OpenRouter
-  (большие модели, например 26B) — опция ядра: ключ в ~/.tensa/secrets.toml.
-  Ключей в браузере нет: всё идёт через POST /api/v1/query.
+  Экран «Чат»: локальная модель ядра ищет по всем дискам; найденные файлы
+  показываются ссылками-кнопками: «Открыть» (запуск на этом ПК) и «Скачать»
+  (забрать на телефон). Обычный путь ответа — POST /api/v1/query.
 -->
 <script>
   import { client } from '../lib/stores/api';
@@ -9,15 +9,15 @@
 
   let input = '';
   let busy = false;
-  /** Сообщения: { role: 'user' | 'assistant' | 'error' | 'system', text, meta }. */
+  /** Сообщения: { role, text, meta, files: [{path,name,snippet}] }. */
   let messages = [];
 
   /** Добавить сообщение. */
-  function push(role, text, meta = '') {
-    messages = [...messages, { role, text, meta }];
+  function push(role, text, meta = '', files = []) {
+    messages = [...messages, { role, text, meta, files }];
   }
 
-  /** Отправить сообщение в ядро (оно выбирает локальную или облачную модель). */
+  /** Отправить сообщение в ядро (локальная или облачная модель + файлы). */
   async function send() {
     const text = input.trim();
     if (!text || busy) {
@@ -29,7 +29,10 @@
     try {
       const reply = await client.query(text);
       const meta = `${reply.model_used}${reply.degraded ? ' · локальная' : ''}`;
-      push('assistant', reply.text, meta);
+      const files = Array.isArray(reply.action_payload?.files)
+        ? reply.action_payload.files
+        : [];
+      push('assistant', reply.text, meta, files);
     } catch (error) {
       if (error?.status === 503) {
         push('system', $t('chat.coreNotConfigured'));
@@ -38,6 +41,31 @@
       }
     } finally {
       busy = false;
+    }
+  }
+
+  /** Открыть файл на этом ПК программой по умолчанию. */
+  async function openFile(file) {
+    try {
+      await client.openFile(file.path);
+      push('system', `${$t('chat.opened')}: ${file.name}`);
+    } catch (error) {
+      push('error', `${$t('chat.openFailed')}: ${error.message ?? error}`);
+    }
+  }
+
+  /** Скачать файл (телефон/браузер). */
+  async function downloadFile(file) {
+    try {
+      const blob = await client.downloadFile(file.path);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = file.name;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      push('error', `${$t('chat.openFailed')}: ${error.message ?? error}`);
     }
   }
 
@@ -63,6 +91,19 @@
         {message.role === 'user' ? $t('chat.you') : message.role === 'assistant' ? 'Tensa' : '!'}
       </span>
       <p>{message.text}</p>
+      {#if message.files.length}
+        <ul class="files">
+          {#each message.files as file (file.path)}
+            <li>
+              <button class="file-link" on:click={() => openFile(file)}>{file.name}</button>
+              <div class="muted small file-path">{file.path}</div>
+              <button class="file-download" on:click={() => downloadFile(file)}>
+                {$t('chat.download')}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       {#if message.meta}
         <span class="muted small">{message.meta}</span>
       {/if}
@@ -86,3 +127,38 @@
   </div>
   <p class="muted small">{$t('chat.modelHint')}</p>
 </div>
+
+<style>
+  .files {
+    list-style: none;
+    margin: 8px 0 4px;
+    padding: 0;
+  }
+
+  .files li {
+    padding: 8px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .file-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #7dd3fc;
+    font-size: 15px;
+    text-align: left;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .file-path {
+    margin: 2px 0 4px;
+    word-break: break-all;
+  }
+
+  .file-download {
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+</style>

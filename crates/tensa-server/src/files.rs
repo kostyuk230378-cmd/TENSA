@@ -123,21 +123,22 @@ impl FilesIndex {
 
     /// Найти файлы по запросу (имя + содержимое).
     pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<FileHit>> {
-        let match_query = fts_query(query);
-        let Some(match_query) = match_query else {
+        // Сначала строгий запрос (все значимые слова), если пусто — мягкий (OR):
+        // так «Договор ВСТК» не забивается файлами, где есть только «договор».
+        let Some((strict, loose)) = fts_queries(query) else {
             return Ok(Vec::new());
         };
         let pool = self.pool().await?;
-        let rows = sqlx::query_as::<_, (String, String, String)>(
-            "SELECT f.path, f.name, snippet(files_fts, 1, '«', '»', '…', 18) \
-             FROM files_fts JOIN files f ON f.id = files_fts.rowid \
-             WHERE files_fts MATCH ? ORDER BY rank LIMIT ?",
-        )
-        .bind(match_query)
-        .bind(limit as i64)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
+        let mut rows = self
+            .run_match(pool, &strict, limit)
+            .await
+            .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
+        if rows.is_empty() {
+            rows = self
+                .run_match(pool, &loose, limit)
+                .await
+                .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
+        }
         Ok(rows
             .into_iter()
             .map(|(path, name, snippet)| FileHit {
@@ -146,6 +147,35 @@ impl FilesIndex {
                 snippet,
             })
             .collect())
+    }
+
+    /// Выполнить MATCH-запрос (вес имени 50, текста 1).
+    async fn run_match(
+        &self,
+        pool: &SqlitePool,
+        match_query: &str,
+        limit: usize,
+    ) -> std::result::Result<Vec<(String, String, String)>, sqlx::Error> {
+        sqlx::query_as::<_, (String, String, String)>(
+            "SELECT f.path, f.name, snippet(files_fts, 1, '«', '»', '…', 18) \
+             FROM files_fts JOIN files f ON f.id = files_fts.rowid \
+             WHERE files_fts MATCH ? ORDER BY bm25(files_fts, 50.0, 1.0) LIMIT ?",
+        )
+        .bind(match_query)
+        .bind(limit as i64)
+        .fetch_all(pool)
+        .await
+    }
+
+    /// Есть ли файл в индексе по точному пути.
+    pub async fn search_exact(&self, path: &str) -> Result<bool> {
+        let pool = self.pool().await?;
+        let row: Option<(i64,)> = sqlx::query_as("SELECT id FROM files WHERE path = ?")
+            .bind(path)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| FilesError::Storage(format!("проверка пути: {e}")))?;
+        Ok(row.is_some())
     }
 
     /// Статистика индекса.
@@ -447,11 +477,33 @@ pub fn default_scan_roots() -> Vec<PathBuf> {
 }
 
 /// Построить FTS5-запрос: термины длиной от 3 символов, префиксный поиск, OR.
-fn fts_query(raw: &str) -> Option<String> {
+fn fts_queries(raw: &str) -> Option<(String, String)> {
+    // Служебные слова поиска не должны попадать в выдачу (иначе «файлы»/
+    // «найди» находят сам репозиторий вместо документов пользователя).
+    const STOPWORDS: [&str; 14] = [
+        "найди",
+        "найти",
+        "поищи",
+        "поиск",
+        "покажи",
+        "файл",
+        "файлы",
+        "файлов",
+        "документ",
+        "документы",
+        "документов",
+        "где",
+        "find",
+        "search",
+    ];
     let mut terms: Vec<String> = Vec::new();
     for word in raw.split(|c: char| !c.is_alphanumeric()) {
         let word = word.trim();
         if word.chars().count() < 3 {
+            continue;
+        }
+        let lowered = word.to_lowercase();
+        if STOPWORDS.iter().any(|stop| *stop == lowered) {
             continue;
         }
         let escaped = word.replace('"', "\"\"");
@@ -461,7 +513,7 @@ fn fts_query(raw: &str) -> Option<String> {
         return None;
     }
     terms.dedup();
-    Some(terms.join(" OR "))
+    Some((terms.join(" AND "), terms.join(" OR ")))
 }
 
 /// Человеческий список найденных файлов (прямой ответ без LLM).
@@ -558,11 +610,13 @@ mod tests {
     }
 
     #[test]
-    fn fts_query_builds_prefix_terms() {
-        assert_eq!(
-            fts_query("Найди документ ВСТК").as_deref(),
-            Some("\"Найди\"* OR \"документ\"* OR \"ВСТК\"*")
-        );
-        assert!(fts_query("и в").is_none());
+    fn fts_query_builds_strict_and_loose() {
+        let (strict, loose) = fts_queries("Найди документ ВСТК").expect("запрос");
+        assert_eq!(strict, "\"ВСТК\"*");
+        assert_eq!(loose, "\"ВСТК\"*");
+        let (strict, loose) = fts_queries("Договор ВСТК").expect("запрос");
+        assert_eq!(strict, "\"Договор\"* AND \"ВСТК\"*");
+        assert_eq!(loose, "\"Договор\"* OR \"ВСТК\"*");
+        assert!(fts_queries("и в").is_none());
     }
 }
