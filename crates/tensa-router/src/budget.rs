@@ -179,8 +179,10 @@ mod tests {
         )
     }
 
-    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(y, m, d).expect("дата")
+    /// Сегодняшняя дата (UTC): тесты не должны зависеть от календаря прогона
+    /// (фиксированные даты ломали CI при смене суток UTC).
+    fn today() -> NaiveDate {
+        chrono::Utc::now().date_naive()
     }
 
     #[test]
@@ -198,13 +200,13 @@ mod tests {
     fn warn_at_threshold() {
         let (tracker, dir) = tracker();
         let status = tracker
-            .record_usage_on(date(2026, 10, 16), 80_000, 0.0)
+            .record_usage_on(today(), 80_000, 0.0)
             .expect("запись");
         assert!(status.warn);
         assert!(!status.exhausted());
 
         let status = tracker
-            .record_usage_on(date(2026, 10, 16), 100_000, 0.0)
+            .record_usage_on(today(), 100_000, 0.0)
             .expect("запись");
         assert!(status.exhausted());
         assert!(tracker.check_available().is_err());
@@ -215,19 +217,23 @@ mod tests {
     fn periods_roll_over() {
         let (tracker, dir) = tracker();
         tracker
-            .record_usage_on(date(2026, 10, 16), 50_000, 5.0)
+            .record_usage_on(today(), 50_000, 5.0)
             .expect("запись");
 
         // Следующий день: дневной счётчик сбрасывается, месячный — нет.
+        let tomorrow = today().succ_opt().expect("завтра");
         let status = tracker
-            .record_usage_on(date(2026, 10, 17), 0, 0.0)
+            .record_usage_on(tomorrow, 0, 0.0)
             .expect("новый день");
         assert_eq!(status.daily_tokens_used, 0);
         assert_eq!(status.monthly_usd_used, 5.0);
 
         // Следующий месяц: сбрасывается и месячный счётчик.
+        let next_month = today()
+            .checked_add_months(chrono::Months::new(1))
+            .expect("следующий месяц");
         let status = tracker
-            .record_usage_on(date(2026, 11, 1), 0, 0.0)
+            .record_usage_on(next_month, 0, 0.0)
             .expect("новый месяц");
         assert_eq!(status.monthly_usd_used, 0.0);
         let _ = std::fs::remove_dir_all(dir);
@@ -237,7 +243,7 @@ mod tests {
     fn state_persists_between_instances() {
         let (tracker, dir) = tracker();
         tracker
-            .record_usage_on(date(2026, 10, 16), 12_345, 1.25)
+            .record_usage_on(today(), 12_345, 1.25)
             .expect("запись");
         drop(tracker);
 
@@ -253,7 +259,7 @@ mod tests {
     fn monthly_limit_blocks() {
         let (tracker, dir) = tracker();
         tracker
-            .record_usage_on(date(2026, 10, 16), 0, 10.0)
+            .record_usage_on(today(), 0, 10.0)
             .expect("запись");
         assert!(tracker.check_available().is_err());
         let _ = std::fs::remove_dir_all(dir);
