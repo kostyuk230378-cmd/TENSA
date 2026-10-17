@@ -248,13 +248,28 @@ impl FilesIndex {
                     continue;
                 }
                 let path_for_extract = path.clone();
+                // Битые PDF/DOCX могут паниковать в парсере: изолируем панику,
+                // иначе один файл уронил бы всё ядро (SSE/чат «падают»).
                 let text = tokio::task::spawn_blocking(move || {
-                    tensa_tools::documents::extract_text(&path_for_extract)
-                        .map(|document| document.text)
+                    let extracted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        tensa_tools::documents::extract_text(&path_for_extract)
+                            .map(|document| document.text)
+                    }));
+                    match extracted {
+                        Ok(Ok(text)) => Some(text),
+                        Ok(Err(_)) => None,
+                        Err(_) => {
+                            tracing::warn!(
+                                path = %path_for_extract.display(),
+                                "парсер документа упал — файл пропущен"
+                            );
+                            None
+                        }
+                    }
                 })
                 .await
                 .ok()
-                .and_then(|result| result.ok())
+                .flatten()
                 .unwrap_or_default();
                 self.upsert(&path, &name, metadata.len(), mtime, &text)
                     .await?;

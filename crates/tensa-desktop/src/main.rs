@@ -102,7 +102,7 @@ fn port_open(address: &str) -> bool {
 #[cfg(windows)]
 fn start_server() -> std::io::Result<std::process::Child> {
     use std::path::PathBuf;
-    use std::process::Command;
+    use std::process::{Command, Stdio};
 
     let exe_dir = std::env::current_exe()?
         .parent()
@@ -115,10 +115,29 @@ fn start_server() -> std::io::Result<std::process::Child> {
         .join(".tensa")
         .join("config.toml");
 
+    // Логи ядра — в ~/.tensa/logs/server.log (диагностика падений и индексации).
     let mut command = Command::new(server);
     command
         .arg(config)
         .current_dir(&exe_dir)
         .env("TENSA_BIND", "0.0.0.0:8765");
+    let logs_dir = std::env::var("USERPROFILE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join(".tensa")
+        .join("logs");
+    if std::fs::create_dir_all(&logs_dir).is_ok() {
+        let log_path = logs_dir.join("server.log");
+        if let Ok(file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            if let Ok(clone) = file.try_clone() {
+                command.stdout(Stdio::from(file));
+                command.stderr(Stdio::from(clone));
+            }
+        }
+    }
     command.spawn()
 }
