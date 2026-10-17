@@ -31,8 +31,9 @@ Tensa — self-hosted секретарь для одного человека: �
 
 - **Эмбеддер памяти e5-small** (`intfloat/multilingual-e5-small`) — **в комплекте** установщика
   Windows и APK; работает офлайн, сеть не нужна.
-- **Локальная LLM** — GGUF в `~/.tensa/models` (по умолчанию `gemma-4-E2B-it-…`; ярлык
-  «Tensa (download models)» качает публичную сборку). Локальный инференс — llama.cpp внутри ядра.
+- **Локальная LLM** — [`TheStageAI/gemma-4-E2B-it-GGUF`](https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF)
+  (`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`, ~1.6 ГБ) в `~/.tensa/models`; ярлык
+  «Tensa (download models)» скачивает её. Локальный инференс — llama.cpp внутри ядра.
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
   Ключ выдаётся на https://openrouter.ai/keys.
@@ -42,7 +43,8 @@ Tensa — self-hosted секретарь для одного человека: �
 1. Скачайте `TensaSetup.exe` из [Releases](https://github.com/kostyuk230378-cmd/TENSA/releases) и установите.
 2. Запустите ярлык **Tensa** — откроется браузер на `http://127.0.0.1:8765/app`
    (окно консоли держит сервер; закрыли — сервер остановлен).
-3. Токен доступа — файл `%USERPROFILE%\.tensa\pwa_token`; вставьте его на экране подключения PWA.
+3. На этом ПК вход **без токена** (loopback доверенный). Токен — только для телефона:
+   `%USERPROFILE%\.tensa\pwa_token`.
 4. Телефон: установите APK (Release или `http://<ip-пк>:8765/static/Tensa.apk`), в Настройках
    укажите адрес ядра (например `http://<ip-пк>:8765`) и тот же токен.
 5. Проверка памяти на ПК:

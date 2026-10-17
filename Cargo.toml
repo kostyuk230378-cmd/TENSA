@@ -13,6 +13,7 @@ members = [
     "crates/tensa-server",
     "crates/tensa-tools",
     "crates/tensa-cli",
+    "crates/tensa-desktop",
     "crates/tensa-ffi",
     "crates/tensa-llm",
     "crates/tensa-llm/llama-sys",

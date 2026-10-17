@@ -8,8 +8,8 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import { currentToken, token } from './lib/stores/token';
-  import { clearError, error, screen } from './lib/stores/ui';
-  import { boot, stopEventStream } from './lib/stores/api';
+  import { clearError, error, localAccess, screen } from './lib/stores/ui';
+  import { boot, client, stopEventStream } from './lib/stores/api';
   import { t } from './lib/i18n/index';
 
   import StatusBar from './lib/components/StatusBar.svelte';
@@ -35,7 +35,7 @@
 
   let booted = false;
 
-  $: authorized = $token.length > 0;
+  $: authorized = $token.length > 0 || $localAccess;
 
   // Появление доступа запускает загрузку; потеря — закрывает поток.
   $: if (authorized && !booted) {
@@ -51,7 +51,17 @@
     if (currentToken()) {
       booted = true;
       boot();
+      return;
     }
+    // Локальный вход без токена: сервер на этом ПК пускает loopback-запросы.
+    client
+      .health()
+      .then(() => {
+        localAccess.set(true);
+      })
+      .catch(() => {
+        // Сервер недоступен или это удалённый вход — остаёмся на экране токена.
+      });
   });
 
   onDestroy(() => stopEventStream());

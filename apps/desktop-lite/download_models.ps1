@@ -1,8 +1,8 @@
 ﻿# Скачивание моделей Tensa в %USERPROFILE%\.tensa\models ([derived]).
 #
 # Что кладёт:
-#   1. GGUF локальной модели ядра — google_gemma-4-E2B-it-Q3_K_S.gguf
-#      (~3.1 ГБ, публичное зеркало bartowski на HuggingFace).
+#   1. GGUF локальной модели ядра — gemma-4-E2B-it-XS-TS-Q3_K_S.gguf
+#      (~1.6 ГБ, TheStageAI/gemma-4-E2B-it-GGUF на HuggingFace).
 #   2. (опция -Whisper) ggml-base.bin для распознавания речи (~142 МБ).
 #
 # Эмбеддер памяти intfloat/multilingual-e5-small в установщик не входит:
@@ -20,8 +20,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$gemmaUrl = 'https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-Q3_K_S.gguf'
-$gemmaFile = 'google_gemma-4-E2B-it-Q3_K_S.gguf'
+$gemmaUrl = 'https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-XS-TS-Q3_K_S.gguf'
+$gemmaFile = 'gemma-4-E2B-it-XS-TS-Q3_K_S.gguf'
 $whisperUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin'
 $whisperFile = 'ggml-base.bin'
 

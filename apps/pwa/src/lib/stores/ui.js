@@ -44,6 +44,9 @@ export const language = writable(readStorage(LANG_KEY) || 'ru');
 /** Текущий экран (см. навигацию в App.svelte). */
 export const screen = writable('status');
 
+/** Локальный доступ: запросы с этого ПК не требуют токена (сервер, loopback). */
+export const localAccess = writable(false);
+
 /** Текст ошибки для баннера сверху; пустая строка — нет ошибки. */
 export const error = writable('');
 

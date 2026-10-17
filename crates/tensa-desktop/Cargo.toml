@@ -1,0 +1,17 @@
+[package]
+name = "tensa-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tensa Desktop: окно приложения (WebView2) поверх локального ядра — вместо вкладки браузера"
+
+[[bin]]
+name = "tensa-desktop"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.dependencies]
+tao = "0.37"
+wry = "0.57"

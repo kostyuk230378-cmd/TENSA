@@ -45,8 +45,8 @@ public class ChatActivity extends android.app.Activity {
 
         TextView subtitle = new TextView(this);
         subtitle.setTextSize(12);
-        subtitle.setText("Облако (ключ в secrets.toml) или локальная модель; "
-                + "резерв — прямой OpenRouter из настроек");
+        subtitle.setText("По умолчанию — локальная модель ядра. Облако (OpenRouter) — "
+                + "опция для больших моделей (26B).");
         subtitle.setPadding(0, 0, 0, 8);
         root.addView(subtitle);
 

@@ -8,7 +8,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use axum::extract::{Request, State};
+use std::net::SocketAddr;
+
+use axum::extract::{ConnectInfo, Request, State};
 use axum::http::header::AUTHORIZATION;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -136,6 +138,15 @@ pub async fn require_bearer(
     request: Request,
     next: Next,
 ) -> Result<Response> {
+    // [derived] Послабление Контракта 12: запросы с этого же ПК (loopback)
+    // не требуют токена — иначе владелец ищет pwa_token при каждом входе.
+    // Телефон по LAN по-прежнему обязан предъявить Bearer.
+    if let Some(ConnectInfo(address)) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
+        if address.ip().is_loopback() {
+            return Ok(next.run(request).await);
+        }
+    }
+
     let provided = request
         .headers()
         .get(AUTHORIZATION)

@@ -41,6 +41,7 @@ Section "Tensa" SecMain
   File "${STAGE}\tensa-server.exe"
   File "${STAGE}\tensa-cli.exe"
   File "${STAGE}\tensa-bot.exe"
+  File "${STAGE}\tensa-desktop.exe"
   File "${STAGE}\tensa.ico"
   File "${STAGE}\Tensa.cmd"
   File "${STAGE}\TensaBot.cmd"
@@ -57,9 +58,10 @@ Section "Tensa" SecMain
   WriteRegStr HKCU "Software\Tensa" "InstallDir" "$INSTDIR"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-  CreateShortCut "$DESKTOP\Tensa.lnk" "$INSTDIR\Tensa.cmd" "" "$INSTDIR\tensa.ico" 0
+  CreateShortCut "$DESKTOP\Tensa.lnk" "$INSTDIR\tensa-desktop.exe" "" "$INSTDIR\tensa.ico" 0
   CreateDirectory "$SMPROGRAMS\Tensa"
-  CreateShortCut "$SMPROGRAMS\Tensa\Tensa (core + PWA).lnk" "$INSTDIR\Tensa.cmd" "" "$INSTDIR\tensa.ico" 0
+  CreateShortCut "$SMPROGRAMS\Tensa\Tensa.lnk" "$INSTDIR\tensa-desktop.exe" "" "$INSTDIR\tensa.ico" 0
+  CreateShortCut "$SMPROGRAMS\Tensa\Tensa (core console).lnk" "$INSTDIR\Tensa.cmd" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Tensa (Telegram bot).lnk" "$INSTDIR\TensaBot.cmd" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Tensa (download models).lnk" "$INSTDIR\DownloadModels.cmd" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Uninstall Tensa.lnk" "$INSTDIR\Uninstall.exe"
@@ -69,6 +71,7 @@ Section "Uninstall"
   Delete "$INSTDIR\tensa-server.exe"
   Delete "$INSTDIR\tensa-cli.exe"
   Delete "$INSTDIR\tensa-bot.exe"
+  Delete "$INSTDIR\tensa-desktop.exe"
   Delete "$INSTDIR\tensa.ico"
   Delete "$INSTDIR\Tensa.cmd"
   Delete "$INSTDIR\TensaBot.cmd"
@@ -78,6 +81,7 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir /r "$INSTDIR\pwa"
   RMDir /r "$INSTDIR\models"
+  RMDir /r "$INSTDIR\tensa-desktop.exe.WebView2"
   RMDir "$INSTDIR"
 
   Delete "$DESKTOP\Tensa.lnk"

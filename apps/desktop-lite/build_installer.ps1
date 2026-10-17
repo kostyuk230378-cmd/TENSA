@@ -39,6 +39,7 @@ try {
     Copy-Item (Join-Path $repo 'target\release\tensa-server.exe') (Join-Path $stage 'tensa-server.exe') -Force
     Copy-Item (Join-Path $repo 'target\release\tensa.exe') (Join-Path $stage 'tensa-cli.exe') -Force
     Copy-Item (Join-Path $repo 'target\release\examples\telegram_flow.exe') (Join-Path $stage 'tensa-bot.exe') -Force
+    Copy-Item (Join-Path $repo 'target\release\tensa-desktop.exe') (Join-Path $stage 'tensa-desktop.exe') -Force
 
     $pwaOut = Join-Path $stage 'pwa'
     Remove-Item $pwaOut -Recurse -Force -ErrorAction SilentlyContinue

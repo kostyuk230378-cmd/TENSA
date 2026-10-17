@@ -54,6 +54,10 @@ pub async fn serve(addr: SocketAddr, state: AppState) -> Result<()> {
         static_dir = %state.static_dir.display(),
         "PWA-бэкенд запущен"
     );
-    axum::serve(listener, router(state)).await?;
+    axum::serve(
+        listener,
+        router(state).into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
     Ok(())
 }
