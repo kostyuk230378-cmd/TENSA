@@ -25,6 +25,10 @@ export const ru = {
     'или суммировать документ.',
   'chat.thinking': 'Tensa печатает…',
   'chat.noKey': 'Не задан ключ OpenRouter — введите его выше.',
+  'chat.localFallback': '(ответила локальная модель: облако недоступно)',
+  'chat.coreNotConfigured':
+    'Ядро не настроено для моделей: добавьте ключ OpenRouter в secrets.toml ' +
+    '([openrouter] credential) или введите ключ выше для прямого доступа.',
   'chat.badKey': 'OpenRouter: неверный ключ (401)',
   'chat.error': 'Ошибка',
 };
@@ -47,6 +51,10 @@ export const en = {
     'summarize a document.',
   'chat.thinking': 'Tensa is typing…',
   'chat.noKey': 'OpenRouter key is not set — enter it above.',
+  'chat.localFallback': '(answered by the local model: cloud is unavailable)',
+  'chat.coreNotConfigured':
+    'The core has no model provider: add an OpenRouter key to secrets.toml ' +
+    '([openrouter] credential) or enter a key above for direct access.',
   'chat.badKey': 'OpenRouter: invalid key (401)',
   'chat.error': 'Error',
 };

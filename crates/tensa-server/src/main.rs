@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tensa_approval::{ApprovalConfig, SqliteApprovalStore};
-use tensa_core::{Config, SqliteNotesStore, TensaPaths};
-use tensa_server::{load_or_create_token, serve, AppState};
+use tensa_core::{Config, Secrets, SqliteNotesStore, TensaPaths};
+use tensa_server::{load_or_create_token, serve, AppState, QueryService};
 
 #[tokio::main]
 async fn main() {
@@ -55,7 +55,24 @@ async fn run() -> tensa_server::Result<()> {
 
     let access = load_or_create_token(&paths.root()).await?;
 
-    let state = AppState::new(Arc::new(approvals), Arc::new(notes), access);
+    let secrets = Secrets::load(&paths.secrets_file())?;
+    let query = QueryService::from_config(&config.brain, &secrets, &paths);
+    tracing::info!(
+        mode = ?query.mode(),
+        cloud = query.has_cloud(),
+        local = query.has_local(),
+        "шлюз /query: провайдеры"
+    );
+
+    let calendar = Arc::new(tensa_server::calendar::CalendarStore::new(
+        paths.root().join("calendar.json"),
+    ));
+    let email_accounts = tensa_server::routes::email::accounts_from_config(&config.email);
+    let state = AppState::new(Arc::new(approvals), Arc::new(notes), access)
+        .with_query(Arc::new(query))
+        .with_calendar(calendar)
+        .with_email_accounts(email_accounts)
+        .with_data_root(paths.root());
     // Адрес сервера: по умолчанию — только локально (ТЗ apps/pwa: 127.0.0.1:8765);
     // для доступа с телефона/по Tailscale задаётся TENSA_BIND=0.0.0.0:8765.
     let raw_addr = std::env::var("TENSA_BIND").unwrap_or_else(|_| "127.0.0.1:8765".to_string());

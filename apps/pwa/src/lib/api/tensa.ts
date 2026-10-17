@@ -123,6 +123,19 @@ export interface NodeInfo {
   thermal_status?: string;
 }
 
+/** Ответ ядра на запрос к модели (`POST /query`, Контракт 12). */
+export interface QueryResponse {
+  text: string;
+  action?: string | null;
+  action_payload?: unknown;
+  tool_calls: unknown[];
+  reasoning?: string | null;
+  degraded: boolean;
+  model_used: string;
+  node_used: string;
+  tokens_used?: number | null;
+}
+
 /** Параметры клиента. Значения-функции читаются перед каждым запросом. */
 export interface TensaClientOptions {
   /** Базовый путь API: строка или геттер (по умолчанию {@link DEFAULT_BASE_URL}). */
@@ -174,6 +187,7 @@ export interface TensaClient {
   approve(id: string, approvedBy?: string): Promise<Action>;
   reject(id: string, rejectedBy?: string): Promise<Action>;
   listNodes(params?: { onlineOnly?: boolean }): Promise<NodeInfo[]>;
+  query(text: string, options?: { useCloud?: boolean; model?: string }): Promise<QueryResponse>;
 }
 
 /**
@@ -275,6 +289,13 @@ export function createTensaClient(options: TensaClientOptions = {}): TensaClient
     // Маршрут есть в контракте (Контракт 9), но MVP-бэкенд отвечает 501.
     listNodes: ({ onlineOnly = false } = {}) =>
       request<NodeInfo[]>('GET', '/nodes', { online_only: onlineOnly ? 'true' : undefined }),
+
+    query: (text, options = {}) =>
+      request<QueryResponse>('POST', '/query', {}, {
+        text,
+        ...(options.useCloud ? { use_cloud: true } : {}),
+        ...(options.model ? { model: options.model } : {}),
+      }),
   };
 }
 

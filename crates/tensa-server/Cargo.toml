@@ -12,6 +12,8 @@ description = "HTTP-бэкенд PWA (Контракт 12): axum-роутер п
 # Внутренние
 tensa-core = { path = "../tensa-core" }
 tensa-approval = { path = "../tensa-approval" }
+tensa-router = { path = "../tensa-router" }
+tensa-llm = { path = "../tensa-llm" }
 
 # Внешние (из workspace)
 axum.workspace = true
@@ -20,6 +22,8 @@ tokio.workspace = true
 tokio-stream.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
+async-trait.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 rand.workspace = true
@@ -33,3 +37,5 @@ tower.workspace = true
 
 [features]
 default = []
+# Нативный локальный инференс (llama.cpp): загрузка GGUF в ядре для /query.
+native = ["tensa-llm/native"]

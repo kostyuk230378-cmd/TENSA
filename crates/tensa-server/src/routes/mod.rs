@@ -5,15 +5,20 @@
 //! публична — браузер не прикладывает заголовок при навигации.
 
 pub mod approvals;
+pub mod calendar;
+pub mod email;
 pub mod events;
 pub mod health;
 pub mod notes;
+pub mod query;
 pub mod static_files;
 pub mod stubs;
 
-use axum::routing::{get, post};
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{delete, get, post};
 use axum::Router;
 
+use crate::models_upload;
 use crate::state::AppState;
 
 /// API-роутер MVP: реализованные маршруты + заглушки 501 остальных.
@@ -39,6 +44,24 @@ pub fn api() -> Router<AppState> {
         )
         // Поток событий (SSE).
         .route("/events", get(events::events))
+        // Запросы к моделям через ядро (Контракт 12): облако/локальная GGUF.
+        .route("/query", post(query::query))
+        // Календарь (Контракт 7): события, конфликты, ICS.
+        .route(
+            "/calendar/events",
+            get(calendar::list).post(calendar::create),
+        )
+        .route("/calendar/conflicts", get(calendar::conflicts))
+        .route("/calendar/ics", get(calendar::ics))
+        .route("/calendar/events/:id", delete(calendar::remove))
+        // Почта: аккаунты из конфига (отправка — контур tensa-tools).
+        .route("/email/accounts", get(email::accounts))
+        // Модель эмбеддингов: статус и приём файлов из APK.
+        .route("/models/embedder", get(models_upload::status))
+        .route(
+            "/models/embedder/:file",
+            post(models_upload::upload).layer(DefaultBodyLimit::max(335 * 1024 * 1024)),
+        )
         // Остальные маршруты Контракта 12 — 501 Not Implemented.
         .merge(stubs::routes())
 }

@@ -10,6 +10,9 @@ use tensa_core::NotesStore;
 use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
+use crate::calendar::CalendarStore;
+use crate::query::QueryService;
+use crate::routes::email::AccountInfo;
 
 /// Каталог со собранной статикой PWA по умолчанию (ТЗ apps/pwa: сборка кладёт
 /// `static/`; здесь MVP-путь относительно рабочего каталога процесса).
@@ -62,6 +65,14 @@ pub struct AppState {
     pub approvals: Arc<dyn ApprovalStore>,
     /// Хранилище заметок (`tensa-core`).
     pub notes: Arc<dyn NotesStore>,
+    /// Шлюз запросов к моделям (`/query`).
+    pub query: Arc<QueryService>,
+    /// Календарь ядра (JSON-файл `<root>/calendar.json`).
+    pub calendar: Arc<CalendarStore>,
+    /// Почтовые аккаунты из конфига (для APK/PWA).
+    pub email_accounts: Vec<AccountInfo>,
+    /// Корень данных ядра (модели и пр.).
+    pub data_root: PathBuf,
     /// Bearer-доступ PWA. Значение не логируется и наружу не отдаётся:
     /// обработчикам доступна только проверка [`AppState::token_matches`].
     access: PwaToken,
@@ -87,6 +98,10 @@ impl AppState {
         Self {
             approvals,
             notes,
+            query: Arc::new(QueryService::disabled()),
+            calendar: Arc::new(CalendarStore::in_memory()),
+            email_accounts: Vec::new(),
+            data_root: PathBuf::from("."),
             access,
             events,
             static_dir: PathBuf::from(DEFAULT_STATIC_DIR),
@@ -103,6 +118,30 @@ impl AppState {
     /// Момент старта (для тестов аптайма).
     pub fn with_started_at(mut self, started_at: i64) -> Self {
         self.started_at = started_at;
+        self
+    }
+
+    /// Шлюз запросов к моделям (собирается в `main` из конфига и секретов).
+    pub fn with_query(mut self, query: Arc<QueryService>) -> Self {
+        self.query = query;
+        self
+    }
+
+    /// Календарь (файл в корне данных).
+    pub fn with_calendar(mut self, calendar: Arc<CalendarStore>) -> Self {
+        self.calendar = calendar;
+        self
+    }
+
+    /// Почтовые аккаунты из конфига.
+    pub fn with_email_accounts(mut self, accounts: Vec<AccountInfo>) -> Self {
+        self.email_accounts = accounts;
+        self
+    }
+
+    /// Корень данных (каталог моделей).
+    pub fn with_data_root(mut self, root: impl Into<PathBuf>) -> Self {
+        self.data_root = root.into();
         self
     }
 

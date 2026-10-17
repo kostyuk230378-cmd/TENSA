@@ -38,6 +38,14 @@ pub enum ServerError {
     #[error("not implemented: {0}")]
     NotImplemented(String),
 
+    /// Провайдер модели недоступен: нет ключа/GGUF, облако не ответило (503).
+    #[error("unavailable: {0}")]
+    Unavailable(String),
+
+    /// Ошибка хранилища сервера (календарь и т. п.) — 500.
+    #[error("storage: {0}")]
+    Storage(String),
+
     /// Ошибка хранилища tensa-core (заметки, конфигурация).
     #[error("core error: {0}")]
     Core(#[from] CoreError),
@@ -67,6 +75,8 @@ impl ServerError {
             ServerError::NotFound(_) => StatusCode::NOT_FOUND,
             ServerError::Conflict(_) => StatusCode::CONFLICT,
             ServerError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
+            ServerError::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
+            ServerError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServerError::Core(CoreError::NotFound(_)) => StatusCode::NOT_FOUND,
             ServerError::Core(CoreError::Config(_)) => StatusCode::BAD_REQUEST,
             ServerError::Approval(ApprovalError::NotFound(_)) => StatusCode::NOT_FOUND,
@@ -125,6 +135,10 @@ mod tests {
         assert_eq!(
             ServerError::NotImplemented("GET /query".into()).status(),
             StatusCode::NOT_IMPLEMENTED
+        );
+        assert_eq!(
+            ServerError::Unavailable("нет модели".into()).status(),
+            StatusCode::SERVICE_UNAVAILABLE
         );
         assert_eq!(
             ServerError::Core(CoreError::NotFound("note".into())).status(),

@@ -1,17 +1,17 @@
 <!--
-  Экран «Чат»: большие модели через OpenRouter напрямую из браузера.
+  Экран «Чат»: сначала ядро Tensa (`POST /api/v1/query`) — оно само выбирает
+  облачную модель (ключ OpenRouter в secrets.toml) или локальную GGUF.
+  Если ядро не настроено (503) — резервный прямой вызов OpenRouter с ключом
+  из полей ниже (ключ остаётся на устройстве).
 
-  Ключ и модель хранятся на этом устройстве (localStorage), на сервер
-  не отправляются. Запрос идёт с телефона/ПК к openrouter.ai — CORS
-  у OpenRouter разрешён для браузерных клиентов.
-
-  [derived] Локальная модель через ядро (/api/v1/query) появится отдельным
-  этапом — здесь только облачный контур.
+  [derived] Прямой вызов — страховка для установки без ключа в secrets;
+  основной контур — через ядро (ключ не покидает ПК).
 -->
 <script>
+  import { client } from '../lib/stores/api';
   import { t } from '../lib/i18n/index';
 
-  /** Ключи localStorage. */
+  /** Ключи localStorage (резервный прямой доступ). */
   const KEY_STORE = 'tensa.chat.key';
   const MODEL_STORE = 'tensa.chat.model';
 
@@ -41,70 +41,80 @@
   let model = read(MODEL_STORE, 'openai/gpt-4o-mini');
   let input = '';
   let busy = false;
-  /** Сообщения: { role: 'user' | 'assistant' | 'error', text }. */
+  /** Сообщения: { role: 'user' | 'assistant' | 'error' | 'system', text }. */
   let messages = [];
 
   $: apiKey && write(KEY_STORE, apiKey);
   $: model && write(MODEL_STORE, model);
 
-  /** Отправить сообщение в OpenRouter. */
+  /** Добавить сообщение и прокрутить. */
+  function push(role, text) {
+    messages = [...messages, { role, text }];
+  }
+
+  /** Отправить сообщение: ядро → (при 503/501 и наличии ключа) прямой OpenRouter. */
   async function send() {
     const text = input.trim();
     if (!text || busy) {
       return;
     }
-    if (!apiKey.trim()) {
-      messages = [...messages, { role: 'error', text: $t('chat.noKey') }];
-      return;
-    }
 
-    messages = [...messages, { role: 'user', text }];
+    push('user', text);
     input = '';
     busy = true;
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: model.trim() || 'openai/gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Ты — Tensa, личный секретарь пользователя. Отвечай кратко и по делу, ' +
-                'на языке пользователя. Если нужно действие (письмо, заметка, событие) — ' +
-                'предложи его и параметры.',
-            },
-            { role: 'user', content: text },
-          ],
-        }),
-      });
-
-      if (response.status === 401) {
-        throw new Error($t('chat.badKey'));
-      }
-      if (!response.ok) {
-        throw new Error(`OpenRouter HTTP ${response.status}`);
-      }
-
-      const json = await response.json();
-      const answer = json?.choices?.[0]?.message?.content ?? '';
-      messages = [
-        ...messages,
-        { role: 'assistant', text: answer || '—' },
-      ];
+      const reply = await client.query(text);
+      const suffix = reply.degraded ? ` ${$t('chat.localFallback')}` : '';
+      push('assistant', `${reply.text}${suffix}`);
     } catch (error) {
-      messages = [
-        ...messages,
-        { role: 'error', text: `${$t('chat.error')}: ${error.message ?? error}` },
-      ];
+      const coreUnavailable = error?.status === 503 || error?.status === 501;
+      if (coreUnavailable && apiKey.trim()) {
+        try {
+          push('assistant', await directOpenRouter(text));
+        } catch (directError) {
+          push('error', `${$t('chat.error')}: ${directError.message ?? directError}`);
+        }
+      } else if (coreUnavailable) {
+        push('error', $t('chat.coreNotConfigured'));
+      } else {
+        push('error', `${$t('chat.error')}: ${error.message ?? error}`);
+      }
     } finally {
       busy = false;
     }
+  }
+
+  /** Резервный прямой запрос к OpenRouter с ключом из настроек экрана. */
+  async function directOpenRouter(text) {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey.trim()}`,
+      },
+      body: JSON.stringify({
+        model: model.trim() || 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Ты — Tensa, личный секретарь пользователя. Отвечай кратко и по делу, ' +
+              'на языке пользователя. Если нужно действие (письмо, заметка, событие) — ' +
+              'предложи его и параметры.',
+          },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
+    if (response.status === 401) {
+      throw new Error($t('chat.badKey'));
+    }
+    if (!response.ok) {
+      throw new Error(`OpenRouter HTTP ${response.status}`);
+    }
+    const json = await response.json();
+    return json?.choices?.[0]?.message?.content || '—';
   }
 
   /** Enter отправляет, Shift+Enter — перенос строки. */

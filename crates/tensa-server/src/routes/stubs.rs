@@ -29,24 +29,14 @@ pub fn routes() -> Router<AppState> {
                 .put(not_implemented)
                 .delete(not_implemented),
         )
-        // Почта: учётные записи и отправка (реализация — Контракт 6).
-        .route("/email/accounts", get(not_implemented))
+        // Почта: подключение/папки/письма/отправка (Контракт 6).
         .route("/email/accounts/:id/connect", post(not_implemented))
         .route("/email/accounts/:id/disconnect", post(not_implemented))
         .route("/email/accounts/:id/folders", get(not_implemented))
         .route("/email/accounts/:id/emails", get(not_implemented))
         .route("/email/accounts/:id/search", get(not_implemented))
         .route("/email/send", post(not_implemented))
-        // Календарь.
-        .route(
-            "/calendar/events",
-            get(not_implemented).post(not_implemented),
-        )
-        .route("/calendar/conflicts", get(not_implemented))
-        .route(
-            "/calendar/events/:id",
-            axum::routing::delete(not_implemented),
-        )
+        // Календарь реализован в `routes::calendar`.
         // Приложения операционной системы.
         .route("/apps", get(not_implemented))
         .route("/apps/scan", post(not_implemented))
@@ -60,8 +50,7 @@ pub fn routes() -> Router<AppState> {
         // Конфигурация (чтение/изменение — Контракт 2).
         .route("/config", get(not_implemented).patch(not_implemented))
         .route("/config/reload", post(not_implemented))
-        // Запросы к моделям (без потоковой отдачи в MVP).
-        .route("/query", post(not_implemented))
+        // Потоковый ответ модели — вне объёма MVP (/query реализован отдельно).
         .route("/query/stream", post(not_implemented))
         // Голос.
         .route("/voice/transcribe", post(not_implemented))

@@ -13,12 +13,16 @@
 //! Точка сборки приложения — [`router`]; запуск — [`serve`].
 
 pub mod auth;
+pub mod calendar;
 pub mod error;
+pub mod models_upload;
+pub mod query;
 pub mod routes;
 pub mod state;
 
 pub use auth::{load_or_create_token, token_path, PwaToken, TOKEN_FILE};
 pub use error::{ErrorBody, Result, ServerError};
+pub use query::{QueryMode, QueryService};
 pub use state::{AppState, ServerEvent};
 
 use std::net::SocketAddr;

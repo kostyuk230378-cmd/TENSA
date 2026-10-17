@@ -9258,6 +9258,7 @@ dependencies = [
 name = "tensa-server"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "rand 0.9.5",
@@ -9265,9 +9266,12 @@ dependencies = [
  "serde_json",
  "tensa-approval",
  "tensa-core",
+ "tensa-llm",
+ "tensa-router",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
+ "toml 0.8.23",
  "tower 0.5.3",
  "tower-http",
  "tracing",
