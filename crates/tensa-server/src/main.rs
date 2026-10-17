@@ -78,7 +78,10 @@ async fn run() -> tensa_server::Result<()> {
         .with_email_accounts(email_accounts)
         .with_data_root(paths.root())
         .with_config_path(config_path.clone())
-        .with_files(files.clone(), index_dirs.clone());
+        .with_files(files.clone(), index_dirs.clone())
+        .with_voice(Arc::new(tensa_server::voice::VoiceService::new(
+            &paths.root(),
+        )));
 
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).
     if std::env::var("TENSA_INDEX_ON_START").as_deref() != Ok("0") && !index_dirs.is_empty() {

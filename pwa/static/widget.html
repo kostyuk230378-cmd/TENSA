@@ -161,6 +161,11 @@
         box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
       }
 
+      .zone.recording {
+        background: rgba(255, 0, 85, 0.35);
+        box-shadow: 0 0 22px rgba(255, 0, 85, 0.65);
+      }
+
       .zone svg { width: 24px; height: 24px; }
 
       .letter {
@@ -623,24 +628,35 @@
         }
       }
 
-      // Перетаскивание всего дока (пилюля и лампочка) с порогом «клик или драг».
+      // Перетаскивание всего дока (пилюля и лампочка) — Pointer Events.
+      // Захват включается только после порога 4px, поэтому клики по кнопкам целы.
       const dock = document.getElementById('dock');
       let drag = null;
       let suppressClick = false;
 
-      dock.addEventListener('mousedown', (event) => {
+      dock.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
-        drag = { startX: event.screenX, startY: event.screenY, lastX: event.screenX, lastY: event.screenY, moved: false };
+        drag = {
+          id: event.pointerId,
+          startX: event.screenX,
+          startY: event.screenY,
+          lastX: event.screenX,
+          lastY: event.screenY,
+          moved: false,
+        };
       });
 
-      window.addEventListener('mousemove', (event) => {
-        if (!drag) return;
+      window.addEventListener('pointermove', (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
         const dx = event.screenX - drag.startX;
         const dy = event.screenY - drag.startY;
         if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 4) {
           return;
         }
-        drag.moved = true;
+        if (!drag.moved) {
+          drag.moved = true;
+          try { dock.setPointerCapture(event.pointerId); } catch (error) { /* старый движок */ }
+        }
         const stepX = event.screenX - drag.lastX;
         const stepY = event.screenY - drag.lastY;
         drag.lastX = event.screenX;
@@ -650,13 +666,16 @@
         }
       });
 
-      window.addEventListener('mouseup', () => {
-        if (drag && drag.moved) {
+      const endDrag = (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        if (drag.moved) {
           suppressClick = true;
-          setTimeout(() => { suppressClick = false; }, 50);
+          setTimeout(() => { suppressClick = false; }, 60);
         }
         drag = null;
-      });
+      };
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
 
       document.addEventListener('click', (event) => {
         if (suppressClick) {
@@ -665,7 +684,142 @@
         }
       }, true);
 
-      document.getElementById('mic').onclick = () => { if (suppressClick) return; view = 'chat'; setExpanded(true); };
+      // Голосовой ввод: запись WAV 16 кГц и локальный whisper на сервере.
+      const micButton = document.getElementById('mic');
+      let recorder = null;
+
+      function setMicRecording(on) {
+        micButton.classList.toggle('recording', on);
+      }
+
+      function mergeChunks(chunks) {
+        const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const merged = new Float32Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+        return merged;
+      }
+
+      function downsample(samples, from, to) {
+        if (from === to) return samples;
+        const ratio = to / from;
+        const length = Math.floor(samples.length * ratio);
+        const out = new Float32Array(length);
+        for (let index = 0; index < length; index += 1) {
+          const position = index / ratio;
+          const base = Math.floor(position);
+          const frac = position - base;
+          const a = samples[base] ?? 0;
+          const b = samples[base + 1] ?? a;
+          out[index] = a + (b - a) * frac;
+        }
+        return out;
+      }
+
+      function encodeWav(samples, rate) {
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        const write = (offset, text) => {
+          for (let index = 0; index < text.length; index += 1) view.setUint8(offset + index, text.charCodeAt(index));
+        };
+        write(0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * 2, true);
+        write(8, 'WAVE');
+        write(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, rate, true);
+        view.setUint32(28, rate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        write(36, 'data');
+        view.setUint32(40, samples.length * 2, true);
+        let offset = 44;
+        for (const sample of samples) {
+          const clamped = Math.max(-1, Math.min(1, sample));
+          view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+          offset += 2;
+        }
+        return new Blob([buffer], { type: 'audio/wav' });
+      }
+
+      async function toggleVoice() {
+        if (suppressClick) return;
+        if (recorder) {
+          stopRecording();
+          return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          messages.push({ role: 'error', text: 'Микрофон недоступен в этом движке.' });
+          view = 'chat';
+          setExpanded(true);
+          renderChat();
+          return;
+        }
+        try {
+          view = 'chat';
+          setExpanded(true);
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const context = new AudioContext();
+          const source = context.createMediaStreamSource(stream);
+          const processor = context.createScriptProcessor(4096, 1, 1);
+          const chunks = [];
+          processor.onaudioprocess = (event) => chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+          source.connect(processor);
+          processor.connect(context.destination);
+          recorder = { context, stream, source, processor, chunks, rate: context.sampleRate };
+          setMicRecording(true);
+        } catch (error) {
+          recorder = null;
+          setMicRecording(false);
+          messages.push({ role: 'error', text: `Микрофон: ${error.message ?? error}` });
+          renderChat();
+        }
+      }
+
+      function stopRecording() {
+        const current = recorder;
+        if (!current) return;
+        recorder = null;
+        setMicRecording(false);
+        current.processor.disconnect();
+        current.source.disconnect();
+        current.stream.getTracks().forEach((track) => track.stop());
+        const samples = downsample(mergeChunks(current.chunks), current.rate, 16000);
+        current.context.close();
+        if (samples.length < 1600) {
+          messages.push({ role: 'error', text: 'Слишком короткая запись.' });
+          renderChat();
+          return;
+        }
+        fetch('/api/v1/voice/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'audio/wav' },
+          body: encodeWav(samples, 16000),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error((await response.text()).slice(0, 200) || `HTTP ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.text) {
+              input.value = `${input.value ? `${input.value} ` : ''}${data.text}`.trim();
+              input.focus();
+            }
+          })
+          .catch((error) => {
+            messages.push({ role: 'error', text: `Голос: ${error.message}` });
+            renderChat();
+          });
+      }
+
+      micButton.onclick = toggleVoice;
       document.getElementById('letter').onclick = () => { if (suppressClick) return; view = 'chat'; setExpanded(true); };
       document.getElementById('dots').onclick = (event) => {
         if (suppressClick) return;

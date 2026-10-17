@@ -16,8 +16,8 @@ await new Promise((resolve) => (ws.onopen = resolve));
 const response = await new Promise((resolve) => {
   const next = (id += 1);
   pending.set(next, resolve);
-  ws.send(JSON.stringify({ id: next, method: 'Runtime.evaluate', params: { expression, awaitPromise: true } }));
+  ws.send(JSON.stringify({ id: next, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }));
 });
-console.log(JSON.stringify(response.result));
+console.log(JSON.stringify(response.result?.result?.value ?? response.result));
 ws.close();
 process.exit(0);

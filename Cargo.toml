@@ -11,6 +11,7 @@ members = [
     "crates/tensa-perf",
     "crates/tensa-router",
     "crates/tensa-server",
+    "crates/tensa-whisper",
     "crates/tensa-tools",
     "crates/tensa-cli",
     "crates/tensa-desktop",

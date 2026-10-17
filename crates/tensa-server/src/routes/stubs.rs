@@ -53,7 +53,6 @@ pub fn routes() -> Router<AppState> {
         // Потоковый ответ модели — вне объёма MVP (/query реализован отдельно).
         .route("/query/stream", post(not_implemented))
         // Голос.
-        .route("/voice/transcribe", post(not_implemented))
         // Первый запуск: шаги мастера (Контракт 11).
         .route("/first-run", get(not_implemented))
         .route("/first-run/step/language", post(not_implemented))

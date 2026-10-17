@@ -14,6 +14,7 @@ use crate::calendar::CalendarStore;
 use crate::files::FilesIndex;
 use crate::query::QueryService;
 use crate::routes::email::AccountInfo;
+use crate::voice::VoiceService;
 
 /// Каталог со собранной статикой PWA по умолчанию (ТЗ apps/pwa: сборка кладёт
 /// `static/`; здесь MVP-путь относительно рабочего каталога процесса).
@@ -80,6 +81,8 @@ pub struct AppState {
     pub files: Arc<FilesIndex>,
     /// Каталоги, которые индексируются.
     pub index_dirs: Vec<PathBuf>,
+    /// Локальное распознавание речи (whisper).
+    pub voice: Arc<VoiceService>,
     /// Bearer-доступ PWA. Значение не логируется и наружу не отдаётся:
     /// обработчикам доступна только проверка [`AppState::token_matches`].
     access: PwaToken,
@@ -112,6 +115,7 @@ impl AppState {
             config_path: PathBuf::from("config.toml"),
             files: Arc::new(FilesIndex::disabled()),
             index_dirs: Vec::new(),
+            voice: Arc::new(VoiceService::disabled()),
             access,
             events,
             static_dir: PathBuf::from(DEFAULT_STATIC_DIR),
@@ -165,6 +169,12 @@ impl AppState {
     pub fn with_files(mut self, files: Arc<FilesIndex>, dirs: Vec<PathBuf>) -> Self {
         self.files = files;
         self.index_dirs = dirs;
+        self
+    }
+
+    /// Локальное распознавание речи (модель whisper в корне данных).
+    pub fn with_voice(mut self, voice: Arc<VoiceService>) -> Self {
+        self.voice = voice;
         self
     }
 

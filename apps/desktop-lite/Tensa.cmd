@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 title Tensa
 cd /d "%~dp0"
 
@@ -18,6 +18,12 @@ if not exist "%TENSA_DIR%\models\multilingual-e5-small\model_O4.onnx" (
     )
 )
 
+if not exist "%TENSA_DIR%\models\whisper\ggml-base.bin" (
+    if exist "%~dp0models\whisper\ggml-base.bin" (
+        echo Installing local speech model whisper...
+        xcopy "%~dp0models\whisper" "%TENSA_DIR%\models\whisper\" /E /I /Y >nul
+    )
+)
 if not exist "%TENSA_CONFIG%" (
     echo First run: creating default config...
     tensa-cli.exe -c "%TENSA_CONFIG%" init --owner-name User --secretary-name Tensa --timezone UTC >nul 2>&1

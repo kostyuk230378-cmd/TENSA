@@ -14,6 +14,7 @@ pub mod notes;
 pub mod query;
 pub mod static_files;
 pub mod stubs;
+pub mod voice;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
@@ -64,6 +65,11 @@ pub fn api() -> Router<AppState> {
         .route("/files/open", post(files::open_file))
         .route("/files/download", get(files::download))
         // Модель эмбеддингов: статус и приём файлов из APK.
+        // Локальное распознавание речи (whisper) — WAV 16 кГц моно.
+        .route(
+            "/voice/transcribe",
+            post(voice::transcribe).layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
+        )
         .route("/models/embedder", get(models_upload::status))
         .route(
             "/models/embedder/:file",

@@ -26,7 +26,9 @@ Tensa — self-hosted секретарь для одного человека: �
 | **Инструменты** | Telegram-бот «@your_tensa_bot» (`/status`, `/approvals`, `/approve`, `/reject`, inline-кнопки, сторож очереди), email через SMTP (lettre, STARTTLS/implicit TLS), документы PDF/DOCX/PPTX/XLSX/TXT/MD, Wake-on-LAN |
 | **PWA** | Чат (через ядро), Статус, Одобрения, Заметки, Поиск, Настройки — Svelte 5, SSE, i18n ru/en, PWA-манифест, офлайн-оболочка |
 | **Android (APK)** | Чат через ядро (резерв — прямой OpenRouter), Одобрения, Заметки, Поиск по заметкам, Почта (аккаунты), Календарь (список + создание, 409-конфликт), Статус, Настройки; кнопка **«Установить модель»** — передаёт e5-small из assets в ядро |
-| **Windows** | `TensaSetup.exe`: ядро + CLI + Telegram-бот + PWA + **модель e5-small в комплекте**; ярлыки, деинсталлятор; ставится без админа в `%LOCALAPPDATA%\Tensa` |
+| **Windows** | `TensaSetup.exe`: ядро + CLI + Telegram-бот + PWA + **модели e5-small и whisper в комплекте**; ярлыки, деинсталлятор; ставится без админа в `%LOCALAPPDATA%\Tensa` |
+| **Голос** | Кнопка микрофона в виджете: запись → локальный whisper (`ggml-base.bin`, офлайн) → текст в поле ввода; первый запрос ~8 с, дальше быстрее |
+| **Виджет** | Прозрачное always-on-top окно: зелёная пилюля и лампочка **перетаскиваются мышью** (Pointer Events с захватом), разворот в HUD-панель |
 
 ## Модели
 
@@ -56,12 +58,12 @@ Tensa — self-hosted секретарь для одного человека: �
 
 ## Скачать
 
-Актуальный релиз — **[v0.2.0](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.0)**:
+Актуальный релиз — **[v0.2.1](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.1)**:
 
 | Платформа | Файл | Размер |
 |---|---|---|
-| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.0/TensaSetup.exe) | 214 МБ |
-| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.0/Tensa.apk) | 239 МБ |
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.1/TensaSetup.exe) | 341 МБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.1/Tensa.apk) | 239 МБ |
 
 ## Скриншоты
 

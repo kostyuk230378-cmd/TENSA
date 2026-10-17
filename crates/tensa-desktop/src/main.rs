@@ -116,12 +116,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let height = 150.0 * scale;
         let x = size.width as i32 - width as i32 - 40;
         let y = size.height as i32 - height as i32 - 80;
-        let _ = window.set_outer_position(tao::dpi::PhysicalPosition::new(x, y));
+        window.set_outer_position(tao::dpi::PhysicalPosition::new(x, y));
     }
 
     let webview = wry::WebViewBuilder::new()
         .with_url(url)
         .with_transparent(true)
+        .with_permission_handler(|kind| match kind {
+            wry::PermissionKind::Microphone => wry::PermissionResponse::Allow,
+            _ => wry::PermissionResponse::Default,
+        })
         .with_ipc_handler(move |request| {
             let message = request.body().clone();
             let command = if message == "drag" {
@@ -158,7 +162,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Event::UserEvent(Command::Move(dx, dy)) => {
                 let scale = window.scale_factor();
                 if let Ok(position) = window.outer_position() {
-                    let _ = window.set_outer_position(PhysicalPosition::new(
+                    window.set_outer_position(PhysicalPosition::new(
                         position.x + (dx * scale) as i32,
                         position.y + (dy * scale) as i32,
                     ));
@@ -257,7 +261,7 @@ fn resize_anchored(window: &tao::window::Window, width: f64, height: f64) {
         let new_height = (height * scale) as i32;
         let dx = new_width - size.width as i32;
         let dy = new_height - size.height as i32;
-        let _ = window.set_outer_position(PhysicalPosition::new(position.x - dx, position.y - dy));
+        window.set_outer_position(PhysicalPosition::new(position.x - dx, position.y - dy));
     }
-    let _ = window.set_inner_size(LogicalSize::new(width, height));
+    window.set_inner_size(LogicalSize::new(width, height));
 }

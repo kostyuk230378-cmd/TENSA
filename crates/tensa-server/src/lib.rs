@@ -20,6 +20,7 @@ pub mod models_upload;
 pub mod query;
 pub mod routes;
 pub mod state;
+pub mod voice;
 
 pub use auth::{load_or_create_token, token_path, PwaToken, TOKEN_FILE};
 pub use error::{ErrorBody, Result, ServerError};
