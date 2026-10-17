@@ -11,6 +11,7 @@
 | `ToolRegistry` | Реестр `имя → Arc<dyn Tool>`: `register`, `get`, `list` |
 | `wol` | Wake-on-LAN: magic packet (6 × `0xFF` + MAC × 16) по UDP, `WolTool` |
 | `telegram` | Бот-секретарь: уведомления владельцу, команды и inline-кнопки решений, цикл одобрения |
+| `email` | Отправка почты через одобрение: SMTP (lettre), автоопределение провайдеров; IMAP-чтение — следующая итерация |
 | `audit` | Журнал действий `~/.tensa/logs/tools.log` (JSON-строки, без секретов) |
 
 ## Инструмент `wol`
@@ -28,6 +29,22 @@ WoL-крейты не используются.
 `wol` оформлен модулем внутри крейта (`src/wol/`). ТЗ предполагает отдельный
 подкрейт `crates/tensa-tools/wol` — его выделение требует правки корневого
 `Cargo.toml` воркспейса и делается отдельной задачей ([derived]).
+
+## Инструмент `email`
+
+Отправка почты через цикл одобрения (ТЗ/Контракт 6, ADR-015): `propose_send`
+ставит письмо в очередь (`email_send`, origin `llm`), владелец одобряет в PWA
+или боте, `execute_approved` отправляет через SMTP и фиксирует `executed`.
+
+- Аккаунты: `config.toml` `[email.accounts.<id>]`; порт 0 и пустые хосты —
+  автоопределение по домену (`autodetect`: gmail/outlook/yandex/mail.ru).
+- Секреты: `secrets.toml` → `[email.accounts.<id>].credential` либо env
+  `SMTP_PASSWORD`/`IMAP_PASSWORD` (окружение приоритетнее).
+- Транспорт: `lettre` (rustls); 587 — STARTTLS, 465 — неявный TLS.
+- Демо: `cargo run -p tensa-tools --example email_flow -- <config.toml> propose <to> <subject> <body>`.
+
+[derived] `imap.rs` (чтение/поиск через async-imap) и `oauth2.rs` — следующая
+итерация; сейчас контур отправки полностью рабочий и проверенный без сети.
 
 ## Инструмент `telegram`
 

@@ -15,4 +15,8 @@ pub enum ToolsError {
     /// Ошибка инструмента Telegram (клиент, очередь, обработчики).
     #[error("telegram error: {0}")]
     Telegram(#[from] crate::telegram::error::TelegramError),
+
+    /// Ошибка инструмента Email (аккаунты, SMTP, очередь).
+    #[error("email error: {0}")]
+    Email(#[from] crate::email::error::EmailError),
 }

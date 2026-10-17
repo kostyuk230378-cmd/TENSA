@@ -5,8 +5,10 @@
 //!
 //! Реализовано: [`WolTool`] — пробуждение устройства по сети (Wake-on-LAN);
 //! [`TelegramTool`]/[`TelegramService`] — бот-секретарь: уведомления владельцу,
-//! решения из чата (inline-кнопки), цикл одобрения (propose → PWA/бот → execute).
-//! По плану ТЗ далее — email, documents, ocr, calendar, apps, whatsapp.
+//! решения из чата (inline-кнопки), цикл одобрения (propose → PWA/бот → execute);
+//! [`EmailTool`]/[`EmailService`] — отправка почты через одобрение (SMTP/lettre,
+//! автоопределение провайдеров; чтение IMAP — следующая итерация).
+//! По плану ТЗ далее — documents, ocr, calendar, apps, whatsapp.
 //!
 //! Принципы ТЗ: сетевые действия — только через `ApprovalStore`
 //! (централизованно, вне инструмента), поэтому инструмент лишь объявляет
@@ -17,6 +19,7 @@
 //! правки корневого `Cargo.toml` воркспейса и делается отдельной задачей.
 
 pub mod audit;
+pub mod email;
 pub mod error;
 pub mod telegram;
 pub mod wol;
@@ -26,6 +29,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+pub use email::{EmailError, EmailService, EmailTool};
 pub use error::{Result, ToolsError};
 pub use telegram::{TelegramError, TelegramService, TelegramTool};
 pub use wol::{MacAddress, WolError, WolParams, WolTool};

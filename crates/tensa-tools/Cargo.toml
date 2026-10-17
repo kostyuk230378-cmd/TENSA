@@ -23,6 +23,9 @@ tracing.workspace = true
 uuid.workspace = true
 # Telegram Bot API / будущие сетевые инструменты (ТЗ tensa-tools).
 reqwest.workspace = true
+# Почта (Контракт 6): SMTP-транспорт lettre (rustls) + разбор TOML-аккаунтов.
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls-tls", "builder", "hostname"] }
+toml.workspace = true
 
 [features]
 default = []
