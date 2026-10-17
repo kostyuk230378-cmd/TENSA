@@ -7,8 +7,9 @@
 //! [`TelegramTool`]/[`TelegramService`] — бот-секретарь: уведомления владельцу,
 //! решения из чата (inline-кнопки), цикл одобрения (propose → PWA/бот → execute);
 //! [`EmailTool`]/[`EmailService`] — отправка почты через одобрение (SMTP/lettre,
-//! автоопределение провайдеров; чтение IMAP — следующая итерация).
-//! По плану ТЗ далее — documents, ocr, calendar, apps, whatsapp.
+//! автоопределение провайдеров; чтение IMAP — следующая итерация);
+//! [`DocumentsTool`] — извлечение текста из PDF/DOCX/XLSX/PPTX/TXT/MD.
+//! По плану ТЗ далее — ocr, calendar, apps, whatsapp.
 //!
 //! Принципы ТЗ: сетевые действия — только через `ApprovalStore`
 //! (централизованно, вне инструмента), поэтому инструмент лишь объявляет
@@ -19,6 +20,7 @@
 //! правки корневого `Cargo.toml` воркспейса и делается отдельной задачей.
 
 pub mod audit;
+pub mod documents;
 pub mod email;
 pub mod error;
 pub mod telegram;
@@ -29,6 +31,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+pub use documents::{DocumentError, DocumentKind, DocumentsTool, ExtractedDocument};
 pub use email::{EmailError, EmailService, EmailTool};
 pub use error::{Result, ToolsError};
 pub use telegram::{TelegramError, TelegramService, TelegramTool};

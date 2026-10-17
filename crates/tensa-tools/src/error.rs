@@ -19,4 +19,8 @@ pub enum ToolsError {
     /// Ошибка инструмента Email (аккаунты, SMTP, очередь).
     #[error("email error: {0}")]
     Email(#[from] crate::email::error::EmailError),
+
+    /// Ошибка модуля документов (извлечение текста).
+    #[error("documents error: {0}")]
+    Documents(#[from] crate::documents::error::DocumentError),
 }

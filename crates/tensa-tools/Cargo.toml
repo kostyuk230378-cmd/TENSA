@@ -26,6 +26,10 @@ reqwest.workspace = true
 # Почта (Контракт 6): SMTP-транспорт lettre (rustls) + разбор TOML-аккаунтов.
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls-tls", "builder", "hostname"] }
 toml.workspace = true
+calamine = "0.36"
+pdf-extract = "0.12"
+zip = "9"
+quick-xml = "0.42"
 
 [features]
 default = []

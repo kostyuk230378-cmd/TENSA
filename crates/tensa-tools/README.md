@@ -77,6 +77,20 @@ WoL-крейты не используются.
 
 Все действия пишутся в `<root>/logs/tools.log` (ТЗ: аудит).
 
+## Инструмент `documents`
+
+Извлечение текста для поиска и индексации памяти (ТЗ `documents/`):
+PDF (`pdf-extract`; сканы без OCR-слоя — этап `ocr`), DOCX/PPTX (`zip` +
+`quick-xml`, текст из `w:t`/`a:t`), XLSX (`calamine`, листы секциями),
+TXT/MD (как текст; [derived] markdown без рендера — для индексации хватает).
+Тип определяется по расширению и «магии» (`%PDF`, ZIP-части word/xl/ppt).
+
+Инструмент `DocumentsTool` (имя `documents`): параметры `{"path": "..."}`,
+ответ — `kind`, `chars`, `preview`; `requires_approval() = false` (чтение
+локального файла не сетевое, ТЗ), каждое извлечение — в `tools.log`.
+[derived] PDF — на `pdf-extract`: ADR-020 называет pdfplumber (Alpha),
+план разведки прямо предусматривает этот fallback.
+
 ## Проверки
 
 ```powershell
