@@ -39,8 +39,10 @@ fn log_error(message: &str) -> std::io::Result<()> {
 #[cfg(windows)]
 #[derive(Debug, Clone, Copy)]
 enum Command {
-    /// Начать перетаскивание окна.
+    /// Начать перетаскивание окна (нативно, если понадобится).
     Drag,
+    /// Сдвинуть окно на dx/dy (CSS-пиксели, drag из JS).
+    Move(f64, f64),
     /// Развернуть в мини-панель.
     Expand,
     /// Свернуть в пилюлю.
@@ -55,7 +57,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     use std::process::Child;
     use std::time::{Duration, Instant};
 
-    use tao::dpi::{LogicalPosition, LogicalSize};
+    use tao::dpi::{LogicalSize, PhysicalPosition};
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
     use tao::platform::windows::WindowBuilderExtWindows;
@@ -77,7 +79,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let (start_width, start_height) = if start_expanded {
         (440.0, 700.0)
     } else {
-        (348.0, 150.0)
+        (240.0, 140.0)
     };
 
     let mut child: Option<Child> = None;
@@ -122,12 +124,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .with_transparent(true)
         .with_ipc_handler(move |request| {
             let message = request.body().clone();
-            let command = match message.as_str() {
-                "drag" => Some(Command::Drag),
-                "expand" => Some(Command::Expand),
-                "collapse" => Some(Command::Collapse),
-                "quit" => Some(Command::Quit),
-                _ => None,
+            let command = if message == "drag" {
+                Some(Command::Drag)
+            } else if message == "expand" {
+                Some(Command::Expand)
+            } else if message == "collapse" {
+                Some(Command::Collapse)
+            } else if message == "quit" {
+                Some(Command::Quit)
+            } else if let Some(rest) = message.strip_prefix("move ") {
+                let mut parts = rest.split_whitespace();
+                let dx = parts.next().and_then(|value| value.parse::<f64>().ok());
+                let dy = parts.next().and_then(|value| value.parse::<f64>().ok());
+                match (dx, dy) {
+                    (Some(dx), Some(dy)) => Some(Command::Move(dx, dy)),
+                    _ => None,
+                }
+            } else {
+                None
             };
             if let Some(command) = command {
                 let _ = proxy.send_event(command);
@@ -141,11 +155,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Event::UserEvent(Command::Drag) => {
                 let _ = window.drag_window();
             }
+            Event::UserEvent(Command::Move(dx, dy)) => {
+                let scale = window.scale_factor();
+                if let Ok(position) = window.outer_position() {
+                    let _ = window.set_outer_position(PhysicalPosition::new(
+                        position.x + (dx * scale) as i32,
+                        position.y + (dy * scale) as i32,
+                    ));
+                }
+            }
             Event::UserEvent(Command::Expand) => {
                 resize_anchored(&window, 440.0, 700.0);
             }
             Event::UserEvent(Command::Collapse) => {
-                resize_anchored(&window, 348.0, 150.0);
+                resize_anchored(&window, 240.0, 140.0);
             }
             Event::UserEvent(Command::Quit) => {
                 if let Some(mut process) = child.take() {
