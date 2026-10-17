@@ -12,6 +12,7 @@ use super::callbacks::{self, Decision};
 use super::error::TelegramError;
 use super::TelegramService;
 use crate::audit;
+use crate::email::EmailService;
 
 /// Справка бота.
 const HELP_TEXT: &str = "Tensa — секретарь на связи.\n\
@@ -75,7 +76,7 @@ async fn handle_command(
             audit::record(service.root(), super::NAME, "command status", "ok");
             service
                 .send_to_owner(&format!(
-                    "{}\nОжидают решения: {}",
+                    "{}\nОжидают решения: {}\nПодробно с кнопками: /approvals",
                     service.status_line(),
                     pending.len()
                 ))
@@ -120,19 +121,26 @@ async fn handle_command(
         "/approve" => decide_by_command(service, store, argument, Decision::Approve).await?,
         "/reject" => decide_by_command(service, store, argument, Decision::Reject).await?,
         other => {
-            // Свободный текст: обработка запросов появится с этапом роутера (LLM).
-            audit::record(
-                service.root(),
-                super::NAME,
-                &format!("message len={}", other.chars().count()),
-                "accepted",
-            );
-            service
-                .send_to_owner(
-                    "Принял. Обработка запросов появится с этапом роутера (LLM); \
-                     сейчас доступны: /status, /approvals, /approve, /reject, /help",
-                )
-                .await?;
+            // Естественные формулировки владельца: «Утверждаю»/«Отклоняю»
+            // работают без команд (владелец — trusted-источник, Контракт 1).
+            if let Some(decision) = approval_intent(other) {
+                decide_single_pending(service, store, decision).await?;
+            } else {
+                // Свободный текст: обработка запросов — с этапом роутера (LLM).
+                audit::record(
+                    service.root(),
+                    super::NAME,
+                    &format!("message len={}", other.chars().count()),
+                    "accepted",
+                );
+                service
+                    .send_to_owner(
+                        "Принял. Обработка запросов появится с этапом роутера (LLM); \
+                         сейчас доступны: /status, /approvals, /approve, /reject, /help; \
+                         «Утверждаю»/«Отклоняю» работают и без команд.",
+                    )
+                    .await?;
+            }
         }
     }
     Ok(())
@@ -164,6 +172,50 @@ async fn decide_by_command(
         return Ok(());
     };
     apply_decision(service, store, decision, id, None).await
+}
+
+/// Естественно-языковое намерение решения владельца (без команд).
+///
+/// Принимаем только явные формулировки: одно неосторожное слово не должно
+/// подтверждать LLM-действия (простое «ок» намеренно не считается).
+fn approval_intent(text: &str) -> Option<Decision> {
+    let lower = text.to_lowercase();
+    if lower.contains("утвержд") || lower.contains("подтвержд") || lower.contains("approve")
+    {
+        return Some(Decision::Approve);
+    }
+    if lower.contains("отклон") || lower.contains("отказ") || lower.contains("reject") {
+        return Some(Decision::Reject);
+    }
+    None
+}
+
+/// Решить единственное ожидающее действие; при 0/нескольких — подсказать.
+async fn decide_single_pending(
+    service: &TelegramService,
+    store: &dyn ApprovalStore,
+    decision: Decision,
+) -> Result<(), TelegramError> {
+    let pending = store.get_pending().await?;
+    match pending.len() {
+        0 => {
+            service
+                .send_to_owner("Очередь решений пуста — подтверждать нечего.")
+                .await?;
+        }
+        1 => {
+            let id = pending[0].id;
+            apply_decision(service, store, decision, id, None).await?;
+        }
+        count => {
+            service
+                .send_to_owner(&format!(
+                    "Ожидают решения: {count}. Уточните: /approvals (кнопки) или /approve <id>"
+                ))
+                .await?;
+        }
+    }
+    Ok(())
 }
 
 /// Ответ на нажатие inline-кнопки.
@@ -271,6 +323,33 @@ async fn apply_decision(
                     }
                 }
             }
+
+            // Одобренную отправку почты тоже пробуем исполнить сразу:
+            // без креденшелов действие останется approved и исполнится позже.
+            if matches!(decision, Decision::Approve) && action.kind.as_str() == "email_send" {
+                match EmailService::from_files(service.config_path()) {
+                    Ok(email_service) => {
+                        match email_service.execute_approved(store, action.id).await {
+                            Ok(executed) => {
+                                text = format!(
+                                    "{verb} и письмо отправлено\nстатус: {}",
+                                    executed.status.as_str()
+                                );
+                            }
+                            Err(error) => {
+                                tracing::warn!(error = %error, "telegram: отправка письма не удалась");
+                                text = format!(
+                                    "{verb}: действие approved, но отправка не удалась ({error})"
+                                );
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        tracing::warn!(error = %error, "telegram: сервис почты недоступен");
+                        text = format!("{verb}: approved; сервис почты недоступен ({error})");
+                    }
+                }
+            }
             match message_id {
                 Some(message_id) => {
                     let _ = service
@@ -301,4 +380,39 @@ async fn apply_decision(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn intent_approve_keywords() {
+        for text in ["Утверждаю", "подтверждаю!", "APPROVE this", "да, утверждаю"]
+        {
+            assert_eq!(
+                approval_intent(text),
+                Some(Decision::Approve),
+                "текст: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn intent_reject_keywords() {
+        for text in ["Отклоняю", "отказ", "please reject"] {
+            assert_eq!(
+                approval_intent(text),
+                Some(Decision::Reject),
+                "текст: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn plain_ok_is_not_an_intent() {
+        // Одно неосторожное «ок» не должно подтверждать LLM-действия.
+        assert_eq!(approval_intent("ок"), None);
+        assert_eq!(approval_intent("как дела?"), None);
+    }
 }
