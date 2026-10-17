@@ -4,6 +4,8 @@ cd /d "%~dp0"
 
 set "TENSA_DIR=%USERPROFILE%\.tensa"
 set "TENSA_CONFIG=%TENSA_DIR%\config.toml"
+rem Слушать всю локальную сеть — иначе телефон не подключится.
+set "TENSA_BIND=0.0.0.0:8765"
 
 if not exist "%TENSA_DIR%" mkdir "%TENSA_DIR%"
 
@@ -22,8 +24,11 @@ if not exist "%TENSA_CONFIG%" (
 )
 
 echo.
-echo   Tensa core: http://127.0.0.1:8765/app
+echo   Tensa core:  http://127.0.0.1:8765/app
+echo   Phone (same Wi-Fi): http://^<ip-of-this-pc^>:8765/app
+echo   If Windows asks, allow tensa-server.exe on PRIVATE networks.
 echo   Close this window to stop the server.
 echo.
-start "" "http://127.0.0.1:8765/app"
+rem Браузер стартует через 2 секунды — сервер успевает подняться.
+start "" powershell -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://127.0.0.1:8765/app'"
 tensa-server.exe "%TENSA_CONFIG%"
