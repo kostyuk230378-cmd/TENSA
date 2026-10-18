@@ -1,3 +1,6 @@
+# Tensa — Контракты
+
+---
 
 ## Контракт 1: ApprovalStore (SQLite)
 
@@ -620,20 +623,20 @@ skip_embedded_objects = true
 
 ```toml
 [openrouter]
-api_key = "sk-or-..."
+# api_key — читается из окружения (OPENROUTER_API_KEY)
 
 [telegram]
-bot_token = "123456:ABC-DEF..."
+# bot_token — читается из окружения (TELEGRAM_BOT_TOKEN)
 
 [email.accounts.personal]
-imap_password = "..."
-smtp_password = "..."
+# imap_password — читается из окружения (IMAP_PASSWORD)
+# smtp_password — читается из окружения (SMTP_PASSWORD)
 
 [calendar]
-caldav_password = "..."
+# caldav_password — читается из окружения (CALDAV_PASSWORD)
 
 [syncthing]
-api_key = "..."
+# api_key — читается из окружения (SYNCTHING_API_KEY)
 ```
 
 **Загрузка и валидация:** при старте, валидация полей, создание с дефолтами при отсутствии, атомарная запись, бэкап.
@@ -1435,11 +1438,11 @@ uniffi UDL определяет, как Rust-ядро Tensa общается с 
 ```udl
 namespace tensa {
     // Инициализация ядра
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void init(string config_path);
 
     // Проверка состояния
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     HealthStatus health();
 
     // Версия
@@ -1489,19 +1492,22 @@ dictionary NewAction {
 };
 
 interface ApprovalStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     Action request_action(NewAction action);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Action approve(string id, string approved_by);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Action reject(string id, string rejected_by);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Action> get_pending();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Action? get_by_id(string id);
 };
 
@@ -1528,16 +1534,19 @@ dictionary DocumentMeta {
 };
 
 interface MemoryStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     sequence<SearchResult> search(string query, u32 limit);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<SearchResult> search_hybrid(string query, u32 limit);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     DocumentMeta? get_document(string document_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<DocumentMeta> list_documents(u32 limit, u32 offset);
 };
 
@@ -1569,16 +1578,19 @@ dictionary CoreMemoryBlock {
 };
 
 interface CoreMemoryStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     CoreMemoryBlock get_block(BlockType block);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<CoreMemoryBlock> get_all_blocks();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     CoreMemoryBlock replace_block(BlockType block, string value, MemoryOrigin origin);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     CoreMemoryBlock append_block(BlockType block, string value, MemoryOrigin origin);
 };
 
@@ -1600,22 +1612,25 @@ dictionary NewNote {
 };
 
 interface NotesStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     Note create_note(NewNote note);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Note update_note(Note note);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void delete_note(string id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Note? get_note(string id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Note> search_notes(string query, u32 limit);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Note> list_notes(u32 limit, u32 offset);
 };
 
@@ -1645,25 +1660,28 @@ dictionary NewContact {
 };
 
 interface ContactsStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     Contact create_contact(NewContact contact);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Contact update_contact(Contact contact);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void delete_contact(string id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Contact? get_contact(string id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Contact? find_by_email(string email);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Contact> find_by_name(string name);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Contact> search_contacts(string query, u32 limit);
 };
 
@@ -1702,25 +1720,28 @@ dictionary OutgoingEmail {
 };
 
 interface EmailClient {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     void connect(string account_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void disconnect(string account_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<string> list_folders(string account_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Email> fetch_emails(string account_id, string folder, u32 limit);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Email> search(string account_id, string query);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void send(OutgoingEmail email);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void create_draft(OutgoingEmail email);
 };
 
@@ -1753,16 +1774,19 @@ dictionary Conflict {
 };
 
 interface CalendarClient {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     sequence<CalendarEvent> list_events(string start, string end);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<Conflict> check_conflicts(string start, string end);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     CalendarEvent create_event(NewCalendarEvent event);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void delete_event(string id);
 };
 
@@ -1776,22 +1800,25 @@ dictionary AppInfo {
 };
 
 interface AppLauncher {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     void launch(string name);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void open_file(string path);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void open_file_with(string name, string path);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void open_url(string url);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<AppInfo> list_apps();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     sequence<AppInfo> scan_apps();
 
     boolean supports(string name);
@@ -1821,22 +1848,25 @@ dictionary Node {
 };
 
 interface NodeRegistry {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     sequence<Node> list_nodes(boolean online_only);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Node? get_node(string node_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     Node? find_heavy();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void acquire_connection(string node_id, string resource, string? account_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void release_connection(string node_id, string resource, string? account_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     string? get_active_connection(string resource, string? account_id);
 };
 
@@ -1853,13 +1883,16 @@ dictionary Config {
 };
 
 interface ConfigStore {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     Config get_config();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void update_config(Config config);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void reload_config();
 };
 
@@ -1887,14 +1920,20 @@ dictionary ToolCall {
 };
 
 interface QueryEngine {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     QueryResponse query(QueryRequest request);
 };
 
 // === Голос ===
 
 interface VoiceEngine {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     string transcribe(sequence<u8> audio_data, string format);
 };
 
@@ -1913,13 +1952,16 @@ dictionary WhatsAppConfig {
 };
 
 interface FirstRunWizard {
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
+    constructor(string config_path);
+
+    [Async, Throws=TensaError]
     boolean is_first_run();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_language(string language);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_introduction(
         string owner_name,
         string owner_title,
@@ -1927,22 +1969,22 @@ interface FirstRunWizard {
         string timezone
     );
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_models();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_telegram(string bot_token, string owner_chat_id);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_email(EmailAccount account);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_whatsapp(WhatsAppConfig? config);
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     void step_tailscale();
 
-    [Throws=TensaError]
+    [Async, Throws=TensaError]
     WizardResult step_finish();
 };
 ```
@@ -2329,7 +2371,7 @@ pub fn pwa_router(state: Arc<AppState>) -> Router {
 
 ```typescript
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8765/api/v1';
-let authToken = '';
+let authToken = getToken();
 
 export async function health(): Promise<HealthStatus> {
     return request('/health');
