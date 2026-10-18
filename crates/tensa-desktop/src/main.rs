@@ -79,7 +79,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let (start_width, start_height) = if start_expanded {
         (440.0, 700.0)
     } else {
-        (240.0, 140.0)
+        (180.0, 120.0)
     };
 
     let mut child: Option<Child> = None;
@@ -113,8 +113,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let size = monitor.size();
         let position = monitor.position();
         let scale = monitor.scale_factor();
-        let width = 240.0 * scale;
-        let height = 140.0 * scale;
+        let width = 180.0 * scale;
+        let height = 120.0 * scale;
         let margin = (12.0 * scale) as i32;
         let x = (size.width as i32 - width as i32 - margin).clamp(
             position.x + margin,
@@ -180,7 +180,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 resize_anchored(&window, 440.0, 700.0);
             }
             Event::UserEvent(Command::Collapse) => {
-                resize_anchored(&window, 240.0, 140.0);
+                resize_anchored(&window, 180.0, 120.0);
             }
             Event::UserEvent(Command::Quit) => {
                 if let Some(mut process) = child.take() {

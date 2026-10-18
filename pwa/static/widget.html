@@ -126,9 +126,9 @@
 
       /* Пилюля ровно на три круга, круги вплотную. */
       .pill {
-        height: 74px;
+        height: 49px;
         width: max-content;
-        border-radius: 37px;
+        border-radius: 25px;
         background:
           radial-gradient(120% 160% at 18% 0%, rgba(255, 255, 255, 0.45), transparent 45%),
           linear-gradient(150deg, #00ff00 0%, #00f000 60%, #00d000 100%);
@@ -139,14 +139,14 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.5);
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 9px;
+        gap: 4px;
+        padding: 5px 6px;
         cursor: grab;
       }
 
       .zone {
-        width: 58px;
-        height: 58px;
+        width: 39px;
+        height: 39px;
         border-radius: 50%;
         border: 1.5px solid rgba(0, 60, 20, 0.32);
         background: rgba(255, 255, 255, 0.14);
@@ -166,11 +166,11 @@
         box-shadow: 0 0 22px rgba(255, 0, 85, 0.65);
       }
 
-      .zone svg { width: 24px; height: 24px; }
+      .zone svg { width: 16px; height: 16px; }
 
       .letter {
         font-family: var(--ui);
-        font-size: 31px;
+        font-size: 21px;
         font-weight: 700;
         letter-spacing: -0.5px;
         line-height: 1;
@@ -218,7 +218,10 @@
         gap: 10px;
         padding: 2px 2px 10px;
         border-bottom: 1px solid var(--border);
+        cursor: grab;
       }
+
+      .panel-head:active { cursor: grabbing; }
 
       .panel-title { font-weight: 600; font-size: 16px; letter-spacing: 0.2px; flex: 1; }
       .mono { font-family: var(--mono); }
@@ -376,6 +379,90 @@
       .mic-actions .mini-btn {
         white-space: nowrap;
         flex: 0 0 auto;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .form-input {
+        width: 100%;
+        margin: 4px 0;
+        padding: 8px 9px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #09090b;
+        color: var(--text);
+        font-family: var(--ui);
+        font-size: 12px;
+        outline: none;
+      }
+
+      .form-input:focus {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.3);
+      }
+
+      .account-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+        padding: 6px 0;
+        font-size: 12px;
+      }
+
+      .account-row:last-child { border-bottom: 0; }
+
+      .account-mail {
+        color: var(--text2);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .form-note {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+        margin: 6px 0;
+      }
+
+      .brain-option {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(9, 9, 11, 0.55);
+        padding: 10px;
+        margin-top: 8px;
+      }
+
+      .brain-option .model-name { font-size: 14px; }
+
+      .brain-key {
+        width: 100%;
+        margin: 7px 0;
+        padding: 8px 9px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #09090b;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+        outline: none;
+      }
+
+      .brain-key:focus {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.3);
+      }
+
+      .brain-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 6px;
       }
 
       .model-card {
@@ -992,6 +1079,7 @@
           const response = await fetch(`/api/v1/models/speech/${id}/download`, { method: 'POST' });
           if (!response.ok) throw new Error((await response.text()).slice(0, 160));
           await loadSpeechModels();
+          speechTimer = setTimeout(loadSpeechModels, 1000);
         } catch (error) {
           const box = document.getElementById('speech-models');
           if (box) box.insertAdjacentHTML('beforeend', `<div class="model-error">${escapeHtml(error.message)}</div>`);
@@ -1009,14 +1097,312 @@
         }
       }
 
+      let brainTimer = null;
+      let brainAutoActivate = false;
+
+      function renderBrain(status) {
+        const box = document.getElementById('brain-card');
+        if (!box) return;
+        const local = status.local || {};
+        const cloud = status.cloud || {};
+        const active = status.active || 'none';
+        const localBadge = active === 'local'
+          ? '<span class="model-badge">Активна</span>'
+          : local.installed
+            ? '<span class="model-badge loaded">Загружена</span>'
+            : '';
+        const cloudBadge = active === 'cloud'
+          ? '<span class="model-badge">Активна</span>'
+          : cloud.configured
+            ? '<span class="model-badge loaded">Ключ сохранён</span>'
+            : '';
+        let localAction = '';
+        if (local.downloading) {
+          localAction = `<div class="progress"><i style="width:${local.progress || 0}%"></i></div>
+            <div class="model-meta">Скачивается… ${local.progress || 0}%</div>`;
+        } else if (local.installed) {
+          localAction = active === 'local'
+            ? '<div class="model-meta">Используется сейчас</div>'
+            : '<button class="mini-btn" data-brain-local>Использовать локальную</button>';
+        } else {
+          localAction = '<button class="mini-btn" data-brain-download>Скачать Gemma 4 E2B (1.65 ГБ)</button>';
+        }
+        let cloudAction = `<input id="brain-key" class="brain-key" type="password" placeholder="${cloud.configured ? 'Ключ сохранён — вставьте новый для замены' : 'sk-or-…'}" autocomplete="off">
+          <div class="brain-actions">
+            <button class="mini-btn" data-brain-connect>Подключить OpenRouter</button>
+            ${cloud.configured && active !== 'cloud' ? '<button class="mini-btn" data-brain-cloud>Использовать OpenRouter</button>' : ''}
+          </div>`;
+        box.innerHTML = `
+          <div class="brain-option">
+            <div class="model-head">
+              <span class="model-name">Локальная Gemma 4 E2B</span>
+              ${localBadge}
+            </div>
+            <div class="model-desc">~1.65 ГБ, офлайн и приватно. Ссылка для скачивания встроена в приложение.</div>
+            <div class="model-actions">${localAction}</div>
+          </div>
+          <div class="brain-option">
+            <div class="model-head">
+              <span class="model-name">OpenRouter Gemma 4 26B</span>
+              ${cloudBadge}
+            </div>
+            <div class="model-desc">Облачная <span class="mono">google/gemma-4-26b-a4b-it</span>; вставьте API-ключ OpenRouter.</div>
+            ${cloudAction}
+          </div>
+          <div class="model-meta" id="brain-status">${active === 'local' ? 'Сейчас работает локальная модель.' : active === 'cloud' ? 'Сейчас работает OpenRouter.' : 'Модель ещё не выбрана.'}</div>
+          ${local.error ? `<div class="model-error">${escapeHtml(local.error)}</div>` : ''}`;
+
+        box.querySelector('[data-brain-download]')?.addEventListener('click', downloadLocalBrain);
+        box.querySelector('[data-brain-local]')?.addEventListener('click', activateLocalBrain);
+        box.querySelector('[data-brain-connect]')?.addEventListener('click', connectCloudBrain);
+        box.querySelector('[data-brain-cloud]')?.addEventListener('click', activateCloudBrain);
+      }
+
+      async function loadBrainStatus() {
+        clearTimeout(brainTimer);
+        try {
+          const response = await fetch('/api/v1/brain/status');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const status = await response.json();
+          renderBrain(status);
+          if (brainAutoActivate && status.local?.installed && !status.local?.downloading) {
+            brainAutoActivate = false;
+            await activateLocalBrain();
+            return;
+          }
+          if (status.local?.error) brainAutoActivate = false;
+          if (status.local?.downloading || brainAutoActivate) {
+            brainTimer = setTimeout(loadBrainStatus, 1000);
+          }
+        } catch (error) {
+          const box = document.getElementById('brain-card');
+          if (box) box.textContent = `Не удалось получить статус: ${error.message}`;
+        }
+      }
+
+      async function downloadLocalBrain() {
+        try {
+          const response = await fetch('/api/v1/brain/local/download', { method: 'POST' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          brainAutoActivate = true;
+          await loadBrainStatus();
+        } catch (error) {
+          const status = document.getElementById('brain-status');
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      async function activateLocalBrain() {
+        try {
+          const response = await fetch('/api/v1/brain/local/activate', { method: 'POST' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          await loadBrainStatus();
+        } catch (error) {
+          const status = document.getElementById('brain-status');
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      async function connectCloudBrain() {
+        const input = document.getElementById('brain-key');
+        const status = document.getElementById('brain-status');
+        const credential = input ? input.value.trim() : '';
+        if (!credential) {
+          if (status) status.textContent = 'Вставьте API-ключ OpenRouter.';
+          return;
+        }
+        try {
+          const response = await fetch('/api/v1/brain/cloud', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential }),
+          });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          if (input) input.value = '';
+          await loadBrainStatus();
+        } catch (error) {
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      async function activateCloudBrain() {
+        try {
+          const response = await fetch('/api/v1/brain/cloud/activate', { method: 'POST' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          await loadBrainStatus();
+        } catch (error) {
+          const status = document.getElementById('brain-status');
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      function renderEmail(data) {
+        const box = document.getElementById('email-card');
+        if (!box) return;
+        const accounts = data.accounts || [];
+        const rows = accounts.length
+          ? accounts.map((account) => `<div class="account-row">
+              <div><b>${escapeHtml(account.label || account.email)}</b><br><span class="account-mail">${escapeHtml(account.email)} · ${escapeHtml(account.smtp_host)}:${account.smtp_port}</span></div>
+              <button class="mini-btn no" data-email-delete="${account.id}">Удалить</button>
+            </div>`).join('')
+          : '<div class="form-note">Почтовых аккаунтов пока нет.</div>';
+        box.innerHTML = `${rows}
+          <div class="form-grid">
+            <input id="email-address" class="form-input" placeholder="you@gmail.com" autocomplete="email">
+            <input id="email-label" class="form-input" placeholder="Подпись (например, Личная)">
+          </div>
+          <input id="email-password" class="form-input" type="password" placeholder="Пароль приложения" autocomplete="new-password">
+          <details>
+            <summary class="form-note">Серверы вручную (для своего домена)</summary>
+            <div class="form-grid">
+              <input id="email-smtp-host" class="form-input" placeholder="SMTP-сервер">
+              <input id="email-smtp-port" class="form-input" placeholder="SMTP-порт (587/465)" inputmode="numeric">
+              <input id="email-imap-host" class="form-input" placeholder="IMAP-сервер">
+              <input id="email-imap-port" class="form-input" placeholder="IMAP-порт (993)" inputmode="numeric">
+            </div>
+          </details>
+          <div class="brain-actions"><button class="mini-btn" data-email-save>Проверить и сохранить</button></div>
+          <div class="form-note" id="email-status">Gmail/Яндекс/Mail.ru требуют пароль приложения, а не обычный пароль.</div>`;
+        box.querySelectorAll('[data-email-delete]').forEach((button) => {
+          button.onclick = () => deleteEmail(button.dataset.emailDelete);
+        });
+        box.querySelector('[data-email-save]').onclick = saveEmail;
+      }
+
+      async function loadEmailConfig() {
+        try {
+          const response = await fetch('/api/v1/email/config');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          renderEmail(await response.json());
+        } catch (error) {
+          const box = document.getElementById('email-card');
+          if (box) box.textContent = `Не удалось получить почту: ${error.message}`;
+        }
+      }
+
+      async function saveEmail() {
+        const status = document.getElementById('email-status');
+        const body = {
+          email: document.getElementById('email-address').value.trim(),
+          label: document.getElementById('email-label').value.trim(),
+          credential: document.getElementById('email-password').value,
+          smtp_host: document.getElementById('email-smtp-host').value.trim() || null,
+          smtp_port: Number(document.getElementById('email-smtp-port').value) || null,
+          imap_host: document.getElementById('email-imap-host').value.trim() || null,
+          imap_port: Number(document.getElementById('email-imap-port').value) || null,
+        };
+        if (status) status.textContent = 'Проверяю SMTP…';
+        try {
+          const response = await fetch('/api/v1/email/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 200));
+          await loadEmailConfig();
+          const fresh = document.getElementById('email-status');
+          if (fresh) fresh.textContent = 'Сохранено. Письма будут уходить с этого аккаунта.';
+        } catch (error) {
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      async function deleteEmail(id) {
+        try {
+          const response = await fetch(`/api/v1/email/accounts/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          await loadEmailConfig();
+        } catch (error) {
+          const status = document.getElementById('email-status');
+          if (status) status.textContent = `Ошибка удаления: ${error.message}`;
+        }
+      }
+
+      function renderTelegram(data) {
+        const box = document.getElementById('telegram-card');
+        if (!box) return;
+        box.innerHTML = `
+          <div class="form-note">Токен — у @BotFather. Напишите боту /start, затем «Узнать chat_id».</div>
+          <input id="tg-token" class="form-input" type="password" placeholder="${data.configured ? 'Токен сохранён — вставьте новый для замены' : '123456:ABC…'}" autocomplete="off">
+          <input id="tg-owner" class="form-input" placeholder="chat_id владельца" value="${escapeHtml(data.owner_chat_id || '')}">
+          <div class="brain-actions">
+            <button class="mini-btn" data-tg-detect>Узнать chat_id</button>
+            <button class="mini-btn" data-tg-save>Проверить и сохранить</button>
+          </div>
+          <div class="form-note" id="tg-status">${data.configured ? 'Бот настроен; запустите Tensa (Telegram bot).' : 'Бот пока не настроен.'}</div>`;
+        box.querySelector('[data-tg-detect]').onclick = detectTelegram;
+        box.querySelector('[data-tg-save]').onclick = saveTelegram;
+      }
+
+      async function loadTelegramStatus() {
+        try {
+          const response = await fetch('/api/v1/telegram/status');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          renderTelegram(await response.json());
+        } catch (error) {
+          const box = document.getElementById('telegram-card');
+          if (box) box.textContent = `Не удалось получить Telegram: ${error.message}`;
+        }
+      }
+
+      async function detectTelegram() {
+        const status = document.getElementById('tg-status');
+        const credential = document.getElementById('tg-token').value.trim();
+        if (!credential) {
+          if (status) status.textContent = 'Вставьте токен бота.';
+          return;
+        }
+        if (status) status.textContent = 'Смотрю сообщения боту…';
+        try {
+          const response = await fetch('/api/v1/telegram/detect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential }),
+          });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 200));
+          const data = await response.json();
+          document.getElementById('tg-owner').value = data.chat_id;
+          if (status) status.textContent = 'chat_id найден. Нажмите «Проверить и сохранить».';
+        } catch (error) {
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      async function saveTelegram() {
+        const status = document.getElementById('tg-status');
+        const credential = document.getElementById('tg-token').value.trim();
+        const owner = document.getElementById('tg-owner').value.trim();
+        if (!credential) {
+          if (status) status.textContent = 'Вставьте токен бота.';
+          return;
+        }
+        if (status) status.textContent = 'Проверяю токен…';
+        try {
+          const response = await fetch('/api/v1/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential, owner_chat_id: owner || null }),
+          });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 200));
+          await loadTelegramStatus();
+          const fresh = document.getElementById('tg-status');
+          if (fresh) fresh.textContent = 'Сохранено. Запустите Tensa (Telegram bot).';
+        } catch (error) {
+          if (status) status.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
       async function renderSettings() {
         title.textContent = 'Настройки';
         composer.style.display = 'none';
         content.innerHTML = '<div class="bubble">Загрузка…</div>';
         try {
-          const [version, speech] = await Promise.all([
+          const [version, speech, brain, emailConfig, telegram] = await Promise.all([
             fetch('/api/v1/version').then((r) => r.text()),
             fetch('/api/v1/models/speech').then((r) => r.json()),
+            fetch('/api/v1/brain/status').then((r) => r.json()).catch(() => ({})),
+            fetch('/api/v1/email/config').then((r) => r.json()).catch(() => ({ accounts: [] })),
+            fetch('/api/v1/telegram/status').then((r) => r.json()).catch(() => ({})),
           ]);
           let mics = await audioInputs();
           let permitted = mics.some((device) => device.label);
@@ -1045,6 +1431,21 @@
               </div>
             </div>
             <div class="bubble models-card">
+              <div class="card-title">Модель ассистента</div>
+              <div class="model-desc">Локальная Gemma 4 E2B (офлайн) или OpenRouter Gemma 4 26B (по API-ключу).</div>
+              <div id="brain-card">Загрузка…</div>
+            </div>
+            <div class="bubble models-card">
+              <div class="card-title">Почта</div>
+              <div class="model-desc">SMTP-аккаунт для отправки писем. Пароль хранится только в secrets.toml.</div>
+              <div id="email-card">Загрузка…</div>
+            </div>
+            <div class="bubble models-card">
+              <div class="card-title">Telegram</div>
+              <div class="model-desc">Бот-секретарь: уведомления и одобрения в Telegram.</div>
+              <div id="telegram-card">Загрузка…</div>
+            </div>
+            <div class="bubble models-card">
               <div class="card-title">Модели распознавания речи</div>
               <div class="model-desc">До 800 МБ. Скачайте модель и выберите её — активная используется для распознавания.</div>
               <div id="speech-models">Загрузка…</div>
@@ -1067,6 +1468,9 @@
           document.getElementById('mic-test').onclick = testMicrophone;
           document.getElementById('mic-auto').onclick = autoPickMicrophone;
           document.getElementById('settings-quit').onclick = () => sendIpc('quit');
+          renderBrain(brain || {});
+          renderEmail(emailConfig || { accounts: [] });
+          renderTelegram(telegram || {});
           renderSpeechModels(speech.models || []);
           if ((speech.models || []).some((model) => model.downloading)) {
             speechTimer = setTimeout(loadSpeechModels, 1000);
@@ -1082,12 +1486,12 @@
         return renderChat();
       }
 
-      async function send() {
+      async function send(options = {}) {
         const text = input.value.trim();
         if (!text) return;
         input.value = '';
         messages.push({ role: 'user', text });
-        renderChat();
+        if (!options.expandOnReply) renderChat();
         try {
           const response = await fetch('/api/v1/query', {
             method: 'POST',
@@ -1105,6 +1509,10 @@
           });
         } catch (error) {
           messages.push({ role: 'error', text: `Ошибка: ${error.message}` });
+        }
+        if (options.expandOnReply) {
+          view = 'chat';
+          setExpanded(true);
         }
         renderChat();
       }
@@ -1149,6 +1557,7 @@
 
       dock.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
+        if (event.target instanceof Element && event.target.closest('#mic')) return;
         drag = {
           id: event.pointerId,
           startX: event.screenX,
@@ -1197,10 +1606,54 @@
         }
       }, true);
 
+      // Перетаскивание развёрнутой панели за шапку (кнопки и поля не трогаем).
+      const panelSurface = document.getElementById('panel');
+      let panelDrag = null;
+
+      panelSurface.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        const target = event.target;
+        if (target instanceof Element) {
+          if (target.closest('.content, button, input, select, textarea, a, summary, label')) return;
+        }
+        panelDrag = {
+          id: event.pointerId,
+          startX: event.screenX,
+          startY: event.screenY,
+          lastX: event.screenX,
+          lastY: event.screenY,
+          moved: false,
+        };
+      });
+
+      window.addEventListener('pointermove', (event) => {
+        if (!panelDrag || event.pointerId !== panelDrag.id) return;
+        const dx = event.screenX - panelDrag.startX;
+        const dy = event.screenY - panelDrag.startY;
+        if (!panelDrag.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+        if (!panelDrag.moved) {
+          panelDrag.moved = true;
+          try { panelSurface.setPointerCapture(event.pointerId); } catch (error) { /* старый движок */ }
+        }
+        const stepX = event.screenX - panelDrag.lastX;
+        const stepY = event.screenY - panelDrag.lastY;
+        panelDrag.lastX = event.screenX;
+        panelDrag.lastY = event.screenY;
+        if (stepX || stepY) sendIpc(`move ${stepX} ${stepY}`);
+      });
+
+      const endPanelDrag = (event) => {
+        if (!panelDrag || event.pointerId !== panelDrag.id) return;
+        panelDrag = null;
+      };
+      window.addEventListener('pointerup', endPanelDrag);
+      window.addEventListener('pointercancel', endPanelDrag);
+
       // Голосовой ввод: запись WAV 16 кГц и локальный whisper на сервере.
       const micButton = document.getElementById('mic');
       const composerMic = document.getElementById('composer-mic');
       let recorder = null;
+      let recordingSource = 'composer';
 
       function setMicRecording(on) {
         micButton.classList.toggle('recording', on);
@@ -1262,12 +1715,11 @@
         return new Blob([buffer], { type: 'audio/wav' });
       }
 
-      async function toggleVoice() {
-        if (suppressClick) return;
-        if (recorder) {
-          stopRecording();
-          return;
-        }
+      let voiceHeld = false;
+
+      async function startVoiceRecording(hold = false, origin = 'composer') {
+        if (recorder) return;
+        recordingSource = origin;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           messages.push({ role: 'error', text: 'Микрофон недоступен в этом движке.' });
           view = 'chat';
@@ -1276,8 +1728,10 @@
           return;
         }
         try {
-          view = 'chat';
-          setExpanded(true);
+          if (origin !== 'pill') {
+            view = 'chat';
+            setExpanded(true);
+          }
           const deviceId = selectedMicId();
           let stream;
           try {
@@ -1286,6 +1740,10 @@
             if (!localStorage.getItem(MIC_KEY)) throw error;
             localStorage.removeItem(MIC_KEY);
             stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
+          }
+          if (hold && !voiceHeld) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
           }
           const context = new AudioContext();
           await context.resume();
@@ -1300,7 +1758,7 @@
           processor.connect(context.destination);
           recorder = { context, stream, source, gain, processor, chunks, rate: context.sampleRate };
           setMicRecording(true);
-          input.placeholder = 'Говорите… микрофон — закончить';
+          input.placeholder = 'Говорите… отпустите — отправлю';
         } catch (error) {
           recorder = null;
           setMicRecording(false);
@@ -1309,9 +1767,20 @@
         }
       }
 
+      async function toggleVoice() {
+        if (suppressClick) return;
+        if (recorder) {
+          stopRecording();
+          return;
+        }
+        await startVoiceRecording(false);
+      }
+
       function stopRecording() {
         const current = recorder;
         if (!current) return;
+        const source = recordingSource;
+        recordingSource = 'composer';
         recorder = null;
         setMicRecording(false);
         current.processor.disconnect();
@@ -1331,8 +1800,10 @@
           }
         }
         input.placeholder = 'Распознаю…';
-        if (samples.length < 1600) {
-          messages.push({ role: 'error', text: 'Слишком короткая запись.' });
+        if (samples.length < 800) {
+          input.placeholder = 'Спросите Tensa…';
+          messages.push({ role: 'error', text: 'Слишком короткая запись — держите микрофон, пока говорите.' });
+          if (source === 'pill') setExpanded(true);
           renderChat();
           return;
         }
@@ -1351,18 +1822,53 @@
             input.placeholder = 'Спросите Tensa…';
             if (data.text) {
               input.value = `${input.value ? `${input.value} ` : ''}${data.text}`.trim();
-              input.focus();
+              send({ expandOnReply: source === 'pill' });
             }
           })
           .catch((error) => {
             input.placeholder = 'Спросите Tensa…';
             messages.push({ role: 'error', text: `Голос: ${humanVoiceError(error.message)}` });
+            if (source === 'pill') setExpanded(true);
             renderChat();
           });
       }
 
-      micButton.onclick = toggleVoice;
-      composerMic.onclick = toggleVoice;
+      micButton.addEventListener('pointerdown', async (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        voiceHeld = true;
+        try {
+          micButton.setPointerCapture(event.pointerId);
+        } catch (error) {
+          /* старый движок */
+        }
+        await startVoiceRecording(true, 'pill');
+      });
+      const endPillVoice = (event) => {
+        if (!voiceHeld) return;
+        voiceHeld = false;
+        if (recorder) stopRecording();
+      };
+      micButton.addEventListener('pointerup', endPillVoice);
+      micButton.addEventListener('pointercancel', endPillVoice);
+      composerMic.addEventListener('pointerdown', async (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        voiceHeld = true;
+        try {
+          composerMic.setPointerCapture(event.pointerId);
+        } catch (error) {
+          /* старый движок */
+        }
+        await startVoiceRecording(true, 'composer');
+      });
+      const endComposerVoice = (event) => {
+        if (!voiceHeld) return;
+        voiceHeld = false;
+        if (recorder) stopRecording();
+      };
+      composerMic.addEventListener('pointerup', endComposerVoice);
+      composerMic.addEventListener('pointercancel', endComposerVoice);
       document.getElementById('letter').onclick = () => { if (suppressClick) return; view = 'chat'; setExpanded(true); };
       document.getElementById('dots').onclick = (event) => {
         if (suppressClick) return;

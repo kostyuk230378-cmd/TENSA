@@ -47,8 +47,6 @@ Section "Tensa" SecMain
   File "${STAGE}\Tensa.cmd"
   File "${STAGE}\TensaBot.cmd"
   File "${STAGE}\README.txt"
-  File "${STAGE}\download_models.ps1"
-  File "${STAGE}\DownloadModels.cmd"
 
   SetOutPath "$INSTDIR\models"
   File /r "${STAGE}\models\*.*"
@@ -64,7 +62,6 @@ Section "Tensa" SecMain
   CreateShortCut "$SMPROGRAMS\Tensa\Tensa.lnk" "$INSTDIR\tensa-desktop.exe" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Tensa (core console).lnk" "$INSTDIR\Tensa.cmd" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Tensa (Telegram bot).lnk" "$INSTDIR\TensaBot.cmd" "" "$INSTDIR\tensa.ico" 0
-  CreateShortCut "$SMPROGRAMS\Tensa\Tensa (download models).lnk" "$INSTDIR\DownloadModels.cmd" "" "$INSTDIR\tensa.ico" 0
   CreateShortCut "$SMPROGRAMS\Tensa\Uninstall Tensa.lnk" "$INSTDIR\Uninstall.exe"
 SectionEnd
 
@@ -78,8 +75,6 @@ Section "Uninstall"
   Delete "$INSTDIR\Tensa.cmd"
   Delete "$INSTDIR\TensaBot.cmd"
   Delete "$INSTDIR\README.txt"
-  Delete "$INSTDIR\download_models.ps1"
-  Delete "$INSTDIR\DownloadModels.cmd"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir /r "$INSTDIR\pwa"
   RMDir /r "$INSTDIR\models"

@@ -1,4 +1,4 @@
-Tensa 0.1.0 — установщик для Windows
+﻿Tensa 0.1.0 — установщик для Windows
 ====================================
 
 Что устанавливается:
@@ -7,7 +7,6 @@ Tensa 0.1.0 — установщик для Windows
   - tensa-bot.exe     — Telegram-бот секретаря (long polling)
   - pwa\static\       — собранная PWA (её раздаёт сервер; экран «Чат» с OpenRouter)
   - Tensa.cmd         — ярлык «Tensa»: старт ядра + браузер
-  - download_models.ps1 / DownloadModels.cmd — загрузчик моделей
 
 Как пользоваться:
   1. Запустите ярлык «Tensa» — откроется ОТДЕЛЬНОЕ ОКНО приложения
@@ -20,8 +19,8 @@ Tensa 0.1.0 — установщик для Windows
      Сервер слушает всю локальную сеть (0.0.0.0:8765). При первом запуске
      Windows спросит про доступ — разрешите tensa-server.exe для ЧАСТНОЙ сети
      (иначе телефон не подключится). В APK укажите адрес ядра и токен.
-  4. Telegram-бот: ярлык «Tensa (Telegram bot)»; токен бота и чат владельца —
-     в %USERPROFILE%\.tensa\secrets.toml (или env TELEGRAM_BOT_TOKEN).
+  4. Telegram-бот: настройка в «Настройках» (токен @BotFather и chat_id);
+     затем ярлык «Tensa (Telegram bot)».
      Сеть через прокси: перед запуском "set HTTPS_PROXY=http://127.0.0.1:10809".
 
 Модели:
@@ -37,12 +36,12 @@ Tensa 0.1.0 — установщик для Windows
     Свои каталоги: TENSA_INDEX_DIRS=C:\Docs;D:\Договоры или [documents] folders.
   - ЛОКАЛЬНАЯ модель (проектная): gemma-4-E2B-it-XS-TS-Q3_K_S.gguf (~1.73 ГБ,
     TheStageAI/gemma-4-E2B-it-GGUF — самый лёгкий квант, XS-TS-Q3_K_S) в
-    %USERPROFILE%\.tensa\models. Ярлык «Tensa (download models)» скачивает её и
-    проверяет SHA256 (d1e358e0…4c3b5); чат работает без интернета и ключей.
+    %USERPROFILE%\.tensa\models. Скачивается одной кнопкой в «Настройках»
+    (SHA256 проверяется автоматически); чат работает без интернета и ключей.
   - БОЛЬШИЕ модели (облако, опционально): ключ OpenRouter в
     %USERPROFILE%\.tensa\secrets.toml → [openrouter] credential = "sk-or-…"
     (или https://openrouter.ai/keys). Ядро само выберет облако, если ключ задан.
-  - Распознавание речи: DownloadModels.cmd -Whisper (ggml-base.bin, ~142 МБ).
+  - Распознавание речи: whisper small q5_1 входит в установщик; другие модели — в «Настройках».
 
 Телефон:
   APK собирается из apps/android-lite (в assets включена та же модель e5-small)

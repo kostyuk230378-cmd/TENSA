@@ -10,6 +10,7 @@ use tensa_core::NotesStore;
 use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
+use crate::brain::BrainService;
 use crate::calendar::CalendarStore;
 use crate::files::FilesIndex;
 use crate::query::QueryService;
@@ -69,7 +70,9 @@ pub struct AppState {
     /// Хранилище заметок (`tensa-core`).
     pub notes: Arc<dyn NotesStore>,
     /// Шлюз запросов к моделям (`/query`).
-    pub query: Arc<QueryService>,
+    pub query: Arc<tokio::sync::RwLock<Arc<QueryService>>>,
+    /// Модель ассистента: локальная Gemma или OpenRouter.
+    pub brain: Arc<BrainService>,
     /// Календарь ядра (JSON-файл `<root>/calendar.json`).
     pub calendar: Arc<CalendarStore>,
     /// Почтовые аккаунты из конфига (для APK/PWA).
@@ -111,7 +114,8 @@ impl AppState {
         Self {
             approvals,
             notes,
-            query: Arc::new(QueryService::disabled()),
+            query: Arc::new(tokio::sync::RwLock::new(Arc::new(QueryService::disabled()))),
+            brain: Arc::new(BrainService::disabled()),
             calendar: Arc::new(CalendarStore::in_memory()),
             email_accounts: Vec::new(),
             data_root: PathBuf::from("."),
@@ -141,7 +145,13 @@ impl AppState {
 
     /// Шлюз запросов к моделям (собирается в `main` из конфига и секретов).
     pub fn with_query(mut self, query: Arc<QueryService>) -> Self {
-        self.query = query;
+        self.query = Arc::new(tokio::sync::RwLock::new(query));
+        self
+    }
+
+    /// Сервис моделей ассистента.
+    pub fn with_brain(mut self, brain: Arc<BrainService>) -> Self {
+        self.brain = brain;
         self
     }
 

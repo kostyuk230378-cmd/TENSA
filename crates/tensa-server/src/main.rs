@@ -84,6 +84,10 @@ async fn run() -> tensa_server::Result<()> {
         )))
         .with_speech_models(Arc::new(tensa_server::speech_models::SpeechModels::new(
             &paths.root(),
+        )))
+        .with_brain(Arc::new(tensa_server::brain::BrainService::new(
+            &paths.root(),
+            config_path.clone(),
         )));
 
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).

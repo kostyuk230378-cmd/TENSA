@@ -3,18 +3,15 @@
 # Что кладёт:
 #   1. GGUF локальной модели ядра — gemma-4-E2B-it-XS-TS-Q3_K_S.gguf
 #      (~1.6 ГБ, TheStageAI/gemma-4-E2B-it-GGUF на HuggingFace).
-#   2. (опция -Whisper) ggml-base.bin для распознавания речи (~142 МБ).
 #
 # Эмбеддер памяти intfloat/multilingual-e5-small в установщик не входит:
 # его скачивает fastembed сам (~120 МБ ONNX) при первом использовании памяти.
 # Ссылка: https://huggingface.co/intfloat/multilingual-e5-small
 #
 # Использование:
-#   powershell -ExecutionPolicy Bypass -File download_models.ps1 [-Whisper] [-DryRun]
 #   -DryRun  — только проверить доступность и размеры (ничего не качать).
 
 param(
-    [switch]$Whisper,
     [switch]$DryRun
 )
 
@@ -24,8 +21,6 @@ $gemmaUrl = 'https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF/resolve/main/
 $gemmaFile = 'gemma-4-E2B-it-XS-TS-Q3_K_S.gguf'
 # SHA256 файла (LFS oid TheStageAI/gemma-4-E2B-it-GGUF) — проверка после скачивания.
 $gemmaSha256 = 'd1e358e0a9f945084e8757090684ef698f9e99f41693dcd465f5aeaa3564c3b5'
-$whisperUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin'
-$whisperFile = 'ggml-base.bin'
 
 $models = Join-Path $env:USERPROFILE '.tensa\models'
 New-Item -ItemType Directory -Force $models | Out-Null
@@ -81,21 +76,14 @@ if ($DryRun) {
     Write-Output '(режим проверки: ничего не качается)'
 }
 Write-Output ''
-Write-Output '1) Локальная модель ядра (GGUF, ~3.1 ГБ):'
+Write-Output '1) Локальная модель ядра (GGUF, ~1.65 ГБ):'
 Get-Model -Url $gemmaUrl -Name $gemmaFile -CheckOnly:$DryRun
 
-Write-Output ''
-Write-Output '2) Распознавание речи (whisper.cpp, ~142 МБ):'
-if ($Whisper) {
-    Get-Model -Url $whisperUrl -Name $whisperFile -CheckOnly:$DryRun
-} else {
-    Write-Output '  пропущено (запустите с -Whisper, если нужен голосовой ввод)'
-}
 
 Write-Output ''
-Write-Output '3) Эмбеддер памяти intfloat/multilingual-e5-small:'
+Write-Output '2) Эмбеддер памяти intfloat/multilingual-e5-small:'
 Write-Output '  скачивается fastembed автоматически (~120 МБ ONNX) при первом'
 Write-Output '  использовании памяти; вручную: https://huggingface.co/intfloat/multilingual-e5-small'
 
 Write-Output ''
-Write-Output 'Большие модели (облако): PWA → «Чат» или APK → «Чат»; ключ: https://openrouter.ai/keys'
+Write-Output '3) Большие модели (облако): PWA → «Чат» или APK → «Чат»; ключ: https://openrouter.ai/keys'

@@ -87,7 +87,7 @@ pub fn models_to_download() -> Vec<String> {
         "llama-server".to_string(),
         "gemma-4-E2B-it-XS-TS-Q3_K_S.gguf".to_string(),
         "multilingual-e5-small".to_string(),
-        "ggml-base.bin".to_string(),
+        "ggml-small-q5_1.bin".to_string(),
     ]
 }
 

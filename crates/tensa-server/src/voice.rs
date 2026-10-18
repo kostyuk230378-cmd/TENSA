@@ -2,7 +2,7 @@
 //!
 //! llama.cpp и whisper.cpp содержат одинаковые символы ggml, поэтому whisper
 //! живёт в своём процессе: сервер пишет WAV во временный файл и запускает
-//! helper. Модель — `<root>/models/whisper/ggml-base.bin` или `<root>/models/ggml-base.bin`.
+//! helper. Модель — small q5_1 в `<root>/models` или рядом с установленным exe.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -37,13 +37,17 @@ impl VoiceService {
             roots.push(exe_dir.join("models").join("whisper"));
             roots.push(exe_dir.join("models"));
         }
-        // Сначала квантованная small (точнее для русского), затем base.
-        let names = ["ggml-small-q5_1.bin", "ggml-small.bin", "ggml-base.bin"];
+        // По умолчанию квантованная small.
+        let names = ["ggml-small-q5_1.bin", "ggml-small.bin"];
         let model = roots
             .iter()
             .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
             .find(|path| path.is_file())
-            .unwrap_or_else(|| root.join("models").join("whisper").join("ggml-base.bin"));
+            .unwrap_or_else(|| {
+                root.join("models")
+                    .join("whisper")
+                    .join("ggml-small-q5_1.bin")
+            });
         let helper = std::env::var_os("TENSA_WHISPER")
             .map(PathBuf::from)
             .or_else(|| {
@@ -68,7 +72,7 @@ impl VoiceService {
         }
     }
 
-    /// Выбрать активную модель: asr-active.txt, иначе приоритет small/base.
+    /// Выбрать активную модель: asr-active.txt, иначе приоритет small.
     fn resolve_model(&self) -> PathBuf {
         if self.root.as_os_str().is_empty() {
             return self.model.clone();
@@ -108,7 +112,7 @@ impl VoiceService {
         if model.as_os_str().is_empty() || !model.is_file() {
             return Err(VoiceError::Message(
                 "модель whisper не найдена: models/whisper/ggml-small-q5_1.bin \
-                 (скачать: DownloadModels.cmd -Whisper)"
+                 (скачать в Настройках → Модели распознавания речи)"
                     .to_string(),
             ));
         }

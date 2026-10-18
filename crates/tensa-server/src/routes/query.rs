@@ -523,7 +523,8 @@ pub async fn query(
         request.text = format!("{context}\n\nВопрос пользователя: {text}");
     }
 
-    let response = state.query.query(&request, body.model.as_deref()).await?;
+    let query = state.query.read().await.clone();
+    let response = query.query(&request, body.model.as_deref()).await?;
     Ok(Json(response))
 }
 

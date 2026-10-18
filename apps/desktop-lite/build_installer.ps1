@@ -74,8 +74,6 @@ try {
 
     Copy-Item (Join-Path $here 'Tensa.cmd') $stage -Force
     Copy-Item (Join-Path $here 'TensaBot.cmd') $stage -Force
-    Copy-Item (Join-Path $here 'download_models.ps1') $stage -Force
-    Copy-Item (Join-Path $here 'DownloadModels.cmd') $stage -Force
     Copy-Item (Join-Path $here 'README.txt') $stage -Force
 
     Write-Output '== иконка (ico из PWA-иконки) =='

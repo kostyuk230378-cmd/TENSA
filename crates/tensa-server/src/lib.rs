@@ -13,6 +13,7 @@
 //! Точка сборки приложения — [`router`]; запуск — [`serve`].
 
 pub mod auth;
+pub mod brain;
 pub mod calendar;
 pub mod error;
 pub mod files;

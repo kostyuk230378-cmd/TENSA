@@ -7,7 +7,9 @@ use axum::extract::State;
 use axum::Json;
 use serde::Serialize;
 
-use crate::error::Result;
+use tensa_tools::email::EmailService;
+
+use crate::error::{Result, ServerError};
 use crate::state::AppState;
 
 /// Учётная запись почты для клиентов.
@@ -46,7 +48,18 @@ pub fn accounts_from_config(email: &toml::Table) -> Vec<AccountInfo> {
 
 /// `GET /email/accounts` — аккаунты из конфига.
 pub async fn accounts(State(state): State<AppState>) -> Result<Json<Vec<AccountInfo>>> {
-    Ok(Json(state.email_accounts.clone()))
+    let service = EmailService::from_files(&state.config_path)
+        .map_err(|error| ServerError::Storage(format!("почта: {error}")))?;
+    let accounts = service
+        .accounts()
+        .into_iter()
+        .map(|account| AccountInfo {
+            id: account.id,
+            email: account.email,
+            label: account.label,
+        })
+        .collect();
+    Ok(Json(accounts))
 }
 
 #[cfg(test)]

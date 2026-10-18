@@ -27,7 +27,7 @@ Tensa — self-hosted секретарь для одного человека: �
 | **PWA** | Чат (через ядро), Статус, Одобрения, Заметки, Поиск, Настройки — Svelte 5, SSE, i18n ru/en, PWA-манифест, офлайн-оболочка |
 | **Android (APK)** | Чат через ядро (резерв — прямой OpenRouter), Одобрения, Заметки, Поиск по заметкам, Почта (аккаунты), Календарь (список + создание, 409-конфликт), Статус, Настройки; кнопка **«Установить модель»** — передаёт e5-small из assets в ядро |
 | **Windows** | `TensaSetup.exe`: ядро + CLI + Telegram-бот + PWA + **модели e5-small и whisper в комплекте**; ярлыки, деинсталлятор; ставится без админа в `%LOCALAPPDATA%\Tensa` |
-| **Голос** | Кнопка микрофона в виджете: запись → локальный whisper (`ggml-base.bin`, офлайн) → текст в поле ввода; первый запрос ~8 с, дальше быстрее |
+| **Голос** | Кнопка микрофона в виджете: запись → локальный whisper (`ggml-small-q5_1.bin`, офлайн) → текст в поле ввода; ~15–20 с на фразу |
 | **Виджет** | Прозрачное always-on-top окно: зелёная пилюля и лампочка **перетаскиваются мышью** (Pointer Events с захватом), разворот в HUD-панель |
 
 ## Модели
@@ -36,9 +36,10 @@ Tensa — self-hosted секретарь для одного человека: �
   Windows и APK; работает офлайн, сеть не нужна.
 - **Локальная LLM** — проектный квант [`TheStageAI/gemma-4-E2B-it-GGUF`](https://huggingface.co/TheStageAI/gemma-4-E2B-it-GGUF):
   **`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`** (~1.73 ГБ, самый лёгкий по памяти) в
-  `~/.tensa/models`; ярлык «Tensa (download models)» скачивает её и сверяет SHA256.
+  `~/.tensa/models`; модель скачивается одной кнопкой из «Настроек», SHA256 проверяется автоматически.
   Локальный инференс — llama.cpp внутри ядра.
-- **Модели распознавания речи** — Whisper tiny/base/small q5_1/small/medium (75–492 МБ) скачиваются из «Настроек»; small/medium — с blob.handy.computer (Handy), tiny/base/small q5_1 — с Hugging Face whisper.cpp.
+- **Модели распознавания речи** — Whisper tiny/small q5_1/small/medium (75–492 МБ) скачиваются из «Настроек»; small/medium — с blob.handy.computer (Handy), tiny/small q5_1 — с Hugging Face whisper.cpp.
+- **Модель ассистента** — локальная Gemma 4 E2B (~1.65 ГБ, скачивание из «Настроек») или OpenRouter google/gemma-4-26b-a4b-it (API-ключ вводится там же).
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
   Ключ выдаётся на https://openrouter.ai/keys.

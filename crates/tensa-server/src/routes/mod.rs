@@ -5,8 +5,10 @@
 //! публична — браузер не прикладывает заголовок при навигации.
 
 pub mod approvals;
+pub mod brain;
 pub mod calendar;
 pub mod email;
+pub mod email_setup;
 pub mod events;
 pub mod files;
 pub mod health;
@@ -15,6 +17,7 @@ pub mod query;
 pub mod speech_models;
 pub mod static_files;
 pub mod stubs;
+pub mod telegram_setup;
 pub mod voice;
 
 use axum::extract::DefaultBodyLimit;
@@ -58,7 +61,15 @@ pub fn api() -> Router<AppState> {
         .route("/calendar/ics", get(calendar::ics))
         .route("/calendar/events/:id", delete(calendar::remove))
         // Почта: аккаунты из конфига (отправка — контур tensa-tools).
-        .route("/email/accounts", get(email::accounts))
+        .route(
+            "/email/accounts",
+            get(email::accounts).post(email_setup::save),
+        )
+        .route("/email/config", get(email_setup::config))
+        .route("/email/accounts/:id", delete(email_setup::remove))
+        .route("/telegram/status", get(telegram_setup::status))
+        .route("/telegram", post(telegram_setup::save))
+        .route("/telegram/detect", post(telegram_setup::detect))
         // Локальные файлы: индекс и поиск (секретарь ищет документы сам).
         .route("/files/status", get(files::status))
         .route("/files/index", post(files::index))
@@ -71,6 +82,12 @@ pub fn api() -> Router<AppState> {
             "/voice/transcribe",
             post(voice::transcribe).layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
+        // Модель ассистента: локальная Gemma / OpenRouter.
+        .route("/brain/status", get(brain::status))
+        .route("/brain/local/download", post(brain::download_local))
+        .route("/brain/local/activate", post(brain::activate_local))
+        .route("/brain/cloud", post(brain::connect_cloud))
+        .route("/brain/cloud/activate", post(brain::activate_cloud))
         // Модели распознавания речи: каталог, загрузка, активация.
         .route("/models/speech", get(speech_models::list))
         .route("/models/speech/:id/download", post(speech_models::download))

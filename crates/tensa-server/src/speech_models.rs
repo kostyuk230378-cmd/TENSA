@@ -40,17 +40,6 @@ const CATALOG: &[CatalogEntry] = &[
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
     },
     CatalogEntry {
-        id: "base",
-        file: "ggml-base.bin",
-        name: "Whisper Base",
-        description: "Быстрая базовая модель. Заметно уступает Small на русском.",
-        size_mb: 142,
-        languages: "99 языков",
-        accuracy: 2,
-        speed: 4,
-        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-    },
-    CatalogEntry {
         id: "small-q5_1",
         file: "ggml-small-q5_1.bin",
         name: "Whisper Small q5_1",
@@ -187,7 +176,7 @@ impl SpeechModels {
                 }
             }
         }
-        ["small-q5_1", "small", "base", "tiny", "medium-q4_1"]
+        ["small-q5_1", "small", "tiny", "medium-q4_1"]
             .iter()
             .filter_map(|id| CATALOG.iter().find(|entry| entry.id == *id))
             .find(|entry| self.installed_path(entry).is_some())

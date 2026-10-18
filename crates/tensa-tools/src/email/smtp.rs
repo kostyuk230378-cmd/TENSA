@@ -112,26 +112,49 @@ pub async fn send(
 ) -> Result<(), EmailError> {
     let message = build_message(account, email)?;
 
+    let mailer = transport(account, credential)?;
+    mailer
+        .send(message)
+        .await
+        .map_err(|error| EmailError::Smtp(shorten(&error.to_string(), 200)))?;
+    Ok(())
+}
+
+/// Проверить SMTP-подключение и логин без отправки письма.
+pub async fn test_connection(account: &Account, credential: &str) -> Result<(), EmailError> {
+    let mailer = transport(account, credential)?;
+    let ok = mailer
+        .test_connection()
+        .await
+        .map_err(|error| EmailError::Smtp(shorten(&error.to_string(), 200)))?;
+    if ok {
+        Ok(())
+    } else {
+        Err(EmailError::Smtp(
+            "SMTP-сервер не подтвердил подключение".to_string(),
+        ))
+    }
+}
+
+/// Собрать SMTP-транспорт с логином и паролем.
+fn transport(
+    account: &Account,
+    credential: &str,
+) -> Result<AsyncSmtpTransport<Tokio1Executor>, EmailError> {
     let builder = match account.smtp_tls {
         SmtpTls::StartTls => {
             AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&account.smtp_host)
         }
         SmtpTls::Implicit => AsyncSmtpTransport::<Tokio1Executor>::relay(&account.smtp_host),
     };
-    let mailer = builder
+    Ok(builder
         .map_err(|error| EmailError::Smtp(shorten(&error.to_string(), 200)))?
         .port(account.smtp_port)
         .credentials(Credentials::new(
             account.email.clone(),
             credential.to_string(),
         ))
-        .build();
-
-    mailer
-        .send(message)
-        .await
-        .map_err(|error| EmailError::Smtp(shorten(&error.to_string(), 200)))?;
-    Ok(())
+        .build())
 }
 
 /// Разбить строку адресов «a@x, b@y» на части.
