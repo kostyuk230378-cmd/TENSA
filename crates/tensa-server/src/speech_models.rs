@@ -69,7 +69,7 @@ const CATALOG: &[CatalogEntry] = &[
         id: "nemotron-3.5",
         file: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
         name: "Nemotron Streaming 3.5",
-        description: "Потоковая мультиязычная модель, 28 языков. Скачивание для будущего движка Parakeet.",
+        description: "Потоковая мультиязычная модель, 28 языков. Локальное распознавание, движок Parakeet/Nemotron.",
         size_mb: 716,
         languages: "28 языков",
         accuracy: 4,
@@ -81,7 +81,7 @@ const CATALOG: &[CatalogEntry] = &[
         id: "parakeet-tdt-v3",
         file: "parakeet-tdt-0.6b-v3-Q8_0.gguf",
         name: "Parakeet TDT 0.6B v3",
-        description: "Быстрая и точная, 25 европейских языков. Скачивание для будущего движка Parakeet.",
+        description: "Быстрая и точная, 25 европейских языков. Локальное распознавание, движок Parakeet/Nemotron.",
         size_mb: 705,
         languages: "25 языков",
         accuracy: 5,
@@ -93,7 +93,7 @@ const CATALOG: &[CatalogEntry] = &[
         id: "canary-1b-v2",
         file: "canary-1b-v2-Q5_K_M.gguf",
         name: "Canary 1B v2",
-        description: "25 языков, перевод на английский. Скачивание для будущего движка Canary.",
+        description: "25 языков, перевод на английский. Локальное распознавание, движок Canary.",
         size_mb: 797,
         languages: "25 языков",
         accuracy: 5,
@@ -212,7 +212,7 @@ impl SpeechModels {
         ["small-q5_1", "small", "tiny"]
             .iter()
             .filter_map(|id| CATALOG.iter().find(|entry| entry.id == *id))
-            .find(|entry| entry.engine == "whisper" && self.installed_path(entry).is_some())
+            .find(|entry| self.installed_path(entry).is_some())
     }
 
     /// Список моделей и активный id.
@@ -253,7 +253,7 @@ impl SpeechModels {
                     accuracy: entry.accuracy,
                     speed: entry.speed,
                     engine: entry.engine.to_string(),
-                    can_activate: entry.engine == "whisper",
+                    can_activate: true,
                     installed,
                     active: active.as_deref() == Some(entry.id),
                     downloading,
@@ -311,12 +311,6 @@ impl SpeechModels {
             .iter()
             .find(|entry| entry.id == id)
             .ok_or_else(|| "неизвестная модель".to_string())?;
-        if entry.engine != "whisper" {
-            return Err(format!(
-                "модель {} требует движок {}; сейчас поддерживается whisper",
-                entry.name, entry.engine
-            ));
-        }
         if self.installed_path(entry).is_none() {
             return Err("модель не скачана".to_string());
         }

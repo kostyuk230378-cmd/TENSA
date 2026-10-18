@@ -1031,8 +1031,6 @@
               action = '<div class="model-meta">Используется сейчас</div>';
             } else if (model.installed && model.can_activate) {
               action = `<button class="mini-btn" data-activate="${model.id}">Выбрать</button>`;
-            } else if (model.installed) {
-              action = `<div class="model-meta">Скачано; движок ${escapeHtml(model.engine)} пока не подключён</div>`;
             } else {
               action = `<button class="mini-btn" data-download="${model.id}">Скачать ${model.size_mb} МБ</button>`;
             }

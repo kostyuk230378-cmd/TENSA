@@ -38,7 +38,7 @@ Tensa — self-hosted секретарь для одного человека: �
   **`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`** (~1.73 ГБ, самый лёгкий по памяти) в
   `~/.tensa/models`; модель скачивается одной кнопкой из «Настроек», SHA256 проверяется автоматически.
   Локальный инференс — llama.cpp внутри ядра.
-- **Модели распознавания речи** — Whisper tiny/small q5_1/small + Nemotron/Parakeet/Canary (75–797 МБ) скачиваются из «Настроек»; small/Nemotron/Parakeet/Canary — с blob.handy.computer (Handy), tiny/small q5_1 — с Hugging Face whisper.cpp. Nemotron/Parakeet/Canary пока скачиваются без подключённого движка.
+- **Модели распознавания речи** — Whisper tiny/small q5_1/small + Nemotron/Parakeet/Canary (75–797 МБ) скачиваются из «Настроек»; small/Nemotron/Parakeet/Canary — с blob.handy.computer (Handy), tiny/small q5_1 — с Hugging Face whisper.cpp. Nemotron/Parakeet/Canary работают через отдельный runtime 	ensa-asr.exe (входит в установщик).
 - **Модель ассистента** — локальная Gemma 4 E2B (~1.65 ГБ, скачивание из «Настроек») или OpenRouter google/gemma-4-26b-a4b-it (API-ключ вводится там же).
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
@@ -60,12 +60,12 @@ Tensa — self-hosted секретарь для одного человека: �
 
 ## Скачать
 
-Актуальный релиз — **[v0.2.5](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.5)**:
+Актуальный релиз — **[v0.2.6](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.6)**:
 
 | Платформа | Файл | Размер |
 |---|---|---|
-| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.5/TensaSetup.exe) | 391 МБ |
-| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.5/Tensa.apk) | 239 МБ |
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.6/TensaSetup.exe) | 392 МБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.6/Tensa.apk) | 239 МБ |
 
 ## Скриншоты
 

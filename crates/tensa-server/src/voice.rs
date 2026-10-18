@@ -106,9 +106,43 @@ impl VoiceService {
         self.model.clone()
     }
 
+    /// Helper для модели: tensa-asr для Parakeet/Canary/Nemotron, иначе whisper.
+    fn helper_for(&self, model: &Path) -> PathBuf {
+        let name = model
+            .file_name()
+            .map(|value| value.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        let asr = name.contains("parakeet") || name.contains("canary") || name.contains("nemotron");
+        let env_name = if asr { "TENSA_ASR" } else { "TENSA_WHISPER" };
+        if let Some(path) = std::env::var_os(env_name).map(PathBuf::from) {
+            if path.is_file() {
+                return path;
+            }
+        }
+        if let Some(exe) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        {
+            let candidate = exe.join(if asr {
+                "tensa-asr.exe"
+            } else {
+                "tensa-whisper.exe"
+            });
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+        if asr {
+            PathBuf::from("tensa-asr.exe")
+        } else {
+            self.helper.clone()
+        }
+    }
+
     /// Распознать WAV (PCM16; helper сам приводит к 16 кГц моно).
     pub async fn transcribe(&self, wav: &[u8]) -> Result<String> {
         let model = self.resolve_model();
+        let helper = self.helper_for(&model);
         if model.as_os_str().is_empty() || !model.is_file() {
             return Err(VoiceError::Message(
                 "модель whisper не найдена: models/whisper/ggml-small-q5_1.bin \
@@ -116,16 +150,17 @@ impl VoiceService {
                     .to_string(),
             ));
         }
-        if self.helper.as_os_str().is_empty() || !self.helper.is_file() {
-            return Err(VoiceError::Message(
-                "не найден tensa-whisper.exe рядом с сервером".to_string(),
-            ));
+        if helper.as_os_str().is_empty() || !helper.is_file() {
+            return Err(VoiceError::Message(format!(
+                "не найден {} рядом с сервером",
+                helper.file_name().unwrap_or_default().to_string_lossy()
+            )));
         }
 
         let path = temp_wav_path();
         std::fs::write(&path, wav)
             .map_err(|error| VoiceError::Message(format!("временный WAV: {error}")))?;
-        let helper = self.helper.clone();
+        let helper = helper.clone();
         let audio = path.clone();
         let output = tokio::task::spawn_blocking(move || {
             Command::new(&helper)
