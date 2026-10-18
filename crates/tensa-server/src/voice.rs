@@ -104,7 +104,23 @@ impl VoiceService {
         let output = output.map_err(VoiceError::Message)?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(VoiceError::Message(stderr.trim().to_string()));
+            // whisper.cpp пишет в stderr свой шум; пользователю нужна последняя причина.
+            let message = stderr
+                .lines()
+                .map(str::trim)
+                .filter(|line| {
+                    !line.is_empty()
+                        && !line.starts_with("whisper_")
+                        && !line.starts_with("ggml_")
+                        && !line.starts_with("register_")
+                        && !line.starts_with("load:")
+                        && !line.starts_with("system_info")
+                        && !line.contains("buffer")
+                })
+                .last()
+                .unwrap_or("не удалось распознать речь")
+                .to_string();
+            return Err(VoiceError::Message(message));
         }
         let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if text.is_empty() {

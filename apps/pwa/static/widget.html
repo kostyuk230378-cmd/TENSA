@@ -997,7 +997,7 @@
         try {
           view = 'chat';
           setExpanded(true);
-          const deviceId = await resolveMicId();
+          const deviceId = selectedMicId();
           let stream;
           try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(deviceId) });
