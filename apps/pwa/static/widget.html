@@ -507,6 +507,10 @@
         margin: 6px 0;
       }
 
+      #brain-status {
+        color: #fff;
+      }
+
       .model-meta {
         display: flex;
         align-items: center;
@@ -1025,8 +1029,10 @@
                 <div class="model-meta">Скачивается… ${model.progress}%</div>`;
             } else if (model.active) {
               action = '<div class="model-meta">Используется сейчас</div>';
-            } else if (model.installed) {
+            } else if (model.installed && model.can_activate) {
               action = `<button class="mini-btn" data-activate="${model.id}">Выбрать</button>`;
+            } else if (model.installed) {
+              action = `<div class="model-meta">Скачано; движок ${escapeHtml(model.engine)} пока не подключён</div>`;
             } else {
               action = `<button class="mini-btn" data-download="${model.id}">Скачать ${model.size_mb} МБ</button>`;
             }
@@ -1917,6 +1923,22 @@
         render();
       }
 
+      async function openFirstRunSetup() {
+        try {
+          const response = await fetch('/api/v1/brain/status');
+          if (!response.ok) return;
+          const status = await response.json();
+          if (!status.local?.installed && !status.cloud?.configured) {
+            view = 'settings';
+            setExpanded(true);
+            render();
+          }
+        } catch (error) {
+          /* старый сервер без /brain/status */
+        }
+      }
+
+      openFirstRunSetup();
       refreshBadge();
       setInterval(refreshBadge, 15000);
     </script>

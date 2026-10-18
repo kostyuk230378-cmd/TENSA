@@ -38,7 +38,7 @@ Tensa — self-hosted секретарь для одного человека: �
   **`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`** (~1.73 ГБ, самый лёгкий по памяти) в
   `~/.tensa/models`; модель скачивается одной кнопкой из «Настроек», SHA256 проверяется автоматически.
   Локальный инференс — llama.cpp внутри ядра.
-- **Модели распознавания речи** — Whisper tiny/small q5_1/small/medium (75–492 МБ) скачиваются из «Настроек»; small/medium — с blob.handy.computer (Handy), tiny/small q5_1 — с Hugging Face whisper.cpp.
+- **Модели распознавания речи** — Whisper tiny/small q5_1/small + Nemotron/Parakeet/Canary (75–797 МБ) скачиваются из «Настроек»; small/Nemotron/Parakeet/Canary — с blob.handy.computer (Handy), tiny/small q5_1 — с Hugging Face whisper.cpp. Nemotron/Parakeet/Canary пока скачиваются без подключённого движка.
 - **Модель ассистента** — локальная Gemma 4 E2B (~1.65 ГБ, скачивание из «Настроек») или OpenRouter google/gemma-4-26b-a4b-it (API-ключ вводится там же).
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.

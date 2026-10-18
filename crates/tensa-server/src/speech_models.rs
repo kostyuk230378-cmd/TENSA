@@ -23,6 +23,7 @@ struct CatalogEntry {
     languages: &'static str,
     accuracy: u8,
     speed: u8,
+    engine: &'static str,
     url: &'static str,
 }
 
@@ -37,6 +38,7 @@ const CATALOG: &[CatalogEntry] = &[
         languages: "99 языков",
         accuracy: 1,
         speed: 5,
+        engine: "whisper",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
     },
     CatalogEntry {
@@ -48,6 +50,7 @@ const CATALOG: &[CatalogEntry] = &[
         languages: "99 языков",
         accuracy: 4,
         speed: 4,
+        engine: "whisper",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin",
     },
     CatalogEntry {
@@ -59,18 +62,44 @@ const CATALOG: &[CatalogEntry] = &[
         languages: "99 языков",
         accuracy: 5,
         speed: 3,
+        engine: "whisper",
         url: "https://blob.handy.computer/ggml-small.bin",
     },
     CatalogEntry {
-        id: "medium-q4_1",
-        file: "whisper-medium-q4_1.bin",
-        name: "Whisper Medium q4_1",
-        description: "Максимальная точность в лимите 800 МБ, но медленная.",
-        size_mb: 492,
-        languages: "99 языков",
+        id: "nemotron-3.5",
+        file: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+        name: "Nemotron Streaming 3.5",
+        description: "Потоковая мультиязычная модель, 28 языков. Скачивание для будущего движка Parakeet.",
+        size_mb: 716,
+        languages: "28 языков",
+        accuracy: 4,
+        speed: 5,
+        engine: "parakeet",
+        url: "https://blob.handy.computer/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/6d44e540bc31b0de1dbe174a3cea87f53a7f22fb/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+    },
+    CatalogEntry {
+        id: "parakeet-tdt-v3",
+        file: "parakeet-tdt-0.6b-v3-Q8_0.gguf",
+        name: "Parakeet TDT 0.6B v3",
+        description: "Быстрая и точная, 25 европейских языков. Скачивание для будущего движка Parakeet.",
+        size_mb: 705,
+        languages: "25 языков",
         accuracy: 5,
-        speed: 2,
-        url: "https://blob.handy.computer/whisper-medium-q4_1.bin",
+        speed: 4,
+        engine: "parakeet",
+        url: "https://blob.handy.computer/handy-computer/parakeet-tdt-0.6b-v3-gguf/85ac09ea12fc4b1112fa76810059364bc6adc9de/parakeet-tdt-0.6b-v3-Q8_0.gguf",
+    },
+    CatalogEntry {
+        id: "canary-1b-v2",
+        file: "canary-1b-v2-Q5_K_M.gguf",
+        name: "Canary 1B v2",
+        description: "25 языков, перевод на английский. Скачивание для будущего движка Canary.",
+        size_mb: 797,
+        languages: "25 языков",
+        accuracy: 5,
+        speed: 4,
+        engine: "canary",
+        url: "https://blob.handy.computer/handy-computer/canary-1b-v2-gguf/58d13c2c0102229aad45f7e19a77ddc42b41dd9a/canary-1b-v2-Q5_K_M.gguf",
     },
 ];
 
@@ -102,6 +131,10 @@ pub struct SpeechModelView {
     pub accuracy: u8,
     /// Скорость 1–5.
     pub speed: u8,
+    /// Движок (whisper/parakeet/canary).
+    pub engine: String,
+    /// Можно выбрать для текущего движка.
+    pub can_activate: bool,
     /// Установлена.
     pub installed: bool,
     /// Активна.
@@ -176,10 +209,10 @@ impl SpeechModels {
                 }
             }
         }
-        ["small-q5_1", "small", "tiny", "medium-q4_1"]
+        ["small-q5_1", "small", "tiny"]
             .iter()
             .filter_map(|id| CATALOG.iter().find(|entry| entry.id == *id))
-            .find(|entry| self.installed_path(entry).is_some())
+            .find(|entry| entry.engine == "whisper" && self.installed_path(entry).is_some())
     }
 
     /// Список моделей и активный id.
@@ -219,6 +252,8 @@ impl SpeechModels {
                     languages: entry.languages.to_string(),
                     accuracy: entry.accuracy,
                     speed: entry.speed,
+                    engine: entry.engine.to_string(),
+                    can_activate: entry.engine == "whisper",
                     installed,
                     active: active.as_deref() == Some(entry.id),
                     downloading,
@@ -276,6 +311,12 @@ impl SpeechModels {
             .iter()
             .find(|entry| entry.id == id)
             .ok_or_else(|| "неизвестная модель".to_string())?;
+        if entry.engine != "whisper" {
+            return Err(format!(
+                "модель {} требует движок {}; сейчас поддерживается whisper",
+                entry.name, entry.engine
+            ));
+        }
         if self.installed_path(entry).is_none() {
             return Err("модель не скачана".to_string());
         }
