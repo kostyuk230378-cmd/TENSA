@@ -60,12 +60,12 @@ Tensa — self-hosted секретарь для одного человека: �
 
 ## Скачать
 
-Актуальный релиз — **[v0.2.7](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.7)**:
+Актуальный релиз — **[v0.2.8](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.8)**:
 
 | Платформа | Файл | Размер |
 |---|---|---|
-| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.7/TensaSetup.exe) | 220 МБ |
-| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.7/Tensa.apk) | 239 МБ |
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.8/TensaSetup.exe) | 220 МБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.8/Tensa.apk) | 239 МБ |
 
 ## Скриншоты
 

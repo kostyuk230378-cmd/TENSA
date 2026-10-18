@@ -345,9 +345,9 @@ fn build_local(
 /// Приоритет — проектная модель TheStageAI `gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`
 /// (~1.73 ГБ, самый лёгкий квант); иначе — любой другой GGUF (по имени).
 #[cfg(feature = "native")]
-fn find_gguf(paths: &TensaPaths) -> Option<PathBuf> {
+fn find_gguf(_paths: &TensaPaths) -> Option<PathBuf> {
     const PROJECT_MODEL: &str = "gemma-4-E2B-it-XS-TS-Q3_K_S.gguf";
-    let model_dir = paths.models_dir();
+    let model_dir = install_models_dir();
     let project = model_dir.join(PROJECT_MODEL);
     if project.is_file() {
         return Some(project);
@@ -366,6 +366,15 @@ fn find_gguf(paths: &TensaPaths) -> Option<PathBuf> {
         .collect();
     candidates.sort();
     candidates.into_iter().next()
+}
+
+/// Каталог моделей рядом с установленным exe (а не ~/.tensa).
+#[cfg(feature = "native")]
+fn install_models_dir() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("models")))
+        .unwrap_or_else(|| PathBuf::from("models"))
 }
 
 /// Ленивая локальная модель: грузит GGUF при первом запросе.
