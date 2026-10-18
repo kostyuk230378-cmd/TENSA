@@ -347,6 +347,25 @@
 
       .composer .composer-mic svg { width: 20px; height: 20px; }
 
+      .mic-select {
+        width: 100%;
+        margin: 8px 0 6px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #09090b;
+        color: var(--text);
+        font-family: var(--ui);
+        font-size: 13px;
+      }
+
+      .mic-status {
+        margin: 4px 0 8px;
+        font-size: 12px;
+        color: var(--text2);
+        line-height: 1.4;
+      }
+
       .composer .composer-mic.recording {
         background: rgba(255, 0, 85, 0.35);
         border-color: rgba(255, 0, 85, 0.8);
@@ -567,6 +586,157 @@
         }
       }
 
+      const MIC_KEY = 'tensa.mic';
+
+      function micConstraints(deviceId) {
+        const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+        const saved = deviceId || localStorage.getItem(MIC_KEY) || '';
+        return saved ? { ...base, deviceId: { exact: saved } } : base;
+      }
+
+      // Если пользователь ничего не выбирал — используется системный микрофон.
+      function selectedMicId() {
+        return localStorage.getItem(MIC_KEY) || '';
+      }
+
+      async function audioInputs() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          return devices.filter((device) => device.kind === 'audioinput');
+        } catch (error) {
+          return [];
+        }
+      }
+
+      async function ensureMicPermission() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((track) => track.stop());
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      async function activeMicDeviceId() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return '';
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const track = stream.getAudioTracks()[0];
+          const settings = track ? track.getSettings() : {};
+          stream.getTracks().forEach((item) => item.stop());
+          return settings.deviceId || '';
+        } catch (error) {
+          return '';
+        }
+      }
+
+      async function testMicrophone() {
+        const status = document.getElementById('mic-status');
+        if (!status) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          status.textContent = 'Микрофон недоступен в этом движке.';
+          return;
+        }
+        status.textContent = 'Говорите 3 секунды…';
+        try {
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(selectedMicId()) });
+          } catch (error) {
+            if (!localStorage.getItem(MIC_KEY)) throw error;
+            localStorage.removeItem(MIC_KEY);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
+          }
+          const context = new AudioContext();
+          await context.resume();
+          const source = context.createMediaStreamSource(stream);
+          const analyser = context.createAnalyser();
+          analyser.fftSize = 512;
+          source.connect(analyser);
+          const data = new Uint8Array(analyser.fftSize);
+          let peak = 0;
+          const timer = setInterval(() => {
+            analyser.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let index = 0; index < data.length; index += 1) {
+              const value = (data[index] - 128) / 128;
+              sum += value * value;
+            }
+            peak = Math.max(peak, Math.sqrt(sum / data.length));
+            status.textContent = `Уровень: ${Math.round(peak * 100)}%`;
+          }, 100);
+          setTimeout(() => {
+            clearInterval(timer);
+            stream.getTracks().forEach((track) => track.stop());
+            context.close();
+            status.textContent =
+              peak > 0.003
+                ? `Микрофон слышит (уровень ${Math.round(peak * 100)}%).`
+                : 'Тишина — выберите другой микрофон или проверьте доступ в Windows.';
+          }, 3000);
+        } catch (error) {
+          status.textContent = `Ошибка микрофона: ${error.message}`;
+        }
+      }
+
+      async function autoPickMicrophone() {
+        const status = document.getElementById('mic-status');
+        const select = document.getElementById('mic-select');
+        if (!status || !select) return;
+        const devices = (await audioInputs()).filter(
+          (device) => device.deviceId && device.deviceId !== 'default',
+        );
+        if (!devices.length) {
+          status.textContent = 'Микрофоны не найдены.';
+          return;
+        }
+        status.textContent = 'Говорите — проверяю микрофоны по очереди…';
+        const results = [];
+        for (const device of devices) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: { deviceId: { exact: device.deviceId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            });
+            const context = new AudioContext();
+            await context.resume();
+            const source = context.createMediaStreamSource(stream);
+            const analyser = context.createAnalyser();
+            analyser.fftSize = 512;
+            source.connect(analyser);
+            const data = new Uint8Array(analyser.fftSize);
+            let peak = 0;
+            const timer = setInterval(() => {
+              analyser.getByteTimeDomainData(data);
+              let sum = 0;
+              for (let index = 0; index < data.length; index += 1) {
+                const value = (data[index] - 128) / 128;
+                sum += value * value;
+              }
+              peak = Math.max(peak, Math.sqrt(sum / data.length));
+            }, 50);
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            clearInterval(timer);
+            stream.getTracks().forEach((track) => track.stop());
+            await context.close();
+            results.push({ device, peak });
+          } catch (error) {
+            results.push({ device, peak: 0 });
+          }
+        }
+        results.sort((a, b) => b.peak - a.peak);
+        const best = results[0];
+        if (best && best.peak > 0.003) {
+          localStorage.setItem(MIC_KEY, best.device.deviceId);
+          select.value = best.device.deviceId;
+          status.textContent = `Выбран: ${best.device.label || 'микрофон'} (уровень ${Math.round(best.peak * 100)}%).`;
+        } else {
+          status.textContent = 'Речь не слышна. Проверьте доступ к микрофону в Windows и повторите.';
+        }
+      }
+
       async function renderSettings() {
         title.textContent = 'Настройки';
         composer.style.display = 'none';
@@ -576,11 +746,50 @@
             fetch('/api/v1/version').then((r) => r.text()),
             fetch('/api/v1/email/accounts').then((r) => r.json()),
           ]);
+          let mics = await audioInputs();
+          let permitted = mics.some((device) => device.label);
+          if (!permitted) {
+            permitted = await ensureMicPermission();
+            mics = await audioInputs();
+          }
+          const saved = localStorage.getItem(MIC_KEY) || '';
+          const active = await activeMicDeviceId();
+          const preferred = saved || active;
+          const options = ['<option value="">Системный по умолчанию (Windows)</option>'];
+          for (const device of mics) {
+            if (!device.deviceId || device.deviceId === 'default') continue;
+            const label = (device.label || `Микрофон ${options.length}`).replace(/</g, '&lt;');
+            options.push(`<option value="${device.deviceId}">${label}</option>`);
+          }
           const list = accounts.map((a) => `${a.label || a.id}: ${a.email}`).join('<br>') || '—';
           content.innerHTML = `
+            <div class="bubble"><b>Микрофон</b><br>
+              <select id="mic-select" class="mic-select">${options.join('')}</select>
+              <div class="mic-status" id="mic-status">${permitted ? 'По умолчанию — системный микрофон Windows. Выберите другое устройство при необходимости.' : 'Нет доступа к микрофону — разрешите его в параметрах Windows.'}</div>
+              <button id="mic-test" class="mini-btn">Проверить 3 секунды</button>
+              <button id="mic-auto" class="mini-btn">Автоподбор</button>
+            </div>
             <div class="bubble"><b>Ядро</b><br><span class="mono">${version}</span></div>
             <div class="bubble"><b>Почта</b><br>${list}</div>
-            <div class="bubble"><b>Модель</b><br><span class="mono">gemma-4-E2B-it-XS-TS-Q3_K_S.gguf</span><br><span class="muted">~1.73 ГБ, локально. Облако (26B) — ключ OpenRouter в secrets.toml. Токен на этом ПК не нужен.</span></div>`;
+            <div class="bubble"><b>Модель</b><br><span class="mono">gemma-4-E2B-it-XS-TS-Q3_K_S.gguf</span><br><span class="muted">~1.73 ГБ, локально. Облако (26B) — ключ OpenRouter в secrets.toml.</span></div>
+            <div class="bubble"><button id="settings-quit" class="mini-btn no">Выход</button></div>`;
+          const select = document.getElementById('mic-select');
+          select.value = preferred;
+          if (select.selectedIndex < 0) select.value = '';
+          if (!saved) {
+            const current = select.options[select.selectedIndex];
+            document.getElementById('mic-status').textContent =
+              `Сейчас используется: ${current ? current.text : 'системный микрофон'}.`;
+          }
+          select.onchange = () => {
+            if (select.value) localStorage.setItem(MIC_KEY, select.value);
+            else localStorage.removeItem(MIC_KEY);
+            document.getElementById('mic-status').textContent =
+              `Сохранено: ${select.options[select.selectedIndex].text}`;
+          };
+          document.getElementById('mic-test').onclick = testMicrophone;
+          document.getElementById('mic-auto').onclick = autoPickMicrophone;
+          document.getElementById('settings-quit').onclick = () => sendIpc('quit');
         } catch (error) {
           content.innerHTML = `<div class="bubble error">${error.message}</div>`;
         }
@@ -788,15 +997,27 @@
         try {
           view = 'chat';
           setExpanded(true);
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const deviceId = await resolveMicId();
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(deviceId) });
+          } catch (error) {
+            if (!localStorage.getItem(MIC_KEY)) throw error;
+            localStorage.removeItem(MIC_KEY);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
+          }
           const context = new AudioContext();
+          await context.resume();
           const source = context.createMediaStreamSource(stream);
+          const gain = context.createGain();
+          gain.gain.value = 3;
           const processor = context.createScriptProcessor(4096, 1, 1);
           const chunks = [];
           processor.onaudioprocess = (event) => chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
-          source.connect(processor);
+          source.connect(gain);
+          gain.connect(processor);
           processor.connect(context.destination);
-          recorder = { context, stream, source, processor, chunks, rate: context.sampleRate };
+          recorder = { context, stream, source, gain, processor, chunks, rate: context.sampleRate };
           setMicRecording(true);
           input.placeholder = 'Говорите… микрофон — закончить';
         } catch (error) {
@@ -813,6 +1034,7 @@
         recorder = null;
         setMicRecording(false);
         current.processor.disconnect();
+        current.gain.disconnect();
         current.source.disconnect();
         current.stream.getTracks().forEach((track) => track.stop());
         const samples = downsample(mergeChunks(current.chunks), current.rate, 16000);
@@ -854,7 +1076,10 @@
       document.getElementById('dots').onclick = (event) => {
         if (suppressClick) return;
         event.stopPropagation();
-        menu.classList.toggle('open');
+        menu.classList.remove('open');
+        view = 'settings';
+        setExpanded(true);
+        render();
       };
       document.getElementById('bulb').onclick = () => { if (suppressClick) return; view = 'approvals'; setExpanded(true); render(); };
       document.getElementById('back').onclick = () => setExpanded(false);

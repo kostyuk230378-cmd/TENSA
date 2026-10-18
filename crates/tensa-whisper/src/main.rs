@@ -52,6 +52,8 @@ fn run(model: &Path, wav: &Path) -> Result<String, String> {
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(Some("ru"));
     params.set_n_threads(4);
+    params.set_no_speech_thold(0.6);
+    params.set_suppress_blank(true);
     state
         .full(params, &samples)
         .map_err(|error| format!("распознавание: {error}"))?;
@@ -64,11 +66,26 @@ fn run(model: &Path, wav: &Path) -> Result<String, String> {
             }
         }
     }
-    let text = text.trim().to_string();
+    let text = clean_transcript(&text);
     if text.is_empty() {
         return Err("речь не распознана".to_string());
     }
     Ok(text)
+}
+
+/// Убрать неречевые пометки whisper (`[музыка]`, `(смех)`, `♪`).
+fn clean_transcript(raw: &str) -> String {
+    let mut words = Vec::new();
+    for word in raw.split_whitespace() {
+        let trimmed = word.trim_matches(|c: char| c.is_ascii_punctuation() || c == '♪');
+        let annotated = (word.starts_with('[') && word.ends_with(']'))
+            || (word.starts_with('(') && word.ends_with(')'));
+        if annotated || trimmed.is_empty() {
+            continue;
+        }
+        words.push(word);
+    }
+    words.join(" ").trim().to_string()
 }
 
 /// Разобрать WAV и вернуть моно 16 кГц f32.
