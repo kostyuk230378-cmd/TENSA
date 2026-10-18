@@ -1923,16 +1923,21 @@
 
       async function openFirstRunSetup() {
         try {
-          const response = await fetch('/api/v1/brain/status');
-          if (!response.ok) return;
-          const status = await response.json();
-          if (!status.local?.installed && !status.cloud?.configured) {
+          const [brainResponse, speechResponse] = await Promise.all([
+            fetch('/api/v1/brain/status'),
+            fetch('/api/v1/models/speech'),
+          ]);
+          if (!brainResponse.ok || !speechResponse.ok) return;
+          const status = await brainResponse.json();
+          const speech = await speechResponse.json();
+          const hasSpeech = (speech.models || []).some((model) => model.installed);
+          if ((!status.local?.installed && !status.cloud?.configured) || !hasSpeech) {
             view = 'settings';
             setExpanded(true);
             render();
           }
         } catch (error) {
-          /* старый сервер без /brain/status */
+          /* старый сервер */
         }
       }
 

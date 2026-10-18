@@ -12,6 +12,14 @@ use serde::Serialize;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
+/// Каталог моделей рядом с exe установки; fallback — данные.
+fn install_models_dir(root: &Path) -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("models")))
+        .unwrap_or_else(|| root.join("models"))
+}
+
 /// Запись каталога.
 #[derive(Clone, Copy)]
 struct CatalogEntry {
@@ -149,7 +157,7 @@ pub struct SpeechModelView {
 
 /// Каталог и загрузки.
 pub struct SpeechModels {
-    root: PathBuf,
+    models: PathBuf,
     downloads: Arc<Mutex<HashMap<String, DownloadState>>>,
 }
 
@@ -157,7 +165,7 @@ impl SpeechModels {
     /// Каталог для корня данных.
     pub fn new(root: &Path) -> Self {
         Self {
-            root: root.to_path_buf(),
+            models: install_models_dir(root),
             downloads: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -165,14 +173,14 @@ impl SpeechModels {
     /// Заглушка без каталога.
     pub fn disabled() -> Self {
         Self {
-            root: PathBuf::new(),
+            models: PathBuf::new(),
             downloads: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     /// Каталог моделей.
     fn models_dir(&self) -> PathBuf {
-        self.root.join("models")
+        self.models.clone()
     }
 
     /// Путь к файлу активной модели.
@@ -182,14 +190,7 @@ impl SpeechModels {
 
     /// Найти установленный файл.
     fn installed_path(&self, entry: &CatalogEntry) -> Option<PathBuf> {
-        let mut roots = vec![self.models_dir(), self.models_dir().join("whisper")];
-        if let Some(exe) = std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(Path::to_path_buf))
-        {
-            roots.push(exe.join("models"));
-            roots.push(exe.join("models").join("whisper"));
-        }
+        let roots = vec![self.models_dir(), self.models_dir().join("whisper")];
         roots
             .into_iter()
             .map(|dir| dir.join(entry.file))

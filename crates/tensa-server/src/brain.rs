@@ -35,6 +35,7 @@ struct DownloadState {
 /// Сервис моделей ассистента.
 pub struct BrainService {
     root: PathBuf,
+    models_dir: PathBuf,
     config_path: PathBuf,
     download: Arc<Mutex<DownloadState>>,
 }
@@ -42,8 +43,10 @@ pub struct BrainService {
 impl BrainService {
     /// Сервис для корня данных и config.toml.
     pub fn new(root: &Path, config_path: PathBuf) -> Self {
+        let models_dir = install_models_dir().unwrap_or_else(|| root.join("models"));
         Self {
             root: root.to_path_buf(),
+            models_dir,
             config_path,
             download: Arc::new(Mutex::new(DownloadState::default())),
         }
@@ -53,6 +56,7 @@ impl BrainService {
     pub fn disabled() -> Self {
         Self {
             root: PathBuf::new(),
+            models_dir: PathBuf::new(),
             config_path: PathBuf::new(),
             download: Arc::new(Mutex::new(DownloadState::default())),
         }
@@ -60,7 +64,7 @@ impl BrainService {
 
     /// Путь локального GGUF.
     pub fn local_path(&self) -> PathBuf {
-        self.root.join("models").join(LOCAL_FILE)
+        self.models_dir.join(LOCAL_FILE)
     }
 
     /// Статус локальной и облачной модели.
@@ -228,6 +232,13 @@ impl BrainService {
         std::fs::write(&self.config_path, body)
             .map_err(|error| format!("запись config.toml: {error}"))
     }
+}
+
+/// Каталог моделей рядом с установленным exe (не зависит от машины).
+fn install_models_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("models")))
 }
 
 /// Скачать файл, проверить SHA256 и переименовать `.part`.

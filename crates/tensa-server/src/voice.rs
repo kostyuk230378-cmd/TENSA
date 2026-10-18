@@ -29,14 +29,7 @@ pub struct VoiceService {
 impl VoiceService {
     /// Сервис для корня данных: модель в models/whisper или models.
     pub fn new(root: &Path) -> Self {
-        let mut roots = vec![root.join("models").join("whisper"), root.join("models")];
-        if let Some(exe_dir) = std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
-        {
-            roots.push(exe_dir.join("models").join("whisper"));
-            roots.push(exe_dir.join("models"));
-        }
+        let roots = [install_models_dir().join("whisper"), install_models_dir()];
         // По умолчанию квантованная small.
         let names = ["ggml-small-q5_1.bin", "ggml-small.bin"];
         let model = roots
@@ -198,6 +191,14 @@ impl VoiceService {
         }
         Ok(text)
     }
+}
+
+/// Каталог моделей рядом с exe установки (fallback — текущий).
+fn install_models_dir() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("models")))
+        .unwrap_or_else(|| PathBuf::from("models"))
 }
 
 /// Уникальный путь для временного WAV.
