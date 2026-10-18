@@ -111,11 +111,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Угол экрана: справа снизу, как в макете.
     if let Some(monitor) = window.current_monitor() {
         let size = monitor.size();
+        let position = monitor.position();
         let scale = monitor.scale_factor();
-        let width = 348.0 * scale;
-        let height = 150.0 * scale;
-        let x = size.width as i32 - width as i32 - 40;
-        let y = size.height as i32 - height as i32 - 80;
+        let width = 240.0 * scale;
+        let height = 140.0 * scale;
+        let margin = (12.0 * scale) as i32;
+        let x = (size.width as i32 - width as i32 - margin).clamp(
+            position.x + margin,
+            position.x + size.width as i32 - width as i32 - margin,
+        );
+        let y = (size.height as i32 - height as i32 - (72.0 * scale) as i32).clamp(
+            position.y + margin,
+            position.y + size.height as i32 - height as i32 - margin,
+        );
         window.set_outer_position(tao::dpi::PhysicalPosition::new(x, y));
     }
 
@@ -225,6 +233,12 @@ fn start_server() -> std::io::Result<std::process::Child> {
         .join("config.toml");
 
     let mut command = Command::new(server);
+    // Сервер — консольный exe; без этого флага он открывает окно терминала.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
     command
         .arg(config)
         .current_dir(&exe_dir)
@@ -255,13 +269,38 @@ fn start_server() -> std::io::Result<std::process::Child> {
 fn resize_anchored(window: &tao::window::Window, width: f64, height: f64) {
     use tao::dpi::{LogicalSize, PhysicalPosition};
     let scale = window.scale_factor();
-    if let Ok(position) = window.outer_position() {
-        let size = window.outer_size();
-        let new_width = (width * scale) as i32;
-        let new_height = (height * scale) as i32;
-        let dx = new_width - size.width as i32;
-        let dy = new_height - size.height as i32;
-        window.set_outer_position(PhysicalPosition::new(position.x - dx, position.y - dy));
+    let position = window.outer_position().unwrap_or_default();
+    let size = window.outer_size();
+    let mut target_width = (width * scale).round() as i32;
+    let mut target_height = (height * scale).round() as i32;
+
+    // Держим развёрнутое окно внутри монитора: иначе панель уезжает за верх/край
+    // и выглядит «обрезанной». Нижний правый угол остаётся на месте.
+    if let Some(monitor) = window.current_monitor() {
+        let monitor_position = monitor.position();
+        let monitor_size = monitor.size();
+        let margin = (8.0 * scale) as i32;
+        let bottom_margin = (72.0 * scale) as i32;
+        target_width = target_width
+            .min(monitor_size.width as i32 - margin * 2)
+            .max(160);
+        target_height = target_height
+            .min(monitor_size.height as i32 - margin * 2)
+            .max(120);
+        let mut x = position.x + size.width as i32 - target_width;
+        let mut y = position.y + size.height as i32 - target_height;
+        x = x.clamp(
+            monitor_position.x + margin,
+            monitor_position.x + monitor_size.width as i32 - target_width - margin,
+        );
+        y = y.clamp(
+            monitor_position.y + margin,
+            monitor_position.y + monitor_size.height as i32 - target_height - bottom_margin,
+        );
+        window.set_outer_position(PhysicalPosition::new(x, y));
     }
-    window.set_inner_size(LogicalSize::new(width, height));
+    window.set_inner_size(LogicalSize::new(
+        f64::from(target_width) / scale,
+        f64::from(target_height) / scale,
+    ));
 }
