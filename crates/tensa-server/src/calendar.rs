@@ -224,27 +224,41 @@ impl CalendarStore {
     /// Экспорт всех событий в ICS (text/calendar).
     pub async fn ics(&self) -> Result<String> {
         let events = self.list(None, None).await?;
-        let mut out = String::from(
-            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Tensa//Calendar//RU\r\nCALSCALE:GREGORIAN\r\n",
-        );
-        for event in events {
-            out.push_str("BEGIN:VEVENT\r\n");
-            out.push_str(&format!("UID:{}\r\n", event.id));
-            out.push_str(&format!("DTSTAMP:{}\r\n", ics_time(event.created_at)));
-            out.push_str(&format!("DTSTART:{}\r\n", ics_time(event.starts_at)));
-            out.push_str(&format!("DTEND:{}\r\n", ics_time(event.ends_at)));
-            out.push_str(&format!("SUMMARY:{}\r\n", ics_escape(&event.title)));
-            if let Some(location) = &event.location {
-                out.push_str(&format!("LOCATION:{}\r\n", ics_escape(location)));
-            }
-            if let Some(notes) = &event.notes {
-                out.push_str(&format!("DESCRIPTION:{}\r\n", ics_escape(notes)));
-            }
-            out.push_str("END:VEVENT\r\n");
-        }
-        out.push_str("END:VCALENDAR\r\n");
-        Ok(out)
+        Ok(ics_document(&events))
     }
+
+    /// ICS одного события (для «Добавить в календарь Windows»).
+    pub async fn ics_event(&self, id: Uuid) -> Result<Option<String>> {
+        let events = self.list(None, None).await?;
+        Ok(events
+            .iter()
+            .find(|event| event.id == id)
+            .map(|event| ics_document(std::slice::from_ref(event))))
+    }
+}
+
+/// Собрать ICS-документ из событий.
+fn ics_document(events: &[Event]) -> String {
+    let mut out = String::from(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Tensa//Calendar//RU\r\nCALSCALE:GREGORIAN\r\n",
+    );
+    for event in events {
+        out.push_str("BEGIN:VEVENT\r\n");
+        out.push_str(&format!("UID:{}\r\n", event.id));
+        out.push_str(&format!("DTSTAMP:{}\r\n", ics_time(event.created_at)));
+        out.push_str(&format!("DTSTART:{}\r\n", ics_time(event.starts_at)));
+        out.push_str(&format!("DTEND:{}\r\n", ics_time(event.ends_at)));
+        out.push_str(&format!("SUMMARY:{}\r\n", ics_escape(&event.title)));
+        if let Some(location) = &event.location {
+            out.push_str(&format!("LOCATION:{}\r\n", ics_escape(location)));
+        }
+        if let Some(notes) = &event.notes {
+            out.push_str(&format!("DESCRIPTION:{}\r\n", ics_escape(notes)));
+        }
+        out.push_str("END:VEVENT\r\n");
+    }
+    out.push_str("END:VCALENDAR\r\n");
+    out
 }
 
 /// Время в формате ICS (UTC).

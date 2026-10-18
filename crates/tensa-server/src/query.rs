@@ -248,7 +248,7 @@ fn cloud_response(
     degraded: bool,
 ) -> QueryResponse {
     QueryResponse {
-        text: reply.text,
+        text: clean_model_text(&reply.text),
         action: None,
         action_payload: None,
         tool_calls: reply.tool_calls,
@@ -263,7 +263,7 @@ fn cloud_response(
 /// Ответ из локального бэкенда.
 fn local_response(reply: LocalReply, model: &str) -> QueryResponse {
     QueryResponse {
-        text: reply.text,
+        text: clean_model_text(&reply.text),
         action: None,
         action_payload: None,
         tool_calls: reply.tool_calls,
@@ -272,6 +272,32 @@ fn local_response(reply: LocalReply, model: &str) -> QueryResponse {
         model_used: model.to_string(),
         node_used: "local".to_string(),
         tokens_used: Some(u64::from(reply.tokens_generated)),
+    }
+}
+
+/// Очистить ответ модели от reasoning/control-токенов.
+fn clean_model_text(text: &str) -> String {
+    let mut value = text.trim();
+    if let Some(position) = value.find("<|channel|>final") {
+        value = &value[position + "<|channel|>final".len()..];
+    } else if let Some(position) = value.find("channel>thought") {
+        value = &value[..position];
+    }
+    for marker in ["Thinking Process:", "**Thinking Process:**", "Thinking:"] {
+        if let Some(position) = value.find(marker) {
+            value = &value[..position];
+        }
+    }
+    let cleaned = value
+        .replace("<|channel|>", "")
+        .replace("channel>thought", "")
+        .replace("channel>final", "")
+        .trim()
+        .to_string();
+    if cleaned.is_empty() {
+        "Модель не дала ответа — уточните запрос.".to_string()
+    } else {
+        cleaned
     }
 }
 

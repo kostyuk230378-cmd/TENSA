@@ -18,8 +18,8 @@ if not exist "%TENSA_DIR%\models\multilingual-e5-small\model_O4.onnx" (
     )
 )
 
-if not exist "%TENSA_DIR%\models\whisper\ggml-base.bin" (
-    if exist "%~dp0models\whisper\ggml-base.bin" (
+if not exist "%TENSA_DIR%\models\whisper\ggml-small-q5_1.bin" (
+    if exist "%~dp0models\whisper\ggml-small-q5_1.bin" (
         echo Installing local speech model whisper...
         xcopy "%~dp0models\whisper" "%TENSA_DIR%\models\whisper\" /E /I /Y >nul
     )

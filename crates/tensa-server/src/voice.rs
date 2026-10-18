@@ -28,28 +28,21 @@ pub struct VoiceService {
 impl VoiceService {
     /// Сервис для корня данных: модель в models/whisper или models.
     pub fn new(root: &Path) -> Self {
-        let nested = root.join("models").join("whisper").join("ggml-base.bin");
-        let flat = root.join("models").join("ggml-base.bin");
-        // Установщик кладёт модель рядом с exe (models\whisper), а пользовательские
-        // данные живут в ~/.tensa — поэтому смотрим оба места.
-        let exe_models = std::env::current_exe()
+        let mut roots = vec![root.join("models").join("whisper"), root.join("models")];
+        if let Some(exe_dir) = std::env::current_exe()
             .ok()
-            .and_then(|exe| exe.parent().map(|dir| dir.join("models")));
-        let installed = exe_models
-            .as_ref()
-            .map(|dir| dir.join("whisper").join("ggml-base.bin"));
-        let installed_flat = exe_models.map(|dir| dir.join("ggml-base.bin"));
-        let model = if nested.is_file() {
-            nested
-        } else if flat.is_file() {
-            flat
-        } else if installed.as_ref().is_some_and(|path| path.is_file()) {
-            installed.unwrap_or_default()
-        } else if installed_flat.as_ref().is_some_and(|path| path.is_file()) {
-            installed_flat.unwrap_or_default()
-        } else {
-            nested
-        };
+            .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
+        {
+            roots.push(exe_dir.join("models").join("whisper"));
+            roots.push(exe_dir.join("models"));
+        }
+        // Сначала квантованная small (точнее для русского), затем base.
+        let names = ["ggml-small-q5_1.bin", "ggml-small.bin", "ggml-base.bin"];
+        let model = roots
+            .iter()
+            .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
+            .find(|path| path.is_file())
+            .unwrap_or_else(|| root.join("models").join("whisper").join("ggml-base.bin"));
         let helper = std::env::var_os("TENSA_WHISPER")
             .map(PathBuf::from)
             .or_else(|| {
@@ -73,7 +66,7 @@ impl VoiceService {
     pub async fn transcribe(&self, wav: &[u8]) -> Result<String> {
         if self.model.as_os_str().is_empty() || !self.model.is_file() {
             return Err(VoiceError::Message(
-                "модель whisper не найдена: models/whisper/ggml-base.bin \
+                "модель whisper не найдена: models/whisper/ggml-small-q5_1.bin \
                  (скачать: DownloadModels.cmd -Whisper)"
                     .to_string(),
             ));
@@ -105,19 +98,17 @@ impl VoiceService {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             // whisper.cpp пишет в stderr свой шум; пользователю нужна последняя причина.
-            let message = stderr
-                .lines()
-                .map(str::trim)
-                .filter(|line| {
-                    !line.is_empty()
-                        && !line.starts_with("whisper_")
-                        && !line.starts_with("ggml_")
-                        && !line.starts_with("register_")
-                        && !line.starts_with("load:")
-                        && !line.starts_with("system_info")
-                        && !line.contains("buffer")
-                })
-                .last()
+            let mut lines = stderr.lines().map(str::trim).filter(|line| {
+                !line.is_empty()
+                    && !line.starts_with("whisper_")
+                    && !line.starts_with("ggml_")
+                    && !line.starts_with("register_")
+                    && !line.starts_with("load:")
+                    && !line.starts_with("system_info")
+                    && !line.contains("buffer")
+            });
+            let message = lines
+                .next_back()
                 .unwrap_or("не удалось распознать речь")
                 .to_string();
             return Err(VoiceError::Message(message));

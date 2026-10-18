@@ -49,9 +49,11 @@ fn run(model: &Path, wav: &Path) -> Result<String, String> {
     let mut state = context
         .create_state()
         .map_err(|error| format!("состояние: {error}"))?;
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 5 });
     params.set_language(Some("ru"));
-    params.set_n_threads(4);
+    params
+        .set_initial_prompt("Это русская речь. Стенограмма разговора, расставь знаки препинания.");
+    params.set_n_threads(12);
     params.set_no_speech_thold(0.6);
     params.set_suppress_blank(true);
     state

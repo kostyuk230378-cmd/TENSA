@@ -503,6 +503,45 @@
         if (next) { render(); setTimeout(() => input.focus(), 120); }
       }
 
+      function extractFilePaths(text) {
+        const pattern = /[A-Za-z]:\\[^\r\n*`]+?\.(?:pdf|docx|doc|xlsx|pptx|txt|md|rtf|odt)/gi;
+        const paths = text.match(pattern) || [];
+        return [...new Set(paths.map((path) => path.trim().replace(/[.,;:]+$/, '')))];
+      }
+
+      function appendPathRow(path) {
+        const name = path.split(/[\\/]/).pop() || path;
+        const row = document.createElement('div');
+        row.className = 'file';
+        const label = document.createElement('button');
+        label.className = 'file-name';
+        label.textContent = name;
+        label.title = path;
+        label.onclick = () => openFile({ path, name });
+        const actions = document.createElement('div');
+        actions.className = 'file-actions';
+        const download = document.createElement('a');
+        download.className = 'mini-btn';
+        download.textContent = 'Скачать';
+        download.href = `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+        download.download = name;
+        actions.appendChild(download);
+        row.append(label, actions);
+        content.appendChild(row);
+      }
+
+      function humanVoiceError(message) {
+        let text = String(message ?? '');
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.error) text = parsed.error;
+        } catch (error) {
+          /* не JSON */
+        }
+        text = text.replace(/^unavailable:\s*/i, '').replace(/^голос:\s*/i, '').trim();
+        return text || 'не удалось распознать речь';
+      }
+
       function renderChat() {
         title.textContent = 'Tensa';
         composer.style.display = 'flex';
@@ -518,7 +557,16 @@
             bubble.appendChild(meta);
           }
           content.appendChild(bubble);
+          if (!(message.files && message.files.length)) {
+            for (const path of extractFilePaths(message.text)) {
+              appendPathRow(path);
+            }
+          }
+          const seenFiles = new Set();
           for (const file of message.files || []) {
+            const key = file.path.toLowerCase();
+            if (seenFiles.has(key)) continue;
+            seenFiles.add(key);
             const row = document.createElement('div');
             row.className = 'file';
             const name = document.createElement('button');
@@ -1010,7 +1058,7 @@
           await context.resume();
           const source = context.createMediaStreamSource(stream);
           const gain = context.createGain();
-          gain.gain.value = 3;
+          gain.gain.value = 1.5;
           const processor = context.createScriptProcessor(4096, 1, 1);
           const chunks = [];
           processor.onaudioprocess = (event) => chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
@@ -1039,6 +1087,16 @@
         current.stream.getTracks().forEach((track) => track.stop());
         const samples = downsample(mergeChunks(current.chunks), current.rate, 16000);
         current.context.close();
+        let peak = 0;
+        for (let index = 0; index < samples.length; index += 1) {
+          peak = Math.max(peak, Math.abs(samples[index]));
+        }
+        if (peak > 0.0005) {
+          const scale = Math.min(8, 0.9 / peak);
+          for (let index = 0; index < samples.length; index += 1) {
+            samples[index] = Math.max(-1, Math.min(1, samples[index] * scale));
+          }
+        }
         input.placeholder = 'Распознаю…';
         if (samples.length < 1600) {
           messages.push({ role: 'error', text: 'Слишком короткая запись.' });
@@ -1065,7 +1123,7 @@
           })
           .catch((error) => {
             input.placeholder = 'Спросите Tensa…';
-            messages.push({ role: 'error', text: `Голос: ${error.message}` });
+            messages.push({ role: 'error', text: `Голос: ${humanVoiceError(error.message)}` });
             renderChat();
           });
       }

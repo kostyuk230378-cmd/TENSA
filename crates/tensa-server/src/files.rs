@@ -566,24 +566,26 @@ pub fn format_hits(hits: &[FileHit]) -> String {
 
 /// Похоже ли сообщение на поиск файла («найди договор», «где файл», «find»).
 pub fn looks_like_file_search(text: &str) -> bool {
-    let first = text
-        .split_whitespace()
-        .next()
-        .unwrap_or_default()
-        .to_lowercase();
-    let first = first.trim_matches(|c: char| !c.is_alphanumeric());
-    matches!(
-        first,
-        "найди"
-            | "найти"
-            | "поищи"
-            | "поиск"
-            | "где"
-            | "покажи"
-            | "find"
-            | "search"
-            | "locate"
-    )
+    // Триггер может быть не первым словом: «Тензы, найди паспорт».
+    text.split_whitespace()
+        .map(|word| {
+            word.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase()
+        })
+        .any(|word| {
+            matches!(
+                word.as_str(),
+                "найди"
+                    | "найти"
+                    | "поищи"
+                    | "поиск"
+                    | "где"
+                    | "покажи"
+                    | "find"
+                    | "search"
+                    | "locate"
+            )
+        })
 }
 
 /// Контекст для модели: несколько фрагментов найденных файлов.

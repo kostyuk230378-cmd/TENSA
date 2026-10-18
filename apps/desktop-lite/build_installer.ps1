@@ -62,11 +62,12 @@ try {
         Write-Output ("модель в поставке: {0:N1} МБ" -f ((Get-ChildItem $modelsOut -Recurse -File | Measure-Object Length -Sum).Sum / 1MB))
         $whisperOut = Join-Path $stage 'models\whisper'
         New-Item -ItemType Directory -Force $whisperOut | Out-Null
-        $whisperSrc = Join-Path $modelsSrc 'ggml-base.bin'
-        if (-not (Test-Path $whisperSrc)) { $whisperSrc = Join-Path $env:USERPROFILE '.tensa\models\ggml-base.bin' }
-        if (-not (Test-Path $whisperSrc)) { throw "Нет ggml-base.bin (whisper) в $modelsSrc" }
-        Copy-Item $whisperSrc (Join-Path $whisperOut 'ggml-base.bin') -Force
-        Write-Output ("whisper в поставке: {0:N1} МБ" -f ((Get-Item (Join-Path $whisperOut 'ggml-base.bin')).Length / 1MB))
+        $whisperName = 'ggml-small-q5_1.bin'
+        $whisperSrc = Join-Path $modelsSrc $whisperName
+        if (-not (Test-Path $whisperSrc)) { $whisperSrc = Join-Path $env:USERPROFILE ".tensa\models\$whisperName" }
+        if (-not (Test-Path $whisperSrc)) { throw "Нет $whisperName (whisper) в $modelsSrc" }
+        Copy-Item $whisperSrc (Join-Path $whisperOut $whisperName) -Force
+        Write-Output ("whisper в поставке: {0:N1} МБ" -f ((Get-Item (Join-Path $whisperOut $whisperName)).Length / 1MB))
     } else {
         throw "Нет файлов модели в $modelsSrc — модель обязана быть в установщике (TENSA_MODELS_SRC)"
     }
