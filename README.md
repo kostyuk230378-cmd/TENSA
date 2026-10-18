@@ -38,6 +38,7 @@ Tensa — self-hosted секретарь для одного человека: �
   **`gemma-4-E2B-it-XS-TS-Q3_K_S.gguf`** (~1.73 ГБ, самый лёгкий по памяти) в
   `~/.tensa/models`; ярлык «Tensa (download models)» скачивает её и сверяет SHA256.
   Локальный инференс — llama.cpp внутри ядра.
+- **Модели распознавания речи** — Whisper tiny/base/small q5_1/small/medium (75–492 МБ) скачиваются из «Настроек»; small/medium — с blob.handy.computer (Handy), tiny/base/small q5_1 — с Hugging Face whisper.cpp.
 - **Большие модели** — OpenRouter: ключ в `~/.tensa/secrets.toml` (`[openrouter] credential = "sk-or-…"`)
   или `OPENROUTER_API_KEY`; чат PWA/APK идёт через ядро, ключ остаётся на ПК.
   Ключ выдаётся на https://openrouter.ai/keys.
@@ -58,12 +59,12 @@ Tensa — self-hosted секретарь для одного человека: �
 
 ## Скачать
 
-Актуальный релиз — **[v0.2.4](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.4)**:
+Актуальный релиз — **[v0.2.5](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.5)**:
 
 | Платформа | Файл | Размер |
 |---|---|---|
-| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.4/TensaSetup.exe) | 391 МБ |
-| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.4/Tensa.apk) | 239 МБ |
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.5/TensaSetup.exe) | 391 МБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.5/Tensa.apk) | 239 МБ |
 
 ## Скриншоты
 

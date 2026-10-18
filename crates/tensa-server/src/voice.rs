@@ -22,6 +22,7 @@ pub type Result<T> = std::result::Result<T, VoiceError>;
 /// Сервис локального распознавания речи (вызов helper-процесса).
 pub struct VoiceService {
     model: PathBuf,
+    root: PathBuf,
     helper: PathBuf,
 }
 
@@ -51,20 +52,60 @@ impl VoiceService {
                     .and_then(|exe| exe.parent().map(|dir| dir.join("tensa-whisper.exe")))
             })
             .unwrap_or_else(|| PathBuf::from("tensa-whisper.exe"));
-        Self { model, helper }
+        Self {
+            model,
+            root: root.to_path_buf(),
+            helper,
+        }
     }
 
     /// Заглушка без модели (тесты и состояние без голоса).
     pub fn disabled() -> Self {
         Self {
             model: PathBuf::new(),
+            root: PathBuf::new(),
             helper: PathBuf::new(),
         }
     }
 
+    /// Выбрать активную модель: asr-active.txt, иначе приоритет small/base.
+    fn resolve_model(&self) -> PathBuf {
+        if self.root.as_os_str().is_empty() {
+            return self.model.clone();
+        }
+        let active = std::fs::read_to_string(self.root.join("models").join("asr-active.txt"))
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        if let Some(active) = active {
+            let mut roots = vec![
+                self.root.join("models"),
+                self.root.join("models").join("whisper"),
+            ];
+            if let Some(exe) = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.parent().map(Path::to_path_buf))
+            {
+                roots.push(exe.join("models"));
+                roots.push(exe.join("models").join("whisper"));
+            }
+            for dir in roots {
+                let candidate = dir.join(&active);
+                if candidate.is_file() {
+                    return candidate;
+                }
+            }
+        }
+        if self.model.is_file() {
+            return self.model.clone();
+        }
+        self.model.clone()
+    }
+
     /// Распознать WAV (PCM16; helper сам приводит к 16 кГц моно).
     pub async fn transcribe(&self, wav: &[u8]) -> Result<String> {
-        if self.model.as_os_str().is_empty() || !self.model.is_file() {
+        let model = self.resolve_model();
+        if model.as_os_str().is_empty() || !model.is_file() {
             return Err(VoiceError::Message(
                 "модель whisper не найдена: models/whisper/ggml-small-q5_1.bin \
                  (скачать: DownloadModels.cmd -Whisper)"
@@ -81,7 +122,6 @@ impl VoiceService {
         std::fs::write(&path, wav)
             .map_err(|error| VoiceError::Message(format!("временный WAV: {error}")))?;
         let helper = self.helper.clone();
-        let model = self.model.clone();
         let audio = path.clone();
         let output = tokio::task::spawn_blocking(move || {
             Command::new(&helper)

@@ -347,6 +347,129 @@
 
       .composer .composer-mic svg { width: 20px; height: 20px; }
 
+      .version-line {
+        color: var(--text2);
+        font-size: 12px;
+        line-height: 1.2;
+        padding: 0 2px 8px;
+      }
+
+      .mic-card,
+      .models-card {
+        padding: 12px;
+        white-space: normal;
+      }
+
+      .card-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+
+      .mic-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+        margin-top: 2px;
+      }
+
+      .mic-actions .mini-btn {
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+
+      .model-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(9, 9, 11, 0.55);
+        padding: 10px;
+        margin: 8px 0;
+      }
+
+      .model-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .model-name {
+        flex: 1;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .model-badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        border: 1px solid rgba(0, 255, 0, 0.45);
+        color: var(--green);
+        padding: 2px 6px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .model-badge.loaded {
+        border-color: rgba(0, 240, 255, 0.35);
+        color: var(--cyan);
+      }
+
+      .model-desc {
+        color: var(--text2);
+        font-size: 12px;
+        line-height: 1.35;
+        margin: 6px 0;
+      }
+
+      .model-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .bar {
+        display: inline-block;
+        width: 42px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--grid);
+        overflow: hidden;
+        vertical-align: middle;
+      }
+
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--cyan);
+      }
+
+      .model-actions {
+        margin-top: 8px;
+      }
+
+      .model-error {
+        color: var(--red);
+        font-size: 11px;
+        margin-top: 6px;
+      }
+
+      .progress {
+        height: 5px;
+        border-radius: 3px;
+        background: var(--grid);
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress i {
+        display: block;
+        height: 100%;
+        background: var(--green);
+      }
+
       .mic-select {
         width: 100%;
         margin: 8px 0 6px;
@@ -785,14 +908,115 @@
         }
       }
 
+      let speechTimer = null;
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (character) => {
+          const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+          return map[character];
+        });
+      }
+
+      function speechBars(value) {
+        const width = Math.max(0, Math.min(5, Number(value) || 0)) * 20;
+        return `<span class="bar"><i style="width:${width}%"></i></span>`;
+      }
+
+      function renderSpeechModels(models) {
+        const box = document.getElementById('speech-models');
+        if (!box) return;
+        box.innerHTML = models
+          .map((model) => {
+            const badge = model.active
+              ? '<span class="model-badge">Активна</span>'
+              : model.installed
+                ? '<span class="model-badge loaded">Загружена</span>'
+                : '';
+            let action = '';
+            if (model.downloading) {
+              action = `<div class="progress"><i style="width:${model.progress}%"></i></div>
+                <div class="model-meta">Скачивается… ${model.progress}%</div>`;
+            } else if (model.active) {
+              action = '<div class="model-meta">Используется сейчас</div>';
+            } else if (model.installed) {
+              action = `<button class="mini-btn" data-activate="${model.id}">Выбрать</button>`;
+            } else {
+              action = `<button class="mini-btn" data-download="${model.id}">Скачать ${model.size_mb} МБ</button>`;
+            }
+            const error = model.error
+              ? `<div class="model-error">${escapeHtml(model.error)}</div>`
+              : '';
+            return `<div class="model-card">
+              <div class="model-head">
+                <span class="model-name">${escapeHtml(model.name)}</span>
+                ${badge}
+              </div>
+              <div class="model-desc">${escapeHtml(model.description)}</div>
+              <div class="model-meta">
+                <span>${escapeHtml(model.languages)}</span>
+                <span>${model.size_mb} МБ</span>
+                <span>точность ${speechBars(model.accuracy)}</span>
+                <span>скорость ${speechBars(model.speed)}</span>
+              </div>
+              <div class="model-actions">${action}</div>
+              ${error}
+            </div>`;
+          })
+          .join('');
+        box.querySelectorAll('[data-download]').forEach((button) => {
+          button.onclick = () => downloadSpeechModel(button.dataset.download);
+        });
+        box.querySelectorAll('[data-activate]').forEach((button) => {
+          button.onclick = () => activateSpeechModel(button.dataset.activate);
+        });
+      }
+
+      async function loadSpeechModels() {
+        clearTimeout(speechTimer);
+        try {
+          const response = await fetch('/api/v1/models/speech');
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          renderSpeechModels(data.models || []);
+          if ((data.models || []).some((model) => model.downloading)) {
+            speechTimer = setTimeout(loadSpeechModels, 1000);
+          }
+        } catch (error) {
+          const box = document.getElementById('speech-models');
+          if (box) box.textContent = `Не удалось получить каталог: ${error.message}`;
+        }
+      }
+
+      async function downloadSpeechModel(id) {
+        try {
+          const response = await fetch(`/api/v1/models/speech/${id}/download`, { method: 'POST' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          await loadSpeechModels();
+        } catch (error) {
+          const box = document.getElementById('speech-models');
+          if (box) box.insertAdjacentHTML('beforeend', `<div class="model-error">${escapeHtml(error.message)}</div>`);
+        }
+      }
+
+      async function activateSpeechModel(id) {
+        try {
+          const response = await fetch(`/api/v1/models/speech/${id}/activate`, { method: 'POST' });
+          if (!response.ok) throw new Error((await response.text()).slice(0, 160));
+          await loadSpeechModels();
+        } catch (error) {
+          const box = document.getElementById('speech-models');
+          if (box) box.insertAdjacentHTML('beforeend', `<div class="model-error">${escapeHtml(error.message)}</div>`);
+        }
+      }
+
       async function renderSettings() {
         title.textContent = 'Настройки';
         composer.style.display = 'none';
         content.innerHTML = '<div class="bubble">Загрузка…</div>';
         try {
-          const [version, accounts] = await Promise.all([
+          const [version, speech] = await Promise.all([
             fetch('/api/v1/version').then((r) => r.text()),
-            fetch('/api/v1/email/accounts').then((r) => r.json()),
+            fetch('/api/v1/models/speech').then((r) => r.json()),
           ]);
           let mics = await audioInputs();
           let permitted = mics.some((device) => device.label);
@@ -809,17 +1033,22 @@
             const label = (device.label || `Микрофон ${options.length}`).replace(/</g, '&lt;');
             options.push(`<option value="${device.deviceId}">${label}</option>`);
           }
-          const list = accounts.map((a) => `${a.label || a.id}: ${a.email}`).join('<br>') || '—';
           content.innerHTML = `
-            <div class="bubble"><b>Микрофон</b><br>
+            <div class="version-line">Версия ${escapeHtml(version.trim().replace(/^"|"$/g, ""))}</div>
+            <div class="bubble mic-card">
+              <div class="card-title">Микрофон</div>
               <select id="mic-select" class="mic-select">${options.join('')}</select>
-              <div class="mic-status" id="mic-status">${permitted ? 'По умолчанию — системный микрофон Windows. Выберите другое устройство при необходимости.' : 'Нет доступа к микрофону — разрешите его в параметрах Windows.'}</div>
-              <button id="mic-test" class="mini-btn">Проверить 3 секунды</button>
-              <button id="mic-auto" class="mini-btn">Автоподбор</button>
+              <div class="mic-status" id="mic-status">${permitted ? 'Системный микрофон Windows по умолчанию.' : 'Нет доступа к микрофону — разрешите его в Windows.'}</div>
+              <div class="mic-actions">
+                <button id="mic-test" class="mini-btn">Проверить 3 секунды</button>
+                <button id="mic-auto" class="mini-btn">Автовыбор</button>
+              </div>
             </div>
-            <div class="bubble"><b>Ядро</b><br><span class="mono">${version}</span></div>
-            <div class="bubble"><b>Почта</b><br>${list}</div>
-            <div class="bubble"><b>Модель</b><br><span class="mono">gemma-4-E2B-it-XS-TS-Q3_K_S.gguf</span><br><span class="muted">~1.73 ГБ, локально. Облако (26B) — ключ OpenRouter в secrets.toml.</span></div>
+            <div class="bubble models-card">
+              <div class="card-title">Модели распознавания речи</div>
+              <div class="model-desc">До 800 МБ. Скачайте модель и выберите её — активная используется для распознавания.</div>
+              <div id="speech-models">Загрузка…</div>
+            </div>
             <div class="bubble"><button id="settings-quit" class="mini-btn no">Выход</button></div>`;
           const select = document.getElementById('mic-select');
           select.value = preferred;
@@ -827,7 +1056,7 @@
           if (!saved) {
             const current = select.options[select.selectedIndex];
             document.getElementById('mic-status').textContent =
-              `Сейчас используется: ${current ? current.text : 'системный микрофон'}.`;
+              `Сейчас: ${current ? current.text : 'системный микрофон'}.`;
           }
           select.onchange = () => {
             if (select.value) localStorage.setItem(MIC_KEY, select.value);
@@ -838,6 +1067,10 @@
           document.getElementById('mic-test').onclick = testMicrophone;
           document.getElementById('mic-auto').onclick = autoPickMicrophone;
           document.getElementById('settings-quit').onclick = () => sendIpc('quit');
+          renderSpeechModels(speech.models || []);
+          if ((speech.models || []).some((model) => model.downloading)) {
+            speechTimer = setTimeout(loadSpeechModels, 1000);
+          }
         } catch (error) {
           content.innerHTML = `<div class="bubble error">${error.message}</div>`;
         }

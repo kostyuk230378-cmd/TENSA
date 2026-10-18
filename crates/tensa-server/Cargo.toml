@@ -32,6 +32,7 @@ rand.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+reqwest.workspace = true
 
 [dev-dependencies]
 # ServiceExt::oneshot для интеграционных тестов роутера.

@@ -12,6 +12,7 @@ pub mod files;
 pub mod health;
 pub mod notes;
 pub mod query;
+pub mod speech_models;
 pub mod static_files;
 pub mod stubs;
 pub mod voice;
@@ -70,6 +71,10 @@ pub fn api() -> Router<AppState> {
             "/voice/transcribe",
             post(voice::transcribe).layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
+        // Модели распознавания речи: каталог, загрузка, активация.
+        .route("/models/speech", get(speech_models::list))
+        .route("/models/speech/:id/download", post(speech_models::download))
+        .route("/models/speech/:id/activate", post(speech_models::activate))
         .route("/models/embedder", get(models_upload::status))
         .route(
             "/models/embedder/:file",

@@ -19,6 +19,7 @@ pub mod files;
 pub mod models_upload;
 pub mod query;
 pub mod routes;
+pub mod speech_models;
 pub mod state;
 pub mod voice;
 

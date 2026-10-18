@@ -81,6 +81,9 @@ async fn run() -> tensa_server::Result<()> {
         .with_files(files.clone(), index_dirs.clone())
         .with_voice(Arc::new(tensa_server::voice::VoiceService::new(
             &paths.root(),
+        )))
+        .with_speech_models(Arc::new(tensa_server::speech_models::SpeechModels::new(
+            &paths.root(),
         )));
 
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).
