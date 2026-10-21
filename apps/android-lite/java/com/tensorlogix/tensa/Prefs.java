@@ -17,11 +17,13 @@ public final class Prefs {
     /** Адрес сервера ядра (задаётся пользователем в Настройках). */
     private static final String KEY_SERVER = "server";
     /** Bearer-токен API ядра (файл pwa_token на ПК). */
-    private static final String KEY_CORE_TOKEN = "core_token";
+    private static final String KEY_CORE_AUTH = "core_auth";
     /** Ключ OpenRouter (sk-or-...). */
     private static final String KEY_OPENROUTER = "openrouter_key";
     /** Модель OpenRouter. */
     private static final String KEY_MODEL = "openrouter_model";
+    /** Пользователь уже видел первый экран. */
+    private static final String KEY_ONBOARDING = "onboarding_done";
 
     /** Адрес сервера по умолчанию (ПК в локальной сети). */
     public static final String DEFAULT_SERVER = "";
@@ -42,7 +44,7 @@ public final class Prefs {
 
     /** Токен API ядра. */
     public static String coreToken(Context context) {
-        return prefs(context).getString(KEY_CORE_TOKEN, "");
+        return prefs(context).getString(KEY_CORE_AUTH, "");
     }
 
     /** Ключ OpenRouter. */
@@ -60,14 +62,34 @@ public final class Prefs {
                             String openRouterKey, String model) {
         prefs(context).edit()
                 .putString(KEY_SERVER, normalize(server))
-                .putString(KEY_CORE_TOKEN, coreToken.trim())
+                .putString(KEY_CORE_AUTH, coreToken.trim())
                 .putString(KEY_OPENROUTER, openRouterKey.trim())
                 .putString(KEY_MODEL, model.trim().isEmpty() ? DEFAULT_MODEL : model.trim())
+                .putBoolean(KEY_ONBOARDING, true)
                 .apply();
     }
 
+    /** Сохранить только подключение к ядру, не трогая ключи OpenRouter. */
+    public static void saveConnection(Context context, String server, String coreToken) {
+        prefs(context).edit()
+                .putString(KEY_SERVER, normalize(server))
+                .putString(KEY_CORE_AUTH, coreToken.trim())
+                .putBoolean(KEY_ONBOARDING, true)
+                .apply();
+    }
+
+    /** Показывать ли первый экран подключения. */
+    public static boolean onboardingDone(Context context) {
+        return prefs(context).getBoolean(KEY_ONBOARDING, false);
+    }
+
+    /** Отметить первый экран пройденным. */
+    public static void setOnboardingDone(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_ONBOARDING, value).apply();
+    }
+
     /** Убрать хвостовые слэши адреса. */
-    private static String normalize(String raw) {
+    public static String normalize(String raw) {
         String value = raw == null ? "" : raw.trim();
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);

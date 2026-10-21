@@ -136,6 +136,14 @@ public final class CoreClient {
                 "/api/v1/notes/search?q=" + encoded + "&limit=" + limit));
     }
 
+    /** Поиск файлов на ПК по имени и содержимому. */
+    public static JSONArray searchFiles(String server, String bearer, String query, int limit)
+            throws Exception {
+        String encoded = encode(query);
+        return new JSONArray(get(server, bearer,
+                "/api/v1/files/search?q=" + encoded + "&limit=" + limit));
+    }
+
     /** Почтовые аккаунты из конфига ядра. */
     public static JSONArray emailAccounts(String server, String bearer) throws Exception {
         return new JSONArray(get(server, bearer, "/api/v1/email/accounts"));

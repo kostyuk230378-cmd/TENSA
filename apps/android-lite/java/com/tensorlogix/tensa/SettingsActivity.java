@@ -74,6 +74,51 @@ public class SettingsActivity extends android.app.Activity {
         server.setHint("http://<ip-пк>:8765");
         final EditText coreToken = addField(root, "Токен ядра (файл pwa_token)",
                 Prefs.coreToken(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+
+        TextView where = new TextView(this);
+        where.setText("Адрес показан на ПК в Настройках Tensa, над карточкой «Микрофон». "
+                + "Токен лежит в %USERPROFILE%\\.tensa\\pwa_token.");
+        where.setTextSize(11);
+        where.setPadding(0, 6, 0, 4);
+        root.addView(where);
+
+        final TextView connectionStatus = new TextView(this);
+        connectionStatus.setTextSize(12);
+        connectionStatus.setPadding(0, 4, 0, 8);
+        root.addView(connectionStatus);
+
+        Button test = new Button(this);
+        test.setText("Проверить подключение");
+        test.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final String serverValue = Prefs.normalize(server.getText().toString());
+                final String tokenValue = coreToken.getText().toString().trim();
+                if (serverValue.isEmpty() || tokenValue.isEmpty()) {
+                    connectionStatus.setText("Введите адрес и токен.");
+                    return;
+                }
+                connectionStatus.setText("Проверяю…");
+                Background.run(new Background.Task<String>() {
+                    @Override
+                    public String run() throws Exception {
+                        JSONObject health = CoreClient.health(serverValue, tokenValue);
+                        return "Ядро на связи · Tensa " + health.optString("version", "");
+                    }
+                }, new Background.Callback<String>() {
+                    @Override
+                    public void onResult(String value) {
+                        connectionStatus.setText(value);
+                    }
+
+                    @Override
+                    public void onError(Exception error) {
+                        connectionStatus.setText("Нет связи: " + error.getMessage());
+                    }
+                });
+            }
+        });
+        root.addView(test);
         final EditText openRouter = addField(root,
                 "Ключ OpenRouter (опционально, большие модели 26B)",
                 Prefs.openRouterKey(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -90,6 +135,7 @@ public class SettingsActivity extends android.app.Activity {
                         coreToken.getText().toString(),
                         openRouter.getText().toString(),
                         model.getText().toString());
+                Prefs.setOnboardingDone(SettingsActivity.this, true);
                 Toast.makeText(SettingsActivity.this, "Сохранено", Toast.LENGTH_SHORT).show();
                 finish();
             }

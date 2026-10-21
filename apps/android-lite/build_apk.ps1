@@ -70,7 +70,7 @@ if (Test-Path (Join-Path $assetsDir 'multilingual-e5-small\model_O4.onnx')) {
 }
 & (Join-Path $bt 'aapt2.exe') link -o (Join-Path $build 'base.apk') `
     -I $platform --manifest (Join-Path $here 'AndroidManifest.xml') `
-    --min-sdk-version 26 --target-sdk-version 34 @resArgs @assetsArgs
+    --min-sdk-version 26 --target-sdk-version 34 --auto-add-overlay @resArgs @assetsArgs
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link failed' }
 
 Write-Output '== javac (все классы приложения) =='

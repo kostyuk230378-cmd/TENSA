@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Тёмная мобильная тема Tensa: один фон, циановый акцент, без ActionBar. -->
+    <style name="Theme.Tensa" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#09090B</item>
+        <item name="android:statusBarColor">#09090B</item>
+        <item name="android:navigationBarColor">#09090B</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#00F0FF</item>
+        <item name="android:colorControlActivated">#00F0FF</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#A1A1AA</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
