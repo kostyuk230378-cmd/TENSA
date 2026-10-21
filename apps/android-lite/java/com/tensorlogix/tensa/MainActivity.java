@@ -1,7 +1,5 @@
 package com.tensorlogix.tensa;
 
-import android.appwidget.AppWidgetManager;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -127,15 +125,6 @@ public class MainActivity extends android.app.Activity {
         content.addView(chat, chatParams);
 
         content.addView(Ui.gap(this, 14));
-        content.addView(Ui.menuCard(this, "▣", "Виджет на рабочий стол",
-                "Пилюля Tensa как на десктопе", new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        requestHomeWidget();
-                    }
-                }));
-
-        content.addView(Ui.gap(this, 14));
         content.addView(Ui.menuCard(this, "⌕", "Файлы",
                 "Найти документ на ПК", new View.OnClickListener() {
                     @Override
@@ -196,36 +185,32 @@ public class MainActivity extends android.app.Activity {
         scroll.setBackgroundColor(Ui.BG);
         scroll.addView(content);
         setContentView(scroll);
-        if (!Prefs.widgetAsked(this)) {
-            Prefs.setWidgetAsked(this, true);
-            scroll.post(new Runnable() {
-                @Override
-                public void run() {
-                    requestHomeWidget();
-                }
-            });
-        }
-    }
-
-    /** Попросить launcher добавить home-screen виджет Tensa. */
-    private void requestHomeWidget() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            Toast.makeText(this, "Виджет поддерживается Android 8+", Toast.LENGTH_LONG).show();
-            return;
-        }
-        AppWidgetManager manager = AppWidgetManager.getInstance(this);
-        if (!manager.isRequestPinAppWidgetSupported()) {
-            Toast.makeText(this, "Добавьте виджет Tensa через меню рабочего стола.",
-                    Toast.LENGTH_LONG).show();
-            return;
-        }
-        manager.requestPinAppWidget(new ComponentName(this, TensaWidgetProvider.class), null, null);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshConnection();
+        maybeStartOverlay();
+    }
+
+    /** Плавающий виджет поверх экрана, если разрешён и включён. */
+    private void maybeStartOverlay() {
+        if (!Prefs.overlayEnabled(this)
+                || Prefs.server(this).isEmpty()
+                || Prefs.coreToken(this).isEmpty()
+                || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || !Settings.canDrawOverlays(this)) {
+            return;
+        }
+        Intent service = new Intent(this, OverlayService.class)
+                .putExtra("server", Prefs.server(this))
+                .putExtra("token", Prefs.coreToken(this));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(service);
+        } else {
+            startService(service);
+        }
     }
 
     /** Запустить плавающий виджет Tensa поверх приложений. */
