@@ -105,6 +105,18 @@ public class ChatActivity extends android.app.Activity {
                 | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         input.setMaxLines(4);
         input.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        input.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showKeyboard();
+            }
+        });
+        input.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View view, boolean focused) {
+                if (focused) showKeyboard();
+            }
+        });
         input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView view, int actionId, android.view.KeyEvent event) {
@@ -187,7 +199,15 @@ public class ChatActivity extends android.app.Activity {
         if (imm != null) {
             imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
         }
-        input.clearFocus();
+    }
+
+    /** Явно показать IME по касанию поля. */
+    private void showKeyboard() {
+        input.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
+        }
     }
 
     /** Отправить текст из поля. */

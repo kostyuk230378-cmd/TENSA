@@ -340,6 +340,25 @@ fn mentions_file(text: &str) -> bool {
     })
 }
 
+/// Короткий запрос, который совпал с именем найденного файла.
+fn looks_like_file_name(text: &str, hits: &[crate::files::FileHit]) -> bool {
+    let words: Vec<String> = text
+        .split_whitespace()
+        .map(|part| {
+            part.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase()
+        })
+        .filter(|word| word.chars().count() >= 3)
+        .collect();
+    if words.is_empty() || words.len() > 4 {
+        return false;
+    }
+    hits.iter().any(|hit| {
+        let name = hit.name.to_lowercase();
+        words.iter().any(|word| name.contains(word))
+    })
+}
+
 /// Создать событие из фразы «создай встречу завтра в 15:00 …».
 fn parse_calendar_intent(text: &str) -> Option<NewEvent> {
     let lower = text.to_lowercase();
@@ -663,37 +682,20 @@ pub async fn query(
     // Локальные файлы этого ПК: на «найди …» отвечаем списком сразу,
     // иначе подмешиваем найденные фрагменты в контекст модели.
     let file_intent = looks_like_file_search(&text) || mentions_file(&text);
+    let has_model = {
+        let query = state.query.read().await;
+        query.has_local() || query.has_cloud()
+    };
     let hits = state.files.search(&text, 6).await.unwrap_or_default();
     let mut seen_paths = std::collections::HashSet::new();
     let hits: Vec<_> = hits
         .into_iter()
         .filter(|hit| seen_paths.insert(hit.path.to_lowercase()))
         .collect();
+    let direct_file =
+        file_intent || (!hits.is_empty() && (!has_model || looks_like_file_name(&text, &hits)));
     if !hits.is_empty() {
-        if looks_like_file_search(&text) {
-            let payload = serde_json::json!({
-                "files": hits
-                    .iter()
-                    .map(|hit| serde_json::json!({
-                        "path": hit.path,
-                        "name": hit.name,
-                        "snippet": hit.snippet,
-                    }))
-                    .collect::<Vec<_>>()
-            });
-            return Ok(Json(QueryResponse {
-                text: format_hits(&hits),
-                action: Some("files".to_string()),
-                action_payload: Some(payload),
-                tool_calls: Vec::new(),
-                reasoning: None,
-                degraded: false,
-                model_used: "files".to_string(),
-                node_used: "local".to_string(),
-                tokens_used: Some(0),
-            }));
-        }
-        if file_intent {
+        if direct_file {
             let payload = serde_json::json!({
                 "files": hits
                     .iter()
