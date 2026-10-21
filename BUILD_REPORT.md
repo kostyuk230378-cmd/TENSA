@@ -18,7 +18,7 @@
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
 | `TensaSetup.exe` v0.2.22 | 231 125 259 байт (220.4 МиБ) | `831e1967af144a072db077c87728884cfffcb59d9aea21664e78c2e254dcfcab` | GitHub Release v0.2.22 |
-| `Tensa.apk` v0.2.22 | 239 154 787 байт (228.1 МиБ) | `a1fd4b29d74f4de48a9dbbb11a146ad8f1f34ee8e5ef25850583aa7afbd44984` | GitHub Release v0.2.22 |
+| `Tensa.apk` v0.2.22 | 239 154 787 байт (228.1 МиБ) | `2f8191b24a58aa2ebd24f457f487634257debbdb79a477065a22da444af36b02` | GitHub Release v0.2.22 |
 | Исходный код | — | — | `main`, commit `c0bc4c5` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
