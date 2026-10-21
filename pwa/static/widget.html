@@ -746,6 +746,8 @@
           <button class="icon-btn" id="back" title="Свернуть">←</button>
           <div class="panel-title"><span id="panel-title">Tensa</span></div>
           <button class="icon-btn" id="gear" title="Настройки">⚙</button>
+          <button class="icon-btn" id="overlay-close" title="Закрыть виджет"
+                  style="display:none">×</button>
         </div>
         <div class="content" id="content"></div>
         <div class="composer" id="composer">
@@ -2070,6 +2072,11 @@
       document.getElementById('bulb').onclick = () => { if (suppressClick) return; view = 'approvals'; setExpanded(true); render(); };
       document.getElementById('back').onclick = () => setExpanded(false);
       document.getElementById('gear').onclick = () => { view = 'settings'; render(); };
+      const overlayClose = document.getElementById('overlay-close');
+      if (overlayMode && overlayClose) {
+        overlayClose.style.display = 'grid';
+        overlayClose.onclick = () => sendIpc('quit');
+      }
       document.getElementById('collapse').onclick = () => { menu.classList.remove('open'); setExpanded(false); };
       document.getElementById('quit').onclick = () => { menu.classList.remove('open'); sendIpc('quit'); };
       document.getElementById('send').onclick = send;
