@@ -77,6 +77,20 @@ public class SettingsActivity extends android.app.Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(32, 32, 32, 32);
 
+        TextView back = new TextView(this);
+        back.setText("‹ Назад");
+        back.setTextSize(17);
+        back.setTextColor(0xFF00E5FF);
+        back.setPadding(0, 0, 0, 14);
+        back.setContentDescription("Вернуться назад");
+        back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
+        root.addView(back);
+
         TextView title = new TextView(this);
         title.setText("Настройки");
         title.setTextSize(26);
