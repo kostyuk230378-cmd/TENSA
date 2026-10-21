@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `2e33b2d` — `feat(android): ASR fallback through PC and tested mobile UI`  
-**Последний релиз:** [v0.2.16](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.16)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `2e33b2d` — отдельная проверка.
+**Последний код перед отчётом:** `25e5234` — `feat(android): ASR fallback through PC and tested mobile UI`  
+**Последний релиз:** [v0.2.17](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.17)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `25e5234` — отдельная проверка.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.16 | 231 119 603 байт (220.4 МиБ) | `db15840e492da8f285a3eb0cc214c199b9d27deebf7f39c67723bdb4e8ae73c2` | GitHub Release v0.2.16 |
-| `Tensa.apk` v0.2.16 | 239 146 224 байт (228.1 МиБ) | `e95239cf334dbd7d16ab8ef79e3f8ec70e7c5cd4b56dfa453085881d922612dd` | GitHub Release v0.2.16 |
-| Исходный код | — | — | `main`, commit `2e33b2d` |
+| `TensaSetup.exe` v0.2.17 | 231 114 976 байт (220.4 МиБ) | `8a9dc33095de82d8166c22b5f9d1f672c14d5f077e024e15668387c3ebfcc5c0` | GitHub Release v0.2.17 |
+| `Tensa.apk` v0.2.17 | 239 146 227 байт (228.1 МиБ) | `b8302611e148ca634c74a69aee5737c549d66bc5c6c34defae7059e9e0153411` | GitHub Release v0.2.17 |
+| Исходный код | — | — | `main`, commit `25e5234` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.16/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.16/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.17/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.17/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=5`, `versionName=0.2.16`,
+Ожидаемые значения: `versionCode=6`, `versionName=0.2.17`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.16 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.17 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -316,10 +316,13 @@ APK проверен на официальном Android Emulator (Android 14) �
    удержание микрофона и отпускание — как в desktop; клавиатура скрывается
    (`mInputShown=false`);
 6. Settings → Back → dashboard (навигация корректна);
-7. «Поверх приложений»: overlay-пилюля Tensa остаётся поверх Pixel Launcher,
-   получает Bearer-токен для API; размер окна ограничен экраном (не 440 dp),
-   стрелка отправки и back видны; overlay перетаскивается за любое место
-   (нативный DragWebView), координаты клампятся по границам экрана.
+7. «Поверх приложений»: overlay-пилюля Tensa автоматически появляется поверх
+   Pixel Launcher и dashboard, получает Bearer-токен для API; размер окна
+   ограничен экраном, стрелка/back видны, окно перетаскивается за любое
+   место (нативный DragWebView), координаты клампятся по границам экрана.
+8. В overlay микрофон тоже работает по desktop-алгоритму: нативный
+   `AudioRecord` → WAV → `/api/v1/voice/transcribe` → `tensaVoiceResult`;
+   WebView больше не пытается использовать `getUserMedia`.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -365,6 +368,8 @@ APK установлен через `127.0.0.1:5555`.
 [`android14-chat.png`](docs/screenshots/android14-chat.png),
 [`android14-ptt.png`](docs/screenshots/android14-ptt.png),
 [`android14-overlay.png`](docs/screenshots/android14-overlay.png),
+[`android14-overlay-auto.png`](docs/screenshots/android14-overlay-auto.png),
+[`android14-overlay-ptt.png`](docs/screenshots/android14-overlay-ptt.png),
 [`android14-overlay-expanded.png`](docs/screenshots/android14-overlay-expanded.png),
 [`android14-overlay-moved.png`](docs/screenshots/android14-overlay-moved.png),
 [`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png),
@@ -403,6 +408,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.14 | Android: fallback ASR через ПК, тест на Android Emulator/Genymotion/Trinity |
 | v0.2.15 | push-to-talk через ASR ПК, скрытие клавиатуры, overlay «Поверх приложений» |
 | v0.2.16 | overlay ограничен экраном, стрелка видна, перетаскивание по экрану |
+| v0.2.17 | автозапуск overlay-виджета, нативный PTT в overlay через ASR ПК |
 
 ---
 
