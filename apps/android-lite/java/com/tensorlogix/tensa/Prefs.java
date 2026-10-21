@@ -26,6 +26,8 @@ public final class Prefs {
     private static final String KEY_ONBOARDING = "onboarding_done";
     /** Overlay-виджет включён пользователем. */
     private static final String KEY_OVERLAY = "overlay_enabled";
+    /** Системный запрос добавления home-screen виджета уже показан. */
+    private static final String KEY_WIDGET_ASKED = "widget_asked";
 
     /** Адрес сервера по умолчанию (ПК в локальной сети). */
     public static final String DEFAULT_SERVER = "";
@@ -98,6 +100,16 @@ public final class Prefs {
     /** Запомнить состояние overlay. */
     public static void setOverlayEnabled(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_OVERLAY, value).apply();
+    }
+
+    /** Показывали ли системный запрос home-screen виджета. */
+    public static boolean widgetAsked(Context context) {
+        return prefs(context).getBoolean(KEY_WIDGET_ASKED, false);
+    }
+
+    /** Отметить показ запроса home-screen виджета. */
+    public static void setWidgetAsked(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_WIDGET_ASKED, value).apply();
     }
 
     /** Убрать хвостовые слэши адреса. */
