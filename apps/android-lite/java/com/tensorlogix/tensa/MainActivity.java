@@ -1,12 +1,16 @@
 package com.tensorlogix.tensa;
 
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 
@@ -161,11 +165,11 @@ public class MainActivity extends android.app.Activity {
                     }
                 }));
         content.addView(Ui.gap(this, 10));
-        content.addView(Ui.menuCard(this, "⌂", "Плавающий виджет",
-                "Быстрый доступ поверх приложений", new View.OnClickListener() {
+        content.addView(Ui.menuCard(this, "⌂", "Поверх приложений",
+                "Tensa остаётся видимой поверх других приложений", new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                        startOverlay();
                     }
                 }));
 
@@ -187,6 +191,32 @@ public class MainActivity extends android.app.Activity {
     protected void onResume() {
         super.onResume();
         refreshConnection();
+    }
+
+    /** Запустить плавающий виджет Tensa поверх приложений. */
+    private void startOverlay() {
+        if (Prefs.server(this).isEmpty() || Prefs.coreToken(this).isEmpty()) {
+            Toast.makeText(this, "Сначала подключите ПК в Настройках.", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(this, SettingsActivity.class));
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Разрешите Tensa «Поверх других приложений» и повторите.",
+                    Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        Intent service = new Intent(this, OverlayService.class)
+                .putExtra("server", Prefs.server(this))
+                .putExtra("token", Prefs.coreToken(this));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(service);
+        } else {
+            startService(service);
+        }
+        Toast.makeText(this, "Tensa поверх приложений", Toast.LENGTH_SHORT).show();
     }
 
     /** Проверить ядро и обновить верхнюю карточку. */

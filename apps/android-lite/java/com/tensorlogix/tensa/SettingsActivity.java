@@ -191,7 +191,8 @@ public class SettingsActivity extends android.app.Activity {
                     return;
                 }
                 Intent service = new Intent(SettingsActivity.this, OverlayService.class)
-                        .putExtra("server", Prefs.server(SettingsActivity.this));
+                        .putExtra("server", Prefs.server(SettingsActivity.this))
+                        .putExtra("token", Prefs.coreToken(SettingsActivity.this));
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(service);
                 } else {

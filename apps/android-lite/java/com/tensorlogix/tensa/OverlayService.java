@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -40,6 +41,8 @@ public class OverlayService extends Service {
     private WindowManager.LayoutParams params;
     /** Адрес ядра. */
     private String server = "";
+    /** Bearer-токен для API с телефона. */
+    private String access = "";
     /** UI-поток для команд из JS. */
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -54,6 +57,9 @@ public class OverlayService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String extra = intent == null ? null : intent.getStringExtra("server");
         server = extra == null || extra.trim().isEmpty() ? Prefs.server(this) : extra.trim();
+        String tokenExtra = intent == null ? null : intent.getStringExtra("token");
+        access = tokenExtra == null || tokenExtra.trim().isEmpty()
+                ? Prefs.coreToken(this) : tokenExtra.trim();
         if (web == null) {
             showOverlay();
         }
@@ -96,7 +102,7 @@ public class OverlayService extends Service {
         params.x = dp(8);
         params.y = dp(64);
 
-        web.loadUrl(server + "/widget");
+        web.loadUrl(server + "/widget?overlay=1&token=" + Uri.encode(access));
         windows.addView(web, params);
     }
 

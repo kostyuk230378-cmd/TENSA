@@ -766,6 +766,41 @@
         if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(message);
       };
 
+      // Для overlay на телефоне токен передаётся в query; desktop работает
+      // через loopback и остаётся без заголовка.
+      const authToken = (() => {
+        try {
+          const fromQuery = new URLSearchParams(location.search).get('token');
+          if (fromQuery) {
+            localStorage.setItem('tensa_token', fromQuery);
+            return fromQuery;
+          }
+          return localStorage.getItem('tensa_token') || '';
+        } catch (error) {
+          return '';
+        }
+      })();
+      const overlayMode = new URLSearchParams(location.search).get('overlay') === '1';
+
+      if (authToken) {
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          const api = url.indexOf('/api/v1/') === 0
+            || url.indexOf(location.origin + '/api/v1/') === 0;
+          if (api) {
+            const options = init || {};
+            const headers = new Headers(options.headers || {});
+            if (!headers.has('Authorization')) {
+              headers.set('Authorization', 'Bearer ' + authToken);
+            }
+            options.headers = headers;
+            return nativeFetch(input, options);
+          }
+          return nativeFetch(input, init);
+        };
+      }
+
       const stage = document.getElementById('stage');
       const content = document.getElementById('content');
       const composer = document.getElementById('composer');
@@ -2077,7 +2112,7 @@
         }
       }
 
-      openFirstRunSetup();
+      if (!overlayMode) openFirstRunSetup();
       refreshBadge();
       setInterval(refreshBadge, 15000);
     </script>
