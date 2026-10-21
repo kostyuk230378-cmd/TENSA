@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `c0bc4c5` — `feat(android): select system microphone and fix settings scrolling`  
-**Последний релиз:** [v0.2.22](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.22)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `c0bc4c5` — Android build и ручной тест.
+**Последний код перед отчётом:** `1251b65` — `fix(android): visible back button in settings`  
+**Последний релиз:** [v0.2.23](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.23)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `1251b65` — Android build и ручной тест.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.22 | 231 125 259 байт (220.4 МиБ) | `831e1967af144a072db077c87728884cfffcb59d9aea21664e78c2e254dcfcab` | GitHub Release v0.2.22 |
-| `Tensa.apk` v0.2.22 | 239 154 787 байт (228.1 МиБ) | `2f8191b24a58aa2ebd24f457f487634257debbdb79a477065a22da444af36b02` | GitHub Release v0.2.22 |
-| Исходный код | — | — | `main`, commit `c0bc4c5` |
+| `TensaSetup.exe` v0.2.23 | 231 133 440 байт (220.4 МиБ) | `56c84f95c02bfcfdf077f07e2176f7863f3265f0972475276b8e92c2624c2cfb` | GitHub Release v0.2.23 |
+| `Tensa.apk` v0.2.23 | 239 154 787 байт (228.1 МиБ) | `36b6d79308cc3c7faa436880fff2e6671a575615a9c799e6b6006dcd615c6985` | GitHub Release v0.2.23 |
+| Исходный код | — | — | `main`, commit `1251b65` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.22/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.22/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.23/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.23/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=11`, `versionName=0.2.22`,
+Ожидаемые значения: `versionCode=12`, `versionName=0.2.23`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.22 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.23 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -348,6 +348,10 @@ APK проверен на официальном Android Emulator (Android 14) �
     показывают тот же вход. На эмуляторе нет физического USB/Bluetooth-
     микрофона; сам список и маршрутизация проверены, внешний вход нужно
     подключить на телефоне и нажать «Обновить список микрофонов».
+
+14. Возврат: в нативном экране настроек сверху слева есть **‹ Назад**;
+    нажатие возвращает на dashboard. Системный Android Back тоже работает.
+    В overlay — **←** в шапке и **×** для закрытия.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -404,6 +408,7 @@ APK установлен через `127.0.0.1:5555`.
 [`android14-overlay-mics.png`](docs/screenshots/android14-overlay-mics.png),
 [`android14-overlay-mic-selected.png`](docs/screenshots/android14-overlay-mic-selected.png),
 [`android14-chat-mic-recording.png`](docs/screenshots/android14-chat-mic-recording.png),
+[`android14-settings-back-button.png`](docs/screenshots/android14-settings-back-button.png),
 [`android14-overlay-auto.png`](docs/screenshots/android14-overlay-auto.png),
 [`android14-overlay-ptt.png`](docs/screenshots/android14-overlay-ptt.png),
 [`android14-overlay-expanded.png`](docs/screenshots/android14-overlay-expanded.png),
@@ -450,6 +455,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.20 | home-screen виджет Tensa 4×2 |
 | v0.2.21 | home-screen widget убран; плавающий overlay поверх экрана, двигается |
 | v0.2.22 | выбор любого системного микрофона (USB/Bluetooth/гарнитура), полная прокрутка настроек |
+| v0.2.23 | видимая кнопка «‹ Назад» в настройках Android |
 
 ---
 

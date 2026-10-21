@@ -10,7 +10,7 @@ Unicode true
 !include "MUI2.nsh"
 
 !define APPNAME "Tensa"
-!define APPVERSION "0.2.22"
+!define APPVERSION "0.2.23"
 
 !ifndef STAGE
   !define STAGE "C:\tensa-build\stage"
