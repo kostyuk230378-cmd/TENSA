@@ -9,10 +9,12 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
+import android.util.DisplayMetrics;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
@@ -43,6 +45,11 @@ public class OverlayService extends Service {
     private String server = "";
     /** Bearer-токен для API с телефона. */
     private String access = "";
+    /** Ширина/высота экрана в пикселях. */
+    private int screenWidth = 0;
+    private int screenHeight = 0;
+    /** Отступ overlay от края экрана. */
+    private int margin = 0;
     /** UI-поток для команд из JS. */
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -69,7 +76,11 @@ public class OverlayService extends Service {
     /** Показать плавающее окно с виджетом. */
     private void showOverlay() {
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
-        web = new WebView(this);
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        screenWidth = metrics.widthPixels;
+        screenHeight = metrics.heightPixels;
+        margin = dp(8);
+        web = new DragWebView(this);
         web.setBackgroundColor(Color.TRANSPARENT);
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -87,19 +98,18 @@ public class OverlayService extends Service {
             }
         });
 
-        int width = dp(348);
-        int height = dp(150);
+        int width = Math.min(dp(348), screenWidth - margin * 2);
+        int height = Math.min(dp(150), screenHeight - dp(64) - margin);
         params = new WindowManager.LayoutParams(
                 width,
                 height,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                         : WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.TOP | Gravity.END;
-        params.x = dp(8);
+        params.gravity = Gravity.TOP | Gravity.START;
+        params.x = screenWidth - width - margin;
         params.y = dp(64);
 
         web.loadUrl(server + "/widget?overlay=1&token=" + Uri.encode(access));
@@ -127,24 +137,107 @@ public class OverlayService extends Service {
         }
         switch (message) {
             case "expand":
-                params.width = dp(440);
-                params.height = dp(700);
-                params.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                params.width = Math.min(dp(440), screenWidth - margin * 2);
+                params.height = Math.min(dp(700), screenHeight - dp(64) - margin);
+                params.x = margin;
+                params.y = dp(64);
+                params.flags = 0;
                 windows.updateViewLayout(web, params);
                 web.requestFocus();
                 break;
             case "collapse":
-                params.width = dp(348);
-                params.height = dp(150);
-                params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                params.width = Math.min(dp(348), screenWidth - margin * 2);
+                params.height = Math.min(dp(150), screenHeight - dp(64) - margin);
+                params.x = screenWidth - params.width - margin;
+                params.y = dp(64);
+                params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
                 windows.updateViewLayout(web, params);
                 break;
             case "quit":
                 stopSelf();
                 break;
             default:
+                if (message.startsWith("move ")) {
+                    moveBy(message);
+                }
                 break;
+        }
+    }
+
+    /** Переместить overlay по пиксельным дельтам из widget.html. */
+    private void moveBy(String message) {
+        String[] parts = message.split(" ");
+        if (parts.length < 3) {
+            return;
+        }
+        try {
+            int dx = Integer.parseInt(parts[1].trim());
+            int dy = Integer.parseInt(parts[2].trim());
+            moveWindow(dx, dy);
+        } catch (NumberFormatException ignored) {
+            // повреждённая команда движения — игнорируем
+        }
+    }
+
+    /** Сдвинуть окно с ограничением по границам экрана. */
+    private void moveWindow(int dx, int dy) {
+        if (params == null) {
+            return;
+        }
+        params.x = Math.max(0, Math.min(screenWidth - params.width, params.x + dx));
+        params.y = Math.max(0, Math.min(screenHeight - params.height, params.y + dy));
+        if (windows != null && web != null) {
+            windows.updateViewLayout(web, params);
+        }
+    }
+
+    /** WebView, который двигает overlay за любое место, а не только за dock. */
+    private final class DragWebView extends WebView {
+        private float downX;
+        private float downY;
+        private float lastX;
+        private float lastY;
+        private boolean dragging;
+
+        DragWebView(android.content.Context context) {
+            super(context);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            float rawX = event.getRawX();
+            float rawY = event.getRawY();
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX = rawX;
+                    downY = rawY;
+                    lastX = rawX;
+                    lastY = rawY;
+                    dragging = false;
+                    return super.onTouchEvent(event);
+                case MotionEvent.ACTION_MOVE:
+                    if (!dragging && (Math.abs(rawX - downX) + Math.abs(rawY - downY)) > dp(10)) {
+                        dragging = true;
+                    }
+                    if (dragging) {
+                        int dx = Math.round(rawX - lastX);
+                        int dy = Math.round(rawY - lastY);
+                        lastX = rawX;
+                        lastY = rawY;
+                        moveWindow(dx, dy);
+                        return true;
+                    }
+                    return super.onTouchEvent(event);
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (dragging) {
+                        dragging = false;
+                        return true;
+                    }
+                    return super.onTouchEvent(event);
+                default:
+                    return super.onTouchEvent(event);
+            }
         }
     }
 
