@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `25e5234` — `feat(android): ASR fallback through PC and tested mobile UI`  
-**Последний релиз:** [v0.2.21](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.21)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `25e5234` — отдельная проверка.
+**Последний код перед отчётом:** `c0bc4c5` — `feat(android): select system microphone and fix settings scrolling`  
+**Последний релиз:** [v0.2.22](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.22)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `c0bc4c5` — Android build и ручной тест.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.21 | 231 136 284 байт (220.4 МиБ) | `095a55aa754959ce87b9c1cb201189706fcc6938706b77991259c05acc173d52` | GitHub Release v0.2.21 |
-| `Tensa.apk` v0.2.21 | 239 154 788 байт (228.1 МиБ) | `74ee9a02252e6f66b17070e85eb5cdb31e5c0aaaee317f4d0e4c2ebe5fec6ff8` | GitHub Release v0.2.21 |
-| Исходный код | — | — | `main`, commit `25e5234` |
+| `TensaSetup.exe` v0.2.22 | 231 125 259 байт (220.4 МиБ) | `831e1967af144a072db077c87728884cfffcb59d9aea21664e78c2e254dcfcab` | GitHub Release v0.2.22 |
+| `Tensa.apk` v0.2.22 | 239 154 787 байт (228.1 МиБ) | `a1fd4b29d74f4de48a9dbbb11a146ad8f1f34ee8e5ef25850583aa7afbd44984` | GitHub Release v0.2.22 |
+| Исходный код | — | — | `main`, commit `c0bc4c5` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.21/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.21/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.22/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.22/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=10`, `versionName=0.2.21`,
+Ожидаемые значения: `versionCode=11`, `versionName=0.2.22`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.21 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.22 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -316,10 +316,10 @@ APK проверен на официальном Android Emulator (Android 14) �
    удержание микрофона и отпускание — как в desktop; клавиатура скрывается
    (`mInputShown=false`);
 6. Settings → Back → dashboard (навигация корректна);
-7. «Поверх приложений» — **опционально**: обычный запуск открывает нормальное
-   окно Android (status/nav bar, Back работает). Auto-start overlay убран.
-   По кнопке overlay-пилюля остаётся поверх, ограничена экраном,
-   перетаскивается за любое место, имеет кнопку закрытия «×».
+7. Плавающий виджет: обычный запуск открывает нормальное окно Android
+   (status/nav bar, Back работает) и компактную пилюлю **поверх** него.
+   Пилюля не занимает ячейки launcher, ограничена экраном, перетаскивается
+   за шапку (в развёрнутой панели) и за любое место (в свёрнутой), имеет «×».
 8. В overlay микрофон тоже работает по desktop-алгоритму: нативный
    `AudioRecord` → WAV → `/api/v1/voice/transcribe` → `tensaVoiceResult`;
    WebView больше не использует `getUserMedia`.
@@ -331,6 +331,23 @@ APK проверен на официальном Android Emulator (Android 14) �
     рабочего стола/приложений, не занимает ячейки launcher и двигается за любое
     место (нативный DragWebView); есть закрытие «×» в раскрытой панели.
     Home-screen AppWidget удалён из манифеста — он больше не занимает место.
+
+11. Микрофоны телефона: Settings → «Микрофон телефона и внешние» показывает
+    **все** входы Android из `AudioManager.getDevices(GET_DEVICES_INPUTS)`:
+    встроенный, телефония, системный микс, FM-тюнер (на реальном телефоне —
+    USB, USB-гарнитура, Bluetooth, 3,5 мм). Выбор сохраняется, запись в чате
+    и overlay идёт через `AudioRecord.setPreferredDevice`; при отключении
+    внешнего входа — автоматический fallback на системный.
+12. Настройки прокручиваются **до конца**: нативный экран прокручен до кнопки
+    «Остановить виджет», панель виджета — до «Почты» и моделей. Причина
+    прежнего «мало крутится» — DragWebView двигал окно на любом свайпе;
+    теперь в развёрнутой панели он двигает только за шапку, а содержимое
+    прокручивается.
+13. Выбор микрофона в overlay: список из всех входов показан кнопками,
+    выбран встроенный вход, статус «Сохранено», после перезапуска настройки
+    показывают тот же вход. На эмуляторе нет физического USB/Bluetooth-
+    микрофона; сам список и маршрутизация проверены, внешний вход нужно
+    подключить на телефоне и нажать «Обновить список микрофонов».
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -382,6 +399,11 @@ APK установлен через `127.0.0.1:5555`.
 [`android14-home-widget.png`](docs/screenshots/android14-home-widget.png),
 [`android14-floating-home.png`](docs/screenshots/android14-floating-home.png),
 [`android14-floating-moved.png`](docs/screenshots/android14-floating-moved.png),
+[`android14-mic-settings.png`](docs/screenshots/android14-mic-settings.png),
+[`android14-settings-bottom.png`](docs/screenshots/android14-settings-bottom.png),
+[`android14-overlay-mics.png`](docs/screenshots/android14-overlay-mics.png),
+[`android14-overlay-mic-selected.png`](docs/screenshots/android14-overlay-mic-selected.png),
+[`android14-chat-mic-recording.png`](docs/screenshots/android14-chat-mic-recording.png),
 [`android14-overlay-auto.png`](docs/screenshots/android14-overlay-auto.png),
 [`android14-overlay-ptt.png`](docs/screenshots/android14-overlay-ptt.png),
 [`android14-overlay-expanded.png`](docs/screenshots/android14-overlay-expanded.png),
@@ -427,6 +449,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.19 | стабильный ввод с клавиатуры, поиск по имени файла без модели |
 | v0.2.20 | home-screen виджет Tensa 4×2 |
 | v0.2.21 | home-screen widget убран; плавающий overlay поверх экрана, двигается |
+| v0.2.22 | выбор любого системного микрофона (USB/Bluetooth/гарнитура), полная прокрутка настроек |
 
 ---
 
@@ -441,7 +464,7 @@ APK установлен через `127.0.0.1:5555`.
 5. Старый `~/.tensa/models` может использоваться как fallback, если
    `asr-active.txt` ссылается на файл там; основной путь — каталог установки.
 6. `OPENROUTER_API_KEY` в окружении имеет приоритет над файлом (см. §10).
-7. Мобильный APK проверен на официальном Android Emulator (Android 14), Genymotion Android 15 и Trinity Android 9. На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`). На официальном эмуляторе проверены push-to-talk, скрытие клавиатуры и overlay поверх launcher. Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны, поэтому качество голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
+7. Мобильный APK проверен на официальном Android Emulator (Android 14), Genymotion Android 15 и Trinity Android 9. На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`). На официальном эмуляторе проверены push-to-talk, скрытие клавиатуры, overlay поверх launcher и выбор микрофона из системного списка. Физического USB/Bluetooth-микрофона у эмулятора нет: появление внешнего входа и маршрутизация через `AudioRecord.setPreferredDevice` проверяются на реальном телефоне (список обновляется кнопкой). Системный SpeechRecognizer на эмуляторах недоступен, качество ASR с живым микрофоном нужно проверить на телефоне.
 
 ---
 
