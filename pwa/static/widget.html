@@ -1490,6 +1490,24 @@
         return renderChat();
       }
 
+      function lastFileContext() {
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          const message = messages[index];
+          if (message.role === 'assistant' && message.files && message.files.length) {
+            return message.files
+              .filter((file) => file && file.path)
+              .map((file) => ({ path: file.path, name: file.name || file.path.split(/[\\/]/).pop() }));
+          }
+          if (message.role === 'assistant') {
+            const paths = extractFilePaths(message.text || '');
+            if (paths.length) {
+              return paths.map((path) => ({ path, name: path.split(/[\\/]/).pop() }));
+            }
+          }
+        }
+        return [];
+      }
+
       async function send(options = {}) {
         const text = input.value.trim();
         if (!text) return;
@@ -1500,16 +1518,17 @@
           const response = await fetch('/api/v1/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({ text, context_files: lastFileContext() }),
           });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const reply = await response.json();
           const files = (reply.action_payload && reply.action_payload.files) || [];
+          const localAction = ['email', 'calendar', 'calendar_conflict'].includes(reply.model_used);
           messages.push({
             role: 'assistant',
             text: reply.text,
             files,
-            meta: reply.model_used ? `${reply.model_used}${reply.degraded ? ' · локальная' : ''}` : '',
+            meta: reply.model_used && !localAction ? `${reply.model_used}${reply.degraded ? ' · локальная' : ''}` : '',
           });
         } catch (error) {
           messages.push({ role: 'error', text: `Ошибка: ${error.message}` });

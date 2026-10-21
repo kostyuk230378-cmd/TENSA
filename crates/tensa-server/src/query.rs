@@ -308,7 +308,7 @@ fn build_local(brain: &toml::Table, paths: &TensaPaths) -> (Option<Arc<dyn Local
         .get("local_model")
         .and_then(|value| value.as_str())
         .map(PathBuf::from);
-    let model_path = explicit.or_else(|| find_gguf(paths)).or_else(|| None);
+    let model_path = explicit.or_else(|| find_gguf(paths));
     let Some(model_path) = model_path else {
         return (None, String::new());
     };

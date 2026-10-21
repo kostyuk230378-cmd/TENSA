@@ -26,6 +26,92 @@ pub struct QueryBody {
     /// Конкретная облачная модель (идентификатор OpenRouter).
     #[serde(default)]
     pub model: Option<String>,
+    /// Файлы из последней карточки чата — контекст для «этот отчёт».
+    #[serde(default)]
+    pub context_files: Vec<ContextFile>,
+}
+
+/// Файл, показанный в чате и доступный как контекст команды.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ContextFile {
+    /// Абсолютный путь к файлу.
+    pub path: String,
+    /// Отображаемое имя (необязательно).
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// Слова, которые ссылаются на ранее показанный файл, а не называют его.
+fn is_deictic_reference(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    [
+        "этот",
+        "эта",
+        "это",
+        "эту",
+        "этого",
+        "этому",
+        "этим",
+        "этом",
+        "эти",
+        "этих",
+        "его",
+        "её",
+        "ее",
+        "их",
+        "последн",
+        "вышеуказан",
+        "указанн",
+        "текущ",
+        "this",
+        "that",
+        "same",
+    ]
+    .iter()
+    .any(|word| {
+        lower
+            .split_whitespace()
+            .any(|part| part.trim_matches(|c: char| !c.is_alphanumeric()) == *word)
+    })
+}
+
+/// Подходит ли файл под уточнение «отчёт», «договор», «презентация» и т. п.
+fn matches_file_kind(name: &str, query: &str) -> bool {
+    let name = name.to_lowercase();
+    let query = query.to_lowercase();
+    let checks: &[(&[&str], &[&str])] = &[
+        (&["отч", "report"], &["отч", "report"]),
+        (&["договор", "contract"], &["договор", "contract"]),
+        (
+            &["презентац", "слайд", "presentation", "slide"],
+            &["презентац", "слайд", "presentation", "slide"],
+        ),
+        (&["письм", "letter"], &["письм", "letter"]),
+        (&["смет", "estimate"], &["смет", "estimate"]),
+        (&["таблиц", "table", "sheet"], &["таблиц", "table", "sheet"]),
+    ];
+    let mut has_kind = false;
+    for (query_words, name_words) in checks {
+        if query_words.iter().any(|word| query.contains(word)) {
+            has_kind = true;
+            if name_words.iter().any(|word| name.contains(word)) {
+                return true;
+            }
+        }
+    }
+    !has_kind
+}
+
+/// Выбрать файл из последней карточки чата по фразе «этот отчёт».
+fn context_file_for_query<'a>(files: &'a [ContextFile], query: &str) -> Option<&'a ContextFile> {
+    files
+        .iter()
+        .rev()
+        .filter(|file| is_document(&file.path))
+        .find(|file| {
+            let name = file.name.as_deref().unwrap_or(&file.path);
+            matches_file_kind(name, query)
+        })
 }
 
 /// Явная команда «отправь файл на почту»: (адрес, запрос файла).
@@ -86,25 +172,48 @@ async fn send_file_by_email(
     original: &str,
     recipient: Option<String>,
     file_query: String,
+    context_files: &[ContextFile],
 ) -> Result<Json<QueryResponse>> {
     use std::path::{Path, PathBuf};
     use tensa_tools::email::{EmailService, OutgoingEmail};
 
-    let service = EmailService::from_files(&state.config_path)
-        .map_err(|error| ServerError::Unavailable(format!("почта: {error}")))?;
     let query = if file_query.trim().is_empty() {
         original.to_string()
     } else {
         file_query
     };
-    let hits = state
-        .files
-        .search(&query, 6)
-        .await
-        .map_err(|error| ServerError::Storage(format!("поиск файла: {error}")))?;
-    let hit = hits.into_iter().find(|hit| is_document(&hit.path));
-    let Some(hit) = hit else {
+    let deictic = is_deictic_reference(&query);
+    let context_path = if deictic {
+        match context_file_for_query(context_files, &query) {
+            Some(file) if Path::new(&file.path).is_file() => Some(file.path.clone()),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let hit_path = if let Some(path) = context_path {
+        path
+    } else if deictic {
         return Ok(Json(QueryResponse {
+            text: "Какой именно файл отправить? В чате нет подходящей карточки — назовите файл или откройте его в Tensa."
+                .to_string(),
+            action: None,
+            action_payload: None,
+            tool_calls: Vec::new(),
+            reasoning: None,
+            degraded: false,
+            model_used: "email".to_string(),
+            node_used: "local".to_string(),
+            tokens_used: Some(0),
+        }));
+    } else {
+        let hits = state
+            .files
+            .search(&query, 6)
+            .await
+            .map_err(|error| ServerError::Storage(format!("поиск файла: {error}")))?;
+        let Some(hit) = hits.into_iter().find(|hit| is_document(&hit.path)) else {
+            return Ok(Json(QueryResponse {
             text: "Не нашёл файл для отправки — назови его точнее (например, «… 2 ВАРИАНТА.docx»)."
                 .to_string(),
             action: None,
@@ -116,8 +225,12 @@ async fn send_file_by_email(
             node_used: "local".to_string(),
             tokens_used: Some(0),
         }));
+        };
+        hit.path
     };
-    let name = Path::new(&hit.path)
+    let service = EmailService::from_files(&state.config_path)
+        .map_err(|error| ServerError::Unavailable(format!("почта: {error}")))?;
+    let name = Path::new(&hit_path)
         .file_name()
         .map(|value| value.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".to_string());
@@ -139,8 +252,8 @@ async fn send_file_by_email(
         cc: None,
         bcc: None,
         subject: format!("Tensa: {name}"),
-        body: format!("Файл: {}\n\nОтправлено секретарём Tensa.", hit.path),
-        attachment: Some(PathBuf::from(&hit.path)),
+        body: format!("Файл: {hit_path}\n\nОтправлено секретарём Tensa."),
+        attachment: Some(PathBuf::from(&hit_path)),
     };
     service
         .send_now(email)
@@ -149,7 +262,7 @@ async fn send_file_by_email(
     Ok(Json(QueryResponse {
         text: format!("Отправил «{name}» на {to}."),
         action: Some("email".to_string()),
-        action_payload: Some(serde_json::json!({ "file": hit.path, "to": to })),
+        action_payload: Some(serde_json::json!({ "file": hit_path, "to": to })),
         tool_calls: Vec::new(),
         reasoning: None,
         degraded: false,
@@ -423,7 +536,7 @@ pub async fn query(
 
     // Явная команда «отправь файл на почту» — сразу отправляем вложением.
     if let Some((recipient, file_query)) = parse_email_intent(&text) {
-        return send_file_by_email(&state, &text, recipient, file_query).await;
+        return send_file_by_email(&state, &text, recipient, file_query, &body.context_files).await;
     }
 
     // «Создай встречу в календаре…» — сразу событие и ICS для календаря Windows.
@@ -575,6 +688,26 @@ mod tests {
         let (to, _) = parse_email_intent("отправь файл на email boss@example.com").expect("адрес");
         assert_eq!(to.as_deref(), Some("boss@example.com"));
         assert!(parse_email_intent("найди файлы с договором").is_none());
+    }
+
+    #[test]
+    fn deictic_email_uses_last_shown_report() {
+        let files = vec![
+            ContextFile {
+                path: "C:\\docs\\WS.md".to_string(),
+                name: Some("WS.md".to_string()),
+            },
+            ContextFile {
+                path: "C:\\docs\\Отчёт Яковлев Р В.docx".to_string(),
+                name: Some("Отчёт Яковлев Р В.docx".to_string()),
+            },
+        ];
+        let chosen = context_file_for_query(&files, "этот отчёт").expect("отчёт из карточки");
+        assert_eq!(chosen.name.as_deref(), Some("Отчёт Яковлев Р В.docx"));
+        assert!(context_file_for_query(&files, "этот договор").is_none());
+        assert!(context_file_for_query(&[], "этот отчёт").is_none());
+        assert!(is_deictic_reference("отправь этот отчёт на почту"));
+        assert!(!is_deictic_reference("отправь отчёт Яковлев на почту"));
     }
 
     #[tokio::test]
