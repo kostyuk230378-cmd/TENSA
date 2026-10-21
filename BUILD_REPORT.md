@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `6836b51` — `fix(chat): resolve first file in shown list and email typos`  
-**Последний релиз:** [v0.2.13](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.13)  
-**CI:** зелёный ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087), commit `6836b51`)
+**Последний код перед отчётом:** `5f32112` — `feat(android): ASR fallback through PC and tested mobile UI`  
+**Последний релиз:** [v0.2.14](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.14)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `5f32112` — отдельная проверка.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.13 | 231 119 561 байт (220.4 МиБ) | `614b111029fa7dc24455b94848c170a97e26adffa3428c54f18ed8fccbd3cc82` | GitHub Release v0.2.13 |
-| `Tensa.apk` v0.2.12 | 239 142 131 байт (228.1 МиБ) | `276ebae3193f2fc0b1aad3f385185f8e1d8a91fef8a06414b56e74c1f3c446ca` | GitHub Release v0.2.13 |
-| Исходный код | — | — | `main`, commit `6836b51` |
+| `TensaSetup.exe` v0.2.13 | 231 119 561 байт (220.4 МиБ) | `614b111029fa7dc24455b94848c170a97e26adffa3428c54f18ed8fccbd3cc82` | GitHub Release v0.2.14 |
+| `Tensa.apk` v0.2.14 | 239 146 225 байт (228.1 МиБ) | `e3e93f32c86ea2a232f100a3afb5e373997a1c674ae8290c75abb15442dec223` | GitHub Release v0.2.14 |
+| Исходный код | — | — | `main`, commit `5f32112` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.13/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.13/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.14/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.14/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=2`, `versionName=0.2.12`,
+Ожидаемые значения: `versionCode=3`, `versionName=0.2.14`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -286,7 +286,7 @@ aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 | `cargo build --release -p tensa-desktop` | успешно |
 | `build_installer.ps1` + NSIS | `TensaSetup.exe` создан |
 | `build_apk.ps1` | APK собран и подписан |
-| `aapt2 dump badging` | version 0.2.12, MainActivity, иконка |
+| `aapt2 dump badging` | version 0.2.14, MainActivity, иконка |
 | чистая установка Windows | настройки при первом запуске, активных бейджей нет |
 
 Проверка артефактов:
@@ -296,9 +296,36 @@ Get-FileHash apps/desktop-lite/TensaSetup.exe -Algorithm SHA256
 Get-FileHash apps/android-lite/Tensa.apk -Algorithm SHA256
 ```
 
-APK на физическом устройстве/эмуляторе в текущем окружении не запускался:
-эмулятор и подключённый телефон отсутствуют. Сборка, манифест, ресурсы и
-подпись проверены статически.
+APK проверен на эмуляторе Genymotion (Android 15); детали — в §9.1.
+
+### 9.1. Ручной тест Android (Genymotion, Android 15)
+
+Устройство: **Xiaomi Redmi Note 9, Android 15**, Genymotion AVD
+`192.168.21.101:5555`. APK установлен через ADB, версия `0.2.14`.
+
+Проверено по шагам:
+
+1. onboarding: поля пустые, введены адрес `http://192.168.1.101:8765` и
+   токен из `pwa_token`;
+2. после «Проверить и подключиться» — dashboard, статус **«ПК на связи»**;
+3. чат: сообщение `find` обработано локальным поиском, ответ
+   «Ничего не нашёл…» вместо HTTP 503;
+4. файлы: экран поиска открывается, запрос уходит в индекс ПК;
+5. микрофон: разрешение выдано, показан овальный маяк **«СЛУШАЮ…»**,
+   после остановки — **«РАСПОЗНАЮ…»**;
+6. серверный ASR: у Genymotion нет системного распознавателя и реального
+   аудиовхода, поэтому запрос дошёл до `/api/v1/voice/transcribe` и вернул
+   «речь не распознана»; это подтверждает fallback-путь, но не качество
+   распознавания с живым микрофоном.
+
+BlueStacks Pie64 запускался и был виден ADB, но при передаче APK
+(228 МБ) соединение падало с `protocol fault`, поэтому полный сценарий
+на нём не выполнялся. Genymotion прошёл установку и UI-сценарий.
+
+Скриншоты: [`mobile-onboarding.png`](docs/screenshots/mobile-onboarding.png),
+[`mobile-dashboard.png`](docs/screenshots/mobile-dashboard.png),
+[`mobile-chat.png`](docs/screenshots/mobile-chat.png),
+[`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png).
 
 ---
 
@@ -330,6 +357,7 @@ APK на физическом устройстве/эмуляторе в тек�
 | v0.2.11 | постоянный ASR-worker, маяк записи, адрес сервера в настройках |
 | v0.2.12 | мобильный APK: onboarding, dashboard, чат, голос, файлы |
 | v0.2.13 | «первый файл в списке», опечатки email-команд, локальные файловые ответы |
+| v0.2.14 | Android: fallback ASR через ПК, тест на Genymotion Android 15 |
 
 ---
 
@@ -344,7 +372,10 @@ APK на физическом устройстве/эмуляторе в тек�
 5. Старый `~/.tensa/models` может использоваться как fallback, если
    `asr-active.txt` ссылается на файл там; основной путь — каталог установки.
 6. `OPENROUTER_API_KEY` в окружении имеет приоритет над файлом (см. §10).
-7. Мобильный APK не проверялся на физическом устройстве/эмуляторе.
+7. Мобильный APK проверен на Genymotion Android 15; на BlueStacks Pie64
+   установка 228-МБ APK не завершилась (`protocol fault`). Реальный микрофон
+   и системный SpeechRecognizer на эмуляторе недоступны, поэтому качество
+   голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
 
 ---
 
