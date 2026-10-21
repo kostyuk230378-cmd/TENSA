@@ -4,7 +4,7 @@
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
 **Последний код перед отчётом:** `25e5234` — `feat(android): ASR fallback through PC and tested mobile UI`  
-**Последний релиз:** [v0.2.19](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.19)  
+**Последний релиз:** [v0.2.20](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.20)  
 **CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `25e5234` — отдельная проверка.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.19 | 231 136 284 байт (220.4 МиБ) | `095a55aa754959ce87b9c1cb201189706fcc6938706b77991259c05acc173d52` | GitHub Release v0.2.19 |
-| `Tensa.apk` v0.2.19 | 239 146 224 байт (228.1 МиБ) | `297f89448aefc83611f95d5a3604afa9d4f7bc6f1b7878917190888a9000e29e` | GitHub Release v0.2.19 |
+| `TensaSetup.exe` v0.2.20 | 231 136 284 байт (220.4 МиБ) | `095a55aa754959ce87b9c1cb201189706fcc6938706b77991259c05acc173d52` | GitHub Release v0.2.20 |
+| `Tensa.apk` v0.2.20 | 239 154 787 байт (228.1 МиБ) | `dfb537e5ff6e7579816c417cb99c8f5ff0b374b394cd68a280b85bbd55f757b7` | GitHub Release v0.2.20 |
 | Исходный код | — | — | `main`, commit `25e5234` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.19/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.19/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.20/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.20/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=8`, `versionName=0.2.19`,
+Ожидаемые значения: `versionCode=9`, `versionName=0.2.20`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.19 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.20 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -327,6 +327,9 @@ APK проверен на официальном Android Emulator (Android 14) �
    ввод `OpenHuman` → отправка → **5 реальных файлов с C:\ и D:\**
    (Desktop, TENSA.txt и др.). Без модели запрос с именем файла больше
    не даёт 503, а сразу показывает найденные файлы.
+10. Home-screen widget: системный запрос «Add to home screen» → на рабочем
+    столе зелёная пилюля с лампочкой, микрофоном, «T» и «•••», как desktop.
+    Клик по «T» открывает чат Tensa. Размер 4×2, добавляется штатным launcher.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -375,6 +378,8 @@ APK установлен через `127.0.0.1:5555`.
 [`android14-normal-window.png`](docs/screenshots/android14-normal-window.png),
 [`android14-typed.png`](docs/screenshots/android14-typed.png),
 [`android14-file-search.png`](docs/screenshots/android14-file-search.png),
+[`android14-home-widget.png`](docs/screenshots/android14-home-widget.png),
+[`android14-widget-pin.png`](docs/screenshots/android14-widget-pin.png),
 [`android14-overlay-auto.png`](docs/screenshots/android14-overlay-auto.png),
 [`android14-overlay-ptt.png`](docs/screenshots/android14-overlay-ptt.png),
 [`android14-overlay-expanded.png`](docs/screenshots/android14-overlay-expanded.png),
@@ -418,6 +423,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.17 | автозапуск overlay-виджета, нативный PTT в overlay через ASR ПК |
 | v0.2.18 | убран auto-start overlay; обычное окно Android, overlay по кнопке и с «×» |
 | v0.2.19 | стабильный ввод с клавиатуры, поиск по имени файла без модели |
+| v0.2.20 | настоящий home-screen виджет Tensa 4×2, как desktop-пилюля |
 
 ---
 
