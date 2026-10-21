@@ -298,9 +298,9 @@ Get-FileHash apps/android-lite/Tensa.apk -Algorithm SHA256
 
 APK проверен на эмуляторе Genymotion (Android 15); детали — в §9.1.
 
-### 9.1. Ручной тест Android (Genymotion, Android 15)
+### 9.1. Ручной тест Android (Genymotion + Trinity)
 
-Устройство: **Xiaomi Redmi Note 9, Android 15**, Genymotion AVD
+Устройство 1: **Xiaomi Redmi Note 9, Android 15**, Genymotion AVD
 `192.168.21.101:5555`. APK установлен через ADB, версия `0.2.14`.
 
 Проверено по шагам:
@@ -322,10 +322,21 @@ BlueStacks Pie64 запускался и был виден ADB, но при пе
 (228 МБ) соединение падало с `protocol fault`, поэтому полный сценарий
 на нём не выполнялся. Genymotion прошёл установку и UI-сценарий.
 
+Устройство 2: **Trinity Android-x86, Android 9**, эмулятор скачан с
+GitHub (`TrinityEmulator/TrinityEmulator`, asset `Trinity.zip` ~1 ГБ).
+Genymotion AVD Redmi 9 удалён; Trinity запущен через `Trinity.exe`,
+APK установлен через `127.0.0.1:5555`.
+
+На Trinity проверено: приложение отрисовывается, onboarding принимает
+адрес/токен, после подключения dashboard показывает **«ПК на связи»** и
+адрес `http://192.168.1.101:8765`. Trinity работает в landscape
+1920×1080, поэтому это дополнительная проверка широкого экрана.
+
 Скриншоты: [`mobile-onboarding.png`](docs/screenshots/mobile-onboarding.png),
 [`mobile-dashboard.png`](docs/screenshots/mobile-dashboard.png),
 [`mobile-chat.png`](docs/screenshots/mobile-chat.png),
-[`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png).
+[`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png),
+[`trinity-dashboard.png`](docs/screenshots/trinity-dashboard.png).
 
 ---
 
@@ -357,7 +368,7 @@ BlueStacks Pie64 запускался и был виден ADB, но при пе
 | v0.2.11 | постоянный ASR-worker, маяк записи, адрес сервера в настройках |
 | v0.2.12 | мобильный APK: onboarding, dashboard, чат, голос, файлы |
 | v0.2.13 | «первый файл в списке», опечатки email-команд, локальные файловые ответы |
-| v0.2.14 | Android: fallback ASR через ПК, тест на Genymotion Android 15 |
+| v0.2.14 | Android: fallback ASR через ПК, тест на Genymotion и Trinity |
 
 ---
 
@@ -372,10 +383,11 @@ BlueStacks Pie64 запускался и был виден ADB, но при пе
 5. Старый `~/.tensa/models` может использоваться как fallback, если
    `asr-active.txt` ссылается на файл там; основной путь — каталог установки.
 6. `OPENROUTER_API_KEY` в окружении имеет приоритет над файлом (см. §10).
-7. Мобильный APK проверен на Genymotion Android 15; на BlueStacks Pie64
-   установка 228-МБ APK не завершилась (`protocol fault`). Реальный микрофон
-   и системный SpeechRecognizer на эмуляторе недоступны, поэтому качество
-   голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
+7. Мобильный APK проверен на Genymotion Android 15 и Trinity Android 9.
+   На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`).
+   Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны,
+   поэтому качество голосового распознавания с живым микрофоном ещё нужно
+   проверить на телефоне.
 
 ---
 
