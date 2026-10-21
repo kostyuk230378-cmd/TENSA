@@ -781,6 +781,7 @@
         }
       })();
       const overlayMode = new URLSearchParams(location.search).get('overlay') === '1';
+      const nativeVoice = overlayMode && !!(window.TensaHost && window.TensaHost.startVoice);
 
       if (authToken) {
         const nativeFetch = window.fetch.bind(window);
@@ -1888,6 +1889,13 @@
       async function startVoiceRecording(hold = false, origin = 'composer') {
         if (recorder) return;
         recordingSource = origin;
+        if (nativeVoice) {
+          recorder = { native: true };
+          setMicRecording(true);
+          input.placeholder = 'Говорите… отпустите — отправлю';
+          window.TensaHost.startVoice();
+          return;
+        }
         if (origin === 'pill') setVoiceBeacon('recording');
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           messages.push({ role: 'error', text: 'Микрофон недоступен в этом движке.' });
@@ -1954,6 +1962,12 @@
         recordingSource = 'composer';
         recorder = null;
         setMicRecording(false);
+        if (current.native) {
+          setVoiceBeacon('processing');
+          input.placeholder = 'Распознаю…';
+          window.TensaHost.stopVoice();
+          return;
+        }
         current.processor.disconnect();
         current.gain.disconnect();
         current.source.disconnect();
@@ -2113,6 +2127,21 @@
       }
 
       if (!overlayMode) openFirstRunSetup();
+      window.tensaVoiceResult = (text) => {
+        setVoiceBeacon('idle');
+        input.placeholder = 'Спросите Tensa…';
+        if (text) {
+          input.value = text;
+          send({ expandOnReply: true });
+          input.value = '';
+        }
+      };
+      window.tensaVoiceError = (message) => {
+        setVoiceBeacon('idle');
+        input.placeholder = 'Спросите Tensa…';
+        messages.push({ role: 'error', text: `Голос: ${message}` });
+        renderChat();
+      };
       refreshBadge();
       setInterval(refreshBadge, 15000);
     </script>

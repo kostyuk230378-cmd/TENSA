@@ -1,12 +1,17 @@
 package com.tensorlogix.tensa;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -20,6 +25,13 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Плавающий виджет Tensa поверх других приложений (SYSTEM_ALERT_WINDOW).
@@ -50,6 +62,12 @@ public class OverlayService extends Service {
     private int screenHeight = 0;
     /** Отступ overlay от края экрана. */
     private int margin = 0;
+    /** Нативная запись для overlay-микрофона. */
+    private static final int SAMPLE_RATE = 16000;
+    private AudioRecord audioRecord;
+    private Thread audioThread;
+    private ByteArrayOutputStream audioBytes;
+    private volatile boolean recording;
     /** UI-поток для команд из JS. */
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -128,6 +146,161 @@ public class OverlayService extends Service {
                 }
             });
         }
+
+        /** Нативный push-to-talk: старт записи. */
+        @JavascriptInterface
+        public void startVoice() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    startOverlayVoice();
+                }
+            });
+        }
+
+        /** Нативный push-to-talk: стоп и ASR на ПК. */
+        @JavascriptInterface
+        public void stopVoice() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    stopOverlayVoice();
+                }
+            });
+        }
+    }
+
+    /** Нативный старт записи для overlay-микрофона. */
+    private void startOverlayVoice() {
+        if (recording) {
+            return;
+        }
+        if (server.isEmpty() || access.isEmpty()) {
+            evalVoiceError("Подключите ПК в Настройках.");
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            evalVoiceError("Разрешите микрофон в приложении.");
+            return;
+        }
+        try {
+            int min = AudioRecord.getMinBufferSize(SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            if (min <= 0) {
+                throw new IllegalStateException("микрофон не поддерживает 16 кГц");
+            }
+            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    Math.max(min, SAMPLE_RATE));
+            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                throw new IllegalStateException("не удалось открыть микрофон");
+            }
+            audioBytes = new ByteArrayOutputStream();
+            recording = true;
+            audioRecord.startRecording();
+            audioThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    byte[] buffer = new byte[3200];
+                    while (recording) {
+                        int read = audioRecord.read(buffer, 0, buffer.length);
+                        if (read > 0) {
+                            audioBytes.write(buffer, 0, read);
+                        } else if (read < 0) {
+                            break;
+                        }
+                    }
+                }
+            }, "tensa-overlay-mic");
+            audioThread.start();
+        } catch (Exception error) {
+            stopOverlayVoice();
+            evalVoiceError("Микрофон: " + error.getMessage());
+        }
+    }
+
+    /** Остановить overlay-запись и отправить WAV в ASR на ПК. */
+    private void stopOverlayVoice() {
+        if (!recording) {
+            return;
+        }
+        recording = false;
+        try {
+            if (audioRecord != null) {
+                audioRecord.stop();
+            }
+        } catch (Exception ignored) {
+            // уже остановлен
+        }
+        try {
+            if (audioThread != null) {
+                audioThread.join(1500);
+            }
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+        if (audioRecord != null) {
+            audioRecord.release();
+            audioRecord = null;
+        }
+        audioThread = null;
+        byte[] pcm = audioBytes == null ? new byte[0] : audioBytes.toByteArray();
+        audioBytes = null;
+        if (pcm.length < SAMPLE_RATE / 5) {
+            evalVoiceError("Слишком короткая запись — удерживайте микрофон.");
+            return;
+        }
+        final byte[] wav = wavFromPcm(pcm);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String text = CoreClient.transcribeAudio(server, access, wav);
+                    final String js = "window.tensaVoiceResult(" + JSONObject.quote(text) + ");";
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (web != null) {
+                                web.evaluateJavascript(js, null);
+                            }
+                        }
+                    });
+                } catch (final Exception error) {
+                    evalVoiceError(error.getMessage() == null ? "ASR недоступен" : error.getMessage());
+                }
+            }
+        }, "tensa-overlay-asr").start();
+    }
+
+    private void evalVoiceError(final String message) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (web != null) {
+                    web.evaluateJavascript("window.tensaVoiceError(" + JSONObject.quote(message) + ");", null);
+                }
+            }
+        });
+    }
+
+    private byte[] wavFromPcm(byte[] pcm) {
+        ByteBuffer buffer = ByteBuffer.allocate(44 + pcm.length).order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put("RIFF".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(36 + pcm.length);
+        buffer.put("WAVE".getBytes(StandardCharsets.US_ASCII));
+        buffer.put("fmt ".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(16);
+        buffer.putShort((short) 1);
+        buffer.putShort((short) 1);
+        buffer.putInt(SAMPLE_RATE);
+        buffer.putInt(SAMPLE_RATE * 2);
+        buffer.putShort((short) 2);
+        buffer.putShort((short) 16);
+        buffer.put("data".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(pcm.length);
+        buffer.put(pcm);
+        return buffer.array();
     }
 
     /** Обработать команду виджета. */
@@ -154,6 +327,7 @@ public class OverlayService extends Service {
                 windows.updateViewLayout(web, params);
                 break;
             case "quit":
+                Prefs.setOverlayEnabled(this, false);
                 stopSelf();
                 break;
             default:
@@ -275,6 +449,16 @@ public class OverlayService extends Service {
 
     @Override
     public void onDestroy() {
+        recording = false;
+        if (audioRecord != null) {
+            try {
+                audioRecord.stop();
+            } catch (Exception ignored) {
+                // уже остановлен
+            }
+            audioRecord.release();
+            audioRecord = null;
+        }
         if (windows != null && web != null) {
             windows.removeView(web);
             web.destroy();

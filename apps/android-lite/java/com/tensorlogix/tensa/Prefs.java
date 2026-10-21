@@ -24,6 +24,8 @@ public final class Prefs {
     private static final String KEY_MODEL = "openrouter_model";
     /** Пользователь уже видел первый экран. */
     private static final String KEY_ONBOARDING = "onboarding_done";
+    /** Overlay-виджет включён пользователем. */
+    private static final String KEY_OVERLAY = "overlay_enabled";
 
     /** Адрес сервера по умолчанию (ПК в локальной сети). */
     public static final String DEFAULT_SERVER = "";
@@ -86,6 +88,16 @@ public final class Prefs {
     /** Отметить первый экран пройденным. */
     public static void setOnboardingDone(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_ONBOARDING, value).apply();
+    }
+
+    /** Включён ли overlay-виджет (по умолчанию да). */
+    public static boolean overlayEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_OVERLAY, true);
+    }
+
+    /** Запомнить состояние overlay. */
+    public static void setOverlayEnabled(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_OVERLAY, value).apply();
     }
 
     /** Убрать хвостовые слэши адреса. */

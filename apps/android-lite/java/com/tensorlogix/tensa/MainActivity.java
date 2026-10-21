@@ -191,6 +191,28 @@ public class MainActivity extends android.app.Activity {
     protected void onResume() {
         super.onResume();
         refreshConnection();
+        maybeStartOverlay();
+    }
+
+    /** Автозапуск overlay, если пользователь уже разрешил его. */
+    private void maybeStartOverlay() {
+        if (!Prefs.overlayEnabled(this)
+                || Prefs.server(this).isEmpty()
+                || Prefs.coreToken(this).isEmpty()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !Settings.canDrawOverlays(this)) {
+            return;
+        }
+        Intent service = new Intent(this, OverlayService.class)
+                .putExtra("server", Prefs.server(this))
+                .putExtra("token", Prefs.coreToken(this));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(service);
+        } else {
+            startService(service);
+        }
     }
 
     /** Запустить плавающий виджет Tensa поверх приложений. */
@@ -211,6 +233,7 @@ public class MainActivity extends android.app.Activity {
         Intent service = new Intent(this, OverlayService.class)
                 .putExtra("server", Prefs.server(this))
                 .putExtra("token", Prefs.coreToken(this));
+        Prefs.setOverlayEnabled(this, true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(service);
         } else {
