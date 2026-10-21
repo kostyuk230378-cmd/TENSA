@@ -193,6 +193,7 @@ public class SettingsActivity extends android.app.Activity {
                 Intent service = new Intent(SettingsActivity.this, OverlayService.class)
                         .putExtra("server", Prefs.server(SettingsActivity.this))
                         .putExtra("token", Prefs.coreToken(SettingsActivity.this));
+                Prefs.setOverlayEnabled(SettingsActivity.this, true);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(service);
                 } else {
@@ -208,6 +209,7 @@ public class SettingsActivity extends android.app.Activity {
         overlayStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                Prefs.setOverlayEnabled(SettingsActivity.this, false);
                 stopService(new Intent(SettingsActivity.this, OverlayService.class));
                 overlayStatus.setText("Виджет остановлен.");
             }
