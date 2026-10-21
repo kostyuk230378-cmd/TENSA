@@ -44,7 +44,7 @@ pub struct ContextFile {
 /// Слова, которые ссылаются на ранее показанный файл, а не называют его.
 fn is_deictic_reference(text: &str) -> bool {
     let lower = text.to_lowercase();
-    [
+    let exact = [
         "этот",
         "эта",
         "это",
@@ -59,19 +59,26 @@ fn is_deictic_reference(text: &str) -> bool {
         "её",
         "ее",
         "их",
+        "списк",
+        "списке",
+        "списка",
+        "this",
+        "that",
+        "same",
+    ];
+    let stems = [
+        "перв",
+        "втор",
+        "трет",
+        "четв",
         "последн",
         "вышеуказан",
         "указанн",
         "текущ",
-        "this",
-        "that",
-        "same",
-    ]
-    .iter()
-    .any(|word| {
-        lower
-            .split_whitespace()
-            .any(|part| part.trim_matches(|c: char| !c.is_alphanumeric()) == *word)
+    ];
+    lower.split_whitespace().any(|part| {
+        let word = part.trim_matches(|c: char| !c.is_alphanumeric());
+        exact.contains(&word) || stems.iter().any(|stem| word.starts_with(stem))
     })
 }
 
@@ -104,20 +111,46 @@ fn matches_file_kind(name: &str, query: &str) -> bool {
 
 /// Выбрать файл из последней карточки чата по фразе «этот отчёт».
 fn context_file_for_query<'a>(files: &'a [ContextFile], query: &str) -> Option<&'a ContextFile> {
-    files
+    let lower = query.to_lowercase();
+    let docs: Vec<&ContextFile> = files
         .iter()
-        .rev()
         .filter(|file| is_document(&file.path))
-        .find(|file| {
+        .filter(|file| {
             let name = file.name.as_deref().unwrap_or(&file.path);
-            matches_file_kind(name, query)
+            matches_file_kind(name, &lower)
         })
+        .collect();
+    if lower
+        .split_whitespace()
+        .any(|part| part.starts_with("перв"))
+    {
+        return docs.first().copied();
+    }
+    if lower
+        .split_whitespace()
+        .any(|part| part.starts_with("втор"))
+    {
+        return docs.get(1).copied();
+    }
+    if lower
+        .split_whitespace()
+        .any(|part| part.starts_with("трет"))
+    {
+        return docs.get(2).copied();
+    }
+    docs.last().copied()
 }
 
 /// Явная команда «отправь файл на почту»: (адрес, запрос файла).
 fn parse_email_intent(text: &str) -> Option<(Option<String>, String)> {
     let lower = text.to_lowercase();
-    let send = lower.contains("отправ") || lower.contains("send") || lower.contains("пошл");
+    let send = lower.contains("отправ")
+        || lower.contains("отпр")
+        || lower.contains("отоп")
+        || lower.contains("отошл")
+        || lower.contains("перешл")
+        || lower.contains("send")
+        || lower.contains("пошл");
     let mail = lower.contains("почт")
         || lower.contains("email")
         || lower.contains("e-mail")
@@ -139,6 +172,12 @@ fn parse_email_intent(text: &str) -> Option<(Option<String>, String)> {
         "отправь",
         "отправить",
         "отправ",
+        "отопслаю",
+        "отправлю",
+        "отправил",
+        "отправила",
+        "отошлю",
+        "перешлю",
         "send",
         "пошли",
         "пожалуйста",
@@ -278,6 +317,27 @@ fn is_document(path: &str) -> bool {
     [".docx", ".pdf", ".xlsx", ".pptx", ".txt", ".md"]
         .iter()
         .any(|ext| lower.ends_with(ext))
+}
+
+/// Похоже ли сообщение на работу с файлами, даже если глагол потерялся.
+fn mentions_file(text: &str) -> bool {
+    text.split_whitespace().any(|part| {
+        let word = part
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_lowercase();
+        [
+            "файл",
+            "файлы",
+            "файла",
+            "файле",
+            "документ",
+            "документы",
+            "отчет",
+            "отчёт",
+        ]
+        .iter()
+        .any(|stem| word.starts_with(stem))
+    })
 }
 
 /// Создать событие из фразы «создай встречу завтра в 15:00 …».
@@ -602,6 +662,7 @@ pub async fn query(
 
     // Локальные файлы этого ПК: на «найди …» отвечаем списком сразу,
     // иначе подмешиваем найденные фрагменты в контекст модели.
+    let file_intent = looks_like_file_search(&text) || mentions_file(&text);
     let hits = state.files.search(&text, 6).await.unwrap_or_default();
     let mut seen_paths = std::collections::HashSet::new();
     let hits: Vec<_> = hits
@@ -632,8 +693,45 @@ pub async fn query(
                 tokens_used: Some(0),
             }));
         }
+        if file_intent {
+            let payload = serde_json::json!({
+                "files": hits
+                    .iter()
+                    .map(|hit| serde_json::json!({
+                        "path": hit.path,
+                        "name": hit.name,
+                        "snippet": hit.snippet,
+                    }))
+                    .collect::<Vec<_>>()
+            });
+            return Ok(Json(QueryResponse {
+                text: format_hits(&hits),
+                action: Some("files".to_string()),
+                action_payload: Some(payload),
+                tool_calls: Vec::new(),
+                reasoning: None,
+                degraded: false,
+                model_used: "files".to_string(),
+                node_used: "local".to_string(),
+                tokens_used: Some(0),
+            }));
+        }
         let context = build_context(&hits);
         request.text = format!("{context}\n\nВопрос пользователя: {text}");
+    }
+    if file_intent {
+        return Ok(Json(QueryResponse {
+            text: "Ничего не нашёл по этому запросу. Уточните название файла или попросите список."
+                .to_string(),
+            action: Some("files".to_string()),
+            action_payload: Some(serde_json::json!({ "files": [] })),
+            tool_calls: Vec::new(),
+            reasoning: None,
+            degraded: false,
+            model_used: "files".to_string(),
+            node_used: "local".to_string(),
+            tokens_used: Some(0),
+        }));
     }
 
     let query = state.query.read().await.clone();
@@ -708,6 +806,34 @@ mod tests {
         assert!(context_file_for_query(&[], "этот отчёт").is_none());
         assert!(is_deictic_reference("отправь этот отчёт на почту"));
         assert!(!is_deictic_reference("отправь отчёт Яковлев на почту"));
+    }
+
+    #[test]
+    fn first_file_in_shown_list_is_resolved() {
+        let files = vec![
+            ContextFile {
+                path: "C:\\docs\\Отчёт почитать Роме.docx".to_string(),
+                name: Some("Отчёт почитать Роме.docx".to_string()),
+            },
+            ContextFile {
+                path: "C:\\docs\\mu_po_prohozhdeniyu_praktiki_10.docx".to_string(),
+                name: Some("mu_po_prohozhdeniyu_praktiki_10.docx".to_string()),
+            },
+        ];
+        let chosen =
+            context_file_for_query(&files, "первую файл в списке").expect("первый файл из списка");
+        assert_eq!(chosen.name.as_deref(), Some("Отчёт почитать Роме.docx"));
+        assert!(is_deictic_reference(
+            "отправь первую файл в списке на почту"
+        ));
+    }
+
+    #[test]
+    fn email_typo_is_recognized() {
+        let parsed = parse_email_intent("Отопслаю отчет, почитать Ромин мне на почту.")
+            .expect("команда почты с опечаткой");
+        assert!(parsed.0.is_none());
+        assert!(parsed.1.to_lowercase().contains("отчет"));
     }
 
     #[tokio::test]
