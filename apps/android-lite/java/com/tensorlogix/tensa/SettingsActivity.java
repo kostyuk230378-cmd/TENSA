@@ -7,16 +7,21 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONObject;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Настройки: адрес ядра и его токен, ключ OpenRouter и модель,
@@ -41,6 +46,14 @@ public class SettingsActivity extends android.app.Activity {
     private Button installButton;
     /** Статус установки модели. */
     private TextView modelStatus;
+    /** Список микрофонов телефона и выбранный вход. */
+    private Spinner micSpinner;
+    /** Статус микрофона. */
+    private TextView micStatus;
+    /** Текущие входы Android. */
+    private List<AudioInputs.Device> micDevices = new ArrayList<>();
+    /** Идёт обновление списка, не сохранять промежуточный выбор. */
+    private boolean micUpdating;
 
     /** Поле с подписью и вводом. */
     private EditText addField(LinearLayout root, String label, String value, int inputType) {
@@ -119,6 +132,35 @@ public class SettingsActivity extends android.app.Activity {
             }
         });
         root.addView(test);
+
+        TextView micCaption = new TextView(this);
+        micCaption.setText("Микрофон телефона и внешние");
+        micCaption.setTextSize(18);
+        micCaption.setPadding(0, 26, 0, 4);
+        root.addView(micCaption);
+
+        micStatus = new TextView(this);
+        micStatus.setTextSize(12);
+        micStatus.setLineSpacing(0, 1.2f);
+        root.addView(micStatus);
+
+        micSpinner = new Spinner(this);
+        root.addView(micSpinner);
+
+        Button micRefresh = new Button(this);
+        micRefresh.setText("Обновить список микрофонов");
+        micRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                refreshMicrophones();
+                Toast.makeText(SettingsActivity.this,
+                        "Подключите USB/Bluetooth-микрофон — он появится здесь.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+        root.addView(micRefresh);
+        refreshMicrophones();
+
         final EditText openRouter = addField(root,
                 "Ключ OpenRouter (опционально, большие модели 26B)",
                 Prefs.openRouterKey(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -217,8 +259,89 @@ public class SettingsActivity extends android.app.Activity {
         root.addView(overlayStop);
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(true);
         scroll.addView(root);
         setContentView(scroll);
+    }
+
+
+    /** Показать все входы Android: встроенный, USB, Bluetooth, гарнитуру. */
+    private void refreshMicrophones() {
+        if (micSpinner == null || micStatus == null) {
+            return;
+        }
+        micUpdating = true;
+        micDevices = AudioInputs.devices(this);
+        List<String> labels = new ArrayList<>();
+        labels.add("Системный микрофон (авто)");
+        for (AudioInputs.Device device : micDevices) {
+            labels.add(device.label());
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        micSpinner.setAdapter(adapter);
+
+        int saved = Prefs.micId(this);
+        int position = 0;
+        for (int i = 0; i < micDevices.size(); i++) {
+            if (micDevices.get(i).id == saved) {
+                position = i + 1;
+                break;
+            }
+        }
+        micSpinner.setSelection(position);
+        final int selectedPosition = position;
+        micSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int index, long id) {
+                if (micUpdating) {
+                    return;
+                }
+                if (index == selectedPosition) {
+                    return;
+                }
+                if (index <= 0 || index > micDevices.size()) {
+                    Prefs.setMic(SettingsActivity.this, 0, "");
+                    micStatus.setText("Системный микрофон: Android сам выберет лучший вход.");
+                    return;
+                }
+                AudioInputs.Device device = micDevices.get(index - 1);
+                Prefs.setMic(SettingsActivity.this, device.id, device.name);
+                micStatus.setText("Выбран: " + device.name
+                        + ". Запись в чате и виджете пойдёт с него.");
+                Toast.makeText(SettingsActivity.this, "Микрофон: " + device.name,
+                        Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // оставляем текущий выбор
+            }
+        });
+        micUpdating = false;
+
+        if (micDevices.isEmpty()) {
+            micStatus.setText("Система не отдала список микрофонов. Проверьте разрешение на запись.");
+        } else if (saved != 0 && position == 0) {
+            micStatus.setText("Выбранный ранее микрофон сейчас не подключён. "
+                    + "Запись идёт с системного; подключите его и нажмите «Обновить».");
+        } else if (saved == 0) {
+            micStatus.setText("Найдено входов: " + micDevices.size()
+                    + ". Сейчас выбран системный микрофон.");
+        } else {
+            micStatus.setText("Выбран: " + Prefs.micName(this)
+                    + ". Запись в чате и виджете идёт с него.");
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (micSpinner != null) {
+            refreshMicrophones();
+        }
     }
 
     /** Передать файлы модели из assets в ядро. */

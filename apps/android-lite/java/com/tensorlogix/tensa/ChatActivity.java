@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -331,12 +330,13 @@ public class ChatActivity extends android.app.Activity {
             if (min <= 0) {
                 throw new IllegalStateException("микрофон не поддерживает 16 кГц");
             }
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+            audioRecord = new AudioRecord(AudioInputs.source(this), SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
                     Math.max(min, SAMPLE_RATE));
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 throw new IllegalStateException("не удалось открыть микрофон");
             }
+            AudioInputs.apply(audioRecord, this);
             audioBytes = new ByteArrayOutputStream();
             serverRecording = true;
             setVoiceState("● СЛУШАЮ…", Ui.RED);
@@ -387,6 +387,7 @@ public class ChatActivity extends android.app.Activity {
             audioRecord = null;
         }
         audioThread = null;
+        AudioInputs.release(this);
         byte[] pcm = audioBytes == null ? new byte[0] : audioBytes.toByteArray();
         audioBytes = null;
         if (pcm.length < SAMPLE_RATE / 5) {

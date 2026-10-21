@@ -296,9 +296,22 @@
       .content {
         flex: 1;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         padding: 10px 2px 8px;
         scrollbar-width: thin;
         scrollbar-color: var(--grid) transparent;
+      }
+
+      .mic-card .mic-select[size] {
+        height: auto;
+        min-height: 0;
+        padding: 4px;
+      }
+
+      .mic-card .mic-select[size] option {
+        padding: 11px 8px;
+        font-size: 14px;
       }
 
       .bubble {
@@ -635,6 +648,32 @@
         color: var(--text);
         font-family: var(--ui);
         font-size: 13px;
+      }
+
+      .mic-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 8px 0 6px;
+      }
+
+      .mic-choice {
+        width: 100%;
+        text-align: left;
+        padding: 11px 10px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: #09090b;
+        color: var(--text);
+        font-family: var(--ui);
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .mic-choice.on {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.35);
+        color: var(--cyan);
       }
 
       .mic-status {
@@ -1515,26 +1554,60 @@
             fetch('/api/v1/telegram/status').then((r) => r.json()).catch(() => ({})),
             fetch('/api/v1/server/info').then((r) => r.json()).catch(() => ({})),
           ]);
-          let mics = await audioInputs();
-          let permitted = mics.some((device) => device.label);
-          if (!permitted) {
-            permitted = await ensureMicPermission();
+          const nativeHost = !!(window.TensaHost && window.TensaHost.listMics);
+          let mics = [];
+          let nativeMics = [];
+          let permitted = true;
+          let saved = '';
+          let active = '';
+          if (nativeHost) {
+            saved = String(window.TensaHost.selectedMicId());
+            try {
+              nativeMics = JSON.parse(window.TensaHost.listMics());
+            } catch (error) {
+              nativeMics = [];
+            }
+          } else {
             mics = await audioInputs();
+            permitted = mics.some((device) => device.label);
+            if (!permitted) {
+              permitted = await ensureMicPermission();
+              mics = await audioInputs();
+            }
+            saved = localStorage.getItem(MIC_KEY) || '';
+            active = await activeMicDeviceId();
           }
-          const saved = localStorage.getItem(MIC_KEY) || '';
-          const active = await activeMicDeviceId();
           const preferred = saved || active;
-          const options = ['<option value="">Системный по умолчанию (Windows)</option>'];
-          for (const device of mics) {
-            if (!device.deviceId || device.deviceId === 'default') continue;
-            const label = (device.label || `Микрофон ${options.length}`).replace(/</g, '&lt;');
-            options.push(`<option value="${device.deviceId}">${label}</option>`);
+          const options = [`<option value="">${nativeHost ? 'Системный микрофон телефона (авто)' : 'Системный по умолчанию (Windows)'}</option>`];
+          if (nativeHost) {
+            for (const device of nativeMics) {
+              const label = `${device.name || 'Микрофон'} · ${device.type || 'вход'}`.replace(/</g, '&lt;');
+              options.push(`<option value="${device.id}">${label}</option>`);
+            }
+          } else {
+            for (const device of mics) {
+              if (!device.deviceId || device.deviceId === 'default') continue;
+              const label = (device.label || `Микрофон ${options.length}`).replace(/</g, '&lt;');
+              options.push(`<option value="${device.deviceId}">${label}</option>`);
+            }
           }
           const server = serverInfo || {};
           const serverUrl = server.url || server.local_url || location.origin;
           const serverHint = server.url
             ? 'Доступен по Wi-Fi. Телефон и ПК должны быть в одной сети.'
             : 'Сервер слушает только этот ПК — перезапустите Tensa, чтобы открыть доступ по Wi-Fi.';
+          let micPicker;
+          if (nativeHost) {
+            const choices = [`<button type="button" class="mic-choice ${saved === '0' ? 'on' : ''}" data-mic-id="0">Системный микрофон телефона (авто)</button>`];
+            for (const device of nativeMics) {
+              const label = `${device.name || 'Микрофон'} · ${device.type || 'вход'}`.replace(/</g, '&lt;');
+              const active = String(device.id) === saved ? 'on' : '';
+              choices.push(`<button type="button" class="mic-choice ${active}" data-mic-id="${device.id}" data-mic-name="${label.replace(/"/g, '&quot;')}">${label}</button>`);
+            }
+            micPicker = `<div class="mic-list">${choices.join('')}</div>`;
+          } else {
+            micPicker = `<select id="mic-select" class="mic-select">${options.join('')}</select>`;
+          }
           content.innerHTML = `
             <div class="version-line">Версия ${escapeHtml(version.trim().replace(/^"|"$/g, ""))}</div>
             <div class="bubble server-card">
@@ -1548,7 +1621,7 @@
             </div>
             <div class="bubble mic-card">
               <div class="card-title">Микрофон</div>
-              <select id="mic-select" class="mic-select">${options.join('')}</select>
+              ${micPicker}
               <div class="mic-status" id="mic-status">${permitted ? 'Системный микрофон Windows по умолчанию.' : 'Нет доступа к микрофону — разрешите его в Windows.'}</div>
               <div class="mic-actions">
                 <button id="mic-test" class="mini-btn">Проверить 3 секунды</button>
@@ -1576,20 +1649,42 @@
               <div id="speech-models">Загрузка…</div>
             </div>
             <div class="bubble"><button id="settings-quit" class="mini-btn no">Выход</button></div>`;
-          const select = document.getElementById('mic-select');
-          select.value = preferred;
-          if (select.selectedIndex < 0) select.value = '';
-          if (!saved) {
-            const current = select.options[select.selectedIndex];
-            document.getElementById('mic-status').textContent =
-              `Сейчас: ${current ? current.text : 'системный микрофон'}.`;
+          const micStatus = document.getElementById('mic-status');
+          if (nativeHost) {
+            const choices = content.querySelectorAll('.mic-choice');
+            choices.forEach((button) => {
+              button.onclick = () => {
+                const id = Number(button.getAttribute('data-mic-id') || 0);
+                const name = id === 0 ? '' : (button.getAttribute('data-mic-name') || '');
+                window.TensaHost.selectMic(id, name);
+                choices.forEach((item) => item.classList.toggle('on', item === button));
+                micStatus.textContent = id === 0
+                  ? 'Сохранено: системный микрофон телефона.'
+                  : `Сохранено: ${button.textContent}. Запись пойдёт с него.`;
+              };
+            });
+            const current = content.querySelector('.mic-choice.on');
+            micStatus.textContent = saved === '0'
+              ? 'Системный микрофон телефона: Android сам выберет вход.'
+              : `Сейчас: ${current ? current.textContent : 'системный микрофон'}. Запись идёт с него.`;
+            document.getElementById('mic-test').style.display = 'none';
+            document.getElementById('mic-auto').style.display = 'none';
+          } else {
+            const select = document.getElementById('mic-select');
+            select.value = preferred;
+            if (select.selectedIndex < 0) select.value = '';
+            if (!saved) {
+              const current = select.options[select.selectedIndex];
+              micStatus.textContent =
+                `Сейчас: ${current ? current.text : 'системный микрофон'}.`;
+            }
+            select.onchange = () => {
+              if (select.value) localStorage.setItem(MIC_KEY, select.value);
+              else localStorage.removeItem(MIC_KEY);
+              micStatus.textContent =
+                `Сохранено: ${select.options[select.selectedIndex].text}`;
+            };
           }
-          select.onchange = () => {
-            if (select.value) localStorage.setItem(MIC_KEY, select.value);
-            else localStorage.removeItem(MIC_KEY);
-            document.getElementById('mic-status').textContent =
-              `Сохранено: ${select.options[select.selectedIndex].text}`;
-          };
           document.getElementById('mic-test').onclick = testMicrophone;
           document.getElementById('mic-auto').onclick = autoPickMicrophone;
           document.getElementById('copy-server').onclick = async () => {

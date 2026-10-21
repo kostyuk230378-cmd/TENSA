@@ -11,7 +11,6 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -26,6 +25,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -64,7 +64,10 @@ public class OverlayService extends Service {
     private int margin = 0;
     /** Нативная запись для overlay-микрофона. */
     private static final int SAMPLE_RATE = 16000;
+    /** Микрофон, выбранный в настройках Android. */
     private AudioRecord audioRecord;
+    /** Развёрнута ли панель: тогда двигаем только за шапку, а содержимое скроллим. */
+    private boolean expanded;
     private Thread audioThread;
     private ByteArrayOutputStream audioBytes;
     private volatile boolean recording;
@@ -168,6 +171,36 @@ public class OverlayService extends Service {
                 }
             });
         }
+
+        /** Все входы Android для списка микрофонов в настройках виджета. */
+        @JavascriptInterface
+        public String listMics() {
+            JSONArray result = new JSONArray();
+            for (AudioInputs.Device device : AudioInputs.devices(OverlayService.this)) {
+                try {
+                    JSONObject item = new JSONObject();
+                    item.put("id", device.id);
+                    item.put("name", device.name);
+                    item.put("type", AudioInputs.typeName(device.type));
+                    result.put(item);
+                } catch (Exception ignored) {
+                    // одно устройство не должно ломать весь список
+                }
+            }
+            return result.toString();
+        }
+
+        /** Id сохранённого микрофона (0 — системный). */
+        @JavascriptInterface
+        public int selectedMicId() {
+            return Prefs.micId(OverlayService.this);
+        }
+
+        /** Сохранить выбранный микрофон; применяется к следующей записи. */
+        @JavascriptInterface
+        public void selectMic(int id, String name) {
+            Prefs.setMic(OverlayService.this, id, name == null ? "" : name);
+        }
     }
 
     /** Нативный старт записи для overlay-микрофона. */
@@ -190,12 +223,13 @@ public class OverlayService extends Service {
             if (min <= 0) {
                 throw new IllegalStateException("микрофон не поддерживает 16 кГц");
             }
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+            audioRecord = new AudioRecord(AudioInputs.source(this), SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
                     Math.max(min, SAMPLE_RATE));
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 throw new IllegalStateException("не удалось открыть микрофон");
             }
+            AudioInputs.apply(audioRecord, this);
             audioBytes = new ByteArrayOutputStream();
             recording = true;
             audioRecord.startRecording();
@@ -245,6 +279,7 @@ public class OverlayService extends Service {
             audioRecord = null;
         }
         audioThread = null;
+        AudioInputs.release(this);
         byte[] pcm = audioBytes == null ? new byte[0] : audioBytes.toByteArray();
         audioBytes = null;
         if (pcm.length < SAMPLE_RATE / 5) {
@@ -310,6 +345,7 @@ public class OverlayService extends Service {
         }
         switch (message) {
             case "expand":
+                expanded = true;
                 params.width = Math.min(dp(440), screenWidth - margin * 2);
                 params.height = Math.min(dp(700), screenHeight - dp(64) - margin);
                 params.x = margin;
@@ -319,6 +355,7 @@ public class OverlayService extends Service {
                 web.requestFocus();
                 break;
             case "collapse":
+                expanded = false;
                 params.width = Math.min(dp(348), screenWidth - margin * 2);
                 params.height = Math.min(dp(150), screenHeight - dp(64) - margin);
                 params.x = screenWidth - params.width - margin;
@@ -372,6 +409,7 @@ public class OverlayService extends Service {
         private float lastX;
         private float lastY;
         private boolean dragging;
+        private boolean dragAllowed;
 
         DragWebView(android.content.Context context) {
             super(context);
@@ -388,8 +426,12 @@ public class OverlayService extends Service {
                     lastX = rawX;
                     lastY = rawY;
                     dragging = false;
+                    dragAllowed = !expanded || event.getY() <= dp(58);
                     return super.onTouchEvent(event);
                 case MotionEvent.ACTION_MOVE:
+                    if (!dragAllowed) {
+                        return super.onTouchEvent(event);
+                    }
                     if (!dragging && (Math.abs(rawX - downX) + Math.abs(rawY - downY)) > dp(10)) {
                         dragging = true;
                     }

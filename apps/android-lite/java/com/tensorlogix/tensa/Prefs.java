@@ -28,6 +28,10 @@ public final class Prefs {
     private static final String KEY_OVERLAY = "overlay_enabled";
     /** Системный запрос добавления home-screen виджета уже показан. */
     private static final String KEY_WIDGET_ASKED = "widget_asked";
+    /** Выбранный пользователем микрофон Android (AudioDeviceInfo id). */
+    private static final String KEY_MIC_ID = "mic_id";
+    /** Имя выбранного микрофона для показа без повторного опроса. */
+    private static final String KEY_MIC_NAME = "mic_name";
 
     /** Адрес сервера по умолчанию (ПК в локальной сети). */
     public static final String DEFAULT_SERVER = "";
@@ -110,6 +114,24 @@ public final class Prefs {
     /** Отметить показ запроса home-screen виджета. */
     public static void setWidgetAsked(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_WIDGET_ASKED, value).apply();
+    }
+
+    /** Id выбранного микрофона; 0 — системный по умолчанию. */
+    public static int micId(Context context) {
+        return prefs(context).getInt(KEY_MIC_ID, 0);
+    }
+
+    /** Имя выбранного микрофона (для подписи в настройках). */
+    public static String micName(Context context) {
+        return prefs(context).getString(KEY_MIC_NAME, "");
+    }
+
+    /** Запомнить микрофон; 0 сбрасывает на системный. */
+    public static void setMic(Context context, int id, String name) {
+        prefs(context).edit()
+                .putInt(KEY_MIC_ID, id)
+                .putString(KEY_MIC_NAME, id == 0 ? "" : (name == null ? "" : name))
+                .apply();
     }
 
     /** Убрать хвостовые слэши адреса. */
