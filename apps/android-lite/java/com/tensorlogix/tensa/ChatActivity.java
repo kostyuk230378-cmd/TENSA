@@ -2,6 +2,9 @@ package com.tensorlogix.tensa;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -18,6 +21,10 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 /**
@@ -42,6 +49,13 @@ public class ChatActivity extends android.app.Activity {
     private SpeechRecognizer recognizer;
     /** Идёт ли прослушивание. */
     private boolean listening;
+    /** Запись WAV для ASR на ПК (fallback без системного распознавателя). */
+    private AudioRecord audioRecord;
+    private Thread audioThread;
+    private ByteArrayOutputStream audioBytes;
+    private volatile boolean serverRecording;
+    /** Частота записи для ASR-сервера. */
+    private static final int SAMPLE_RATE = 16000;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -145,7 +159,7 @@ public class ChatActivity extends android.app.Activity {
     private void addWelcome() {
         TextView hello = Ui.muted(this,
                 "Спросите Tensa о документах, почте или планах. "
-                        + "Голосовой ввод — кнопка с точкой справа.");
+                        + "Голосовой ввод — кнопка с микрофоном справа.");
         hello.setTextSize(13);
         hello.setLineSpacing(0, 1.3f);
         hello.setPadding(Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6), Ui.dp(this, 12));
@@ -324,14 +338,17 @@ public class ChatActivity extends android.app.Activity {
     /** Начать или отменить прослушивание. */
     private void startVoice() {
         if (recognizer == null) {
-            Toast.makeText(this, "На телефоне нет системного распознавания речи.",
-                    Toast.LENGTH_LONG).show();
+            startServerVoice();
             return;
         }
         if (listening) {
             recognizer.cancel();
             listening = false;
             voiceState.setVisibility(View.GONE);
+            return;
+        }
+        if (serverRecording) {
+            stopServerVoice();
             return;
         }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
@@ -349,6 +366,139 @@ public class ChatActivity extends android.app.Activity {
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         recognizer.startListening(intent);
+    }
+
+    /** Записать WAV и отправить в ASR на ПК (без Google-распознавателя). */
+    private void startServerVoice() {
+        if (serverRecording) {
+            stopServerVoice();
+            return;
+        }
+        String server = Prefs.server(this);
+        String bearer = Prefs.coreToken(this);
+        if (server.isEmpty() || bearer.isEmpty()) {
+            Toast.makeText(this, "Для голоса подключите ПК в Настройках.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO);
+            return;
+        }
+        try {
+            int min = AudioRecord.getMinBufferSize(SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            if (min <= 0) {
+                throw new IllegalStateException("микрофон не поддерживает 16 кГц");
+            }
+            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    Math.max(min, SAMPLE_RATE));
+            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                throw new IllegalStateException("не удалось открыть микрофон");
+            }
+            audioBytes = new ByteArrayOutputStream();
+            serverRecording = true;
+            setVoiceState("● СЛУШАЮ…", Ui.RED);
+            audioRecord.startRecording();
+            audioThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    byte[] buffer = new byte[3200];
+                    while (serverRecording) {
+                        int read = audioRecord.read(buffer, 0, buffer.length);
+                        if (read > 0) {
+                            audioBytes.write(buffer, 0, read);
+                        } else if (read < 0) {
+                            break;
+                        }
+                    }
+                }
+            }, "tensa-wav-mic");
+            audioThread.start();
+        } catch (Exception error) {
+            stopServerVoice();
+            Toast.makeText(this, "Микрофон: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** Остановить запись и распознать WAV на ПК. */
+    private void stopServerVoice() {
+        if (!serverRecording) {
+            return;
+        }
+        serverRecording = false;
+        try {
+            if (audioRecord != null) {
+                audioRecord.stop();
+            }
+        } catch (Exception ignored) {
+            // микрофон уже остановлен
+        }
+        try {
+            if (audioThread != null) {
+                audioThread.join(1500);
+            }
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+        if (audioRecord != null) {
+            audioRecord.release();
+            audioRecord = null;
+        }
+        audioThread = null;
+        byte[] pcm = audioBytes == null ? new byte[0] : audioBytes.toByteArray();
+        audioBytes = null;
+        if (pcm.length < SAMPLE_RATE / 5) {
+            setVoiceState("", Ui.MUTED);
+            Toast.makeText(this, "Слишком короткая запись.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        setVoiceState("● РАСПОЗНАЮ…", Ui.CYAN);
+        final String server = Prefs.server(this);
+        final String bearer = Prefs.coreToken(this);
+        final byte[] wav = wavFromPcm(pcm);
+        Background.run(new Background.Task<String>() {
+            @Override
+            public String run() throws Exception {
+                return CoreClient.transcribeAudio(server, bearer, wav);
+            }
+        }, new Background.Callback<String>() {
+            @Override
+            public void onResult(String value) {
+                setVoiceState("", Ui.MUTED);
+                sendText(value);
+            }
+
+            @Override
+            public void onError(Exception error) {
+                setVoiceState("", Ui.MUTED);
+                Toast.makeText(ChatActivity.this,
+                        "ASR на ПК: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /** PCM16 mono 16 кГц → WAV. */
+    private byte[] wavFromPcm(byte[] pcm) {
+        int total = 36 + pcm.length;
+        ByteBuffer buffer = ByteBuffer.allocate(44 + pcm.length).order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put("RIFF".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(total);
+        buffer.put("WAVE".getBytes(StandardCharsets.US_ASCII));
+        buffer.put("fmt ".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(16);
+        buffer.putShort((short) 1);
+        buffer.putShort((short) 1);
+        buffer.putInt(SAMPLE_RATE);
+        buffer.putInt(SAMPLE_RATE * 2);
+        buffer.putShort((short) 2);
+        buffer.putShort((short) 16);
+        buffer.put("data".getBytes(StandardCharsets.US_ASCII));
+        buffer.putInt(pcm.length);
+        buffer.put(pcm);
+        return buffer.array();
     }
 
     /** Показать/скрыть овал состояния. */
@@ -395,6 +545,9 @@ public class ChatActivity extends android.app.Activity {
 
     @Override
     protected void onDestroy() {
+        if (serverRecording) {
+            stopServerVoice();
+        }
         if (recognizer != null) {
             recognizer.destroy();
             recognizer = null;

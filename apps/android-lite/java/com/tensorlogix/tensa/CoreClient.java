@@ -2,6 +2,7 @@ package com.tensorlogix.tensa;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
@@ -40,12 +41,23 @@ public final class CoreClient {
             JSONObject json = new JSONObject(raw);
             String message = json.optString("error", "");
             if (!message.isEmpty()) {
-                return message;
+                return stripPrefixes(message);
             }
         } catch (Exception ignored) {
             // не JSON — показываем как есть
         }
-        return raw.length() > 200 ? raw.substring(0, 200) + "…" : raw;
+        return stripPrefixes(raw.length() > 200 ? raw.substring(0, 200) + "…" : raw);
+    }
+
+    /** Убрать служебные префиксы сервера из текста ошибки. */
+    private static String stripPrefixes(String message) {
+        String value = message == null ? "" : message.trim();
+        for (String prefix : new String[]{"unavailable:", "голос:", "ASR:"}) {
+            if (value.toLowerCase().startsWith(prefix)) {
+                value = value.substring(prefix.length()).trim();
+            }
+        }
+        return value;
     }
 
     /** GET с проверкой статуса. */
@@ -184,6 +196,25 @@ public final class CoreClient {
         if (!response.ok()) {
             throw new IOException(errorMessage(response));
         }
+    }
+
+    /** Распознать WAV через локальный ASR на ПК. */
+    public static String transcribeAudio(String server, String bearer, byte[] wav)
+            throws Exception {
+        requireServer(server);
+        requireBearer(bearer);
+        Http.Response response = Http.postStream(
+                server + "/api/v1/voice/transcribe",
+                bearer.trim(), new ByteArrayInputStream(wav), "audio/wav");
+        if (!response.ok()) {
+            throw new IOException(errorMessage(response));
+        }
+        JSONObject json = new JSONObject(response.body);
+        String text = json.optString("text", "").trim();
+        if (text.isEmpty()) {
+            throw new IOException("ASR на ПК не распознал речь");
+        }
+        return text;
     }
 
     /** URL-кодирование параметра. */

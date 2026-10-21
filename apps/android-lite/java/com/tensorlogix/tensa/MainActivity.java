@@ -212,7 +212,7 @@ public class MainActivity extends android.app.Activity {
                 boolean healthy = value.optBoolean("healthy", true);
                 connectionDot.setBackground(Ui.box(healthy ? Ui.GREEN : Ui.RED, 0, Ui.dp(MainActivity.this, 5)));
                 connectionText.setText(healthy ? "ПК на связи" : "Ядро деградировало");
-                connectionHint.setText(server + " · Tensa " + value.optString("version", ""));
+                connectionHint.setText(server);
             }
 
             @Override
