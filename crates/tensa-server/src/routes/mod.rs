@@ -36,6 +36,7 @@ pub fn api() -> Router<AppState> {
         // Состояние и версия ядра.
         .route("/health", get(health::health))
         .route("/version", get(health::version))
+        .route("/server/info", get(health::server_info))
         // Очередь одобрения (Контракт 1).
         .route("/approvals", get(approvals::list))
         .route("/approvals/:id", get(approvals::get))

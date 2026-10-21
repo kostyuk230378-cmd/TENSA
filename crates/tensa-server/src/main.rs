@@ -90,6 +90,8 @@ async fn run() -> tensa_server::Result<()> {
             config_path.clone(),
         )));
 
+    state.voice.preload();
+
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).
     if std::env::var("TENSA_INDEX_ON_START").as_deref() != Ok("0") && !index_dirs.is_empty() {
         let files = files.clone();

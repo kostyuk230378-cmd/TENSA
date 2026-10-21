@@ -36,5 +36,7 @@ pub async fn activate(
         .activate(&id)
         .await
         .map_err(ServerError::BadRequest)?;
+    // Прогреть выбранную ASR-модель, чтобы первая фраза не ждала загрузку.
+    state.voice.preload();
     Ok(Json(json!({ "status": "ok", "active": id })))
 }

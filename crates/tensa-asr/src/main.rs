@@ -2,15 +2,23 @@
 //!
 //! Отдельный процесс, потому что transcribe.cpp и whisper.cpp тянут ggml.
 //! Вход: WAV PCM16 (любая частота, приводим к 16 кГц моно).
-//! Использование: `tensa-asr <model.gguf> <audio.wav>`.
+//!
+//! Обычный режим: `tensa-asr <model.gguf> <audio.wav>`.
+//! Worker-режим: `tensa-asr --worker <model.gguf>` — модель загружается один
+//! раз, далее пути к WAV читаются из stdin, ответы — JSON-строками в stdout.
 
+use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
-use transcribe_cpp::{Model, RunOptions};
+use serde_json::json;
+use transcribe_cpp::{Model, RunOptions, Session};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "--worker" {
+        return worker(Path::new(&args[2]));
+    }
     if args.len() != 3 {
         eprintln!("usage: tensa-asr <model.gguf> <audio.wav>");
         return ExitCode::from(2);
@@ -27,27 +35,98 @@ fn main() -> ExitCode {
     }
 }
 
+/// Один файл: загрузка модели и распознавание (совместимый режим).
 fn run(model: &Path, wav: &Path) -> Result<String, String> {
+    let model_handle = load_model(model)?;
+    let mut session = model_handle
+        .session()
+        .map_err(|error| format!("сессия: {error}"))?;
+    transcribe_path(&mut session, wav)
+}
+
+/// Постоянный worker: модель и сессия живут между запросами.
+fn worker(model: &Path) -> ExitCode {
+    let model_handle = match load_model(model) {
+        Ok(value) => value,
+        Err(error) => {
+            emit(false, &error);
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut session = match model_handle.session() {
+        Ok(value) => value,
+        Err(error) => {
+            emit(false, &format!("сессия: {error}"));
+            return ExitCode::FAILURE;
+        }
+    };
+    if stdout_line("READY").is_err() {
+        return ExitCode::FAILURE;
+    }
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let Ok(path) = line else {
+            break;
+        };
+        let path = path.trim();
+        if path.is_empty() {
+            continue;
+        }
+        if path.eq_ignore_ascii_case("quit") {
+            break;
+        }
+        match transcribe_path(&mut session, Path::new(path)) {
+            Ok(text) => emit(true, &text),
+            Err(error) => emit(false, &error),
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+fn load_model(model: &Path) -> Result<Model, String> {
     if !model.is_file() {
         return Err(format!("модель не найдена: {}", model.display()));
     }
+    Model::load(model).map_err(|error| format!("загрузка модели: {error}"))
+}
+
+fn transcribe_path(session: &mut Session, wav: &Path) -> Result<String, String> {
     let bytes = std::fs::read(wav).map_err(|error| format!("чтение WAV: {error}"))?;
     let samples = wav_to_mono_16k(&bytes)?;
     if samples.is_empty() {
         return Err("пустая запись".to_string());
     }
-    let mut session = Model::load(model)
-        .map_err(|error| format!("загрузка модели: {error}"))?
-        .session()
-        .map_err(|error| format!("сессия: {error}"))?;
+    let mut options = RunOptions::default();
+    let language = std::env::var("TENSA_ASR_LANGUAGE").unwrap_or_else(|_| "ru".to_string());
+    let language = language.trim();
+    if !language.is_empty() && !language.eq_ignore_ascii_case("auto") {
+        options.language = Some(language.to_string());
+    }
     let transcript = session
-        .run(&samples, &RunOptions::default())
+        .run(&samples, &options)
         .map_err(|error| format!("распознавание: {error}"))?;
     let text = transcript.text.trim().to_string();
     if text.is_empty() {
         return Err("речь не распознана".to_string());
     }
     Ok(text)
+}
+
+fn emit(ok: bool, value: &str) {
+    let payload = if ok {
+        json!({ "ok": true, "text": value })
+    } else {
+        json!({ "ok": false, "error": value })
+    };
+    if let Err(error) = stdout_line(&payload.to_string()) {
+        eprintln!("stdout: {error}");
+    }
+}
+
+fn stdout_line(text: &str) -> Result<(), String> {
+    let mut stdout = io::stdout().lock();
+    writeln!(stdout, "{text}").map_err(|error| format!("stdout: {error}"))?;
+    stdout.flush().map_err(|error| format!("stdout: {error}"))
 }
 
 fn wav_to_mono_16k(wav: &[u8]) -> Result<Vec<f32>, String> {

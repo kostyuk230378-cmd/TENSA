@@ -90,6 +90,54 @@
         width: max-content;
       }
 
+      .voice-beacon {
+        position: absolute;
+        left: 8px;
+        bottom: 57px;
+        z-index: 7;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 21px;
+        padding: 0 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 240, 255, 0.65);
+        background: rgba(9, 9, 11, 0.94);
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.28), 0 4px 12px rgba(0, 0, 0, 0.45);
+        color: var(--cyan);
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        line-height: 1;
+        pointer-events: none;
+      }
+
+      .voice-beacon[hidden] { display: none; }
+
+      .voice-beacon .voice-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 8px var(--cyan);
+        animation: voice-pulse 0.9s ease-in-out infinite;
+      }
+
+      .voice-beacon.recording {
+        border-color: rgba(255, 0, 85, 0.75);
+        color: #ffd7e3;
+      }
+
+      .voice-beacon.recording .voice-dot {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+      }
+
+      @keyframes voice-pulse {
+        50% { opacity: 0.25; transform: scale(0.72); }
+      }
+
       /* Лампочка уведомлений — над пилюлей, справа, чуть выше. */
       .bulb {
         width: 42px;
@@ -358,6 +406,7 @@
       }
 
       .mic-card,
+      .server-card,
       .models-card {
         padding: 12px;
         white-space: normal;
@@ -367,6 +416,21 @@
         font-weight: 600;
         font-size: 14px;
         margin-bottom: 6px;
+      }
+
+      .server-address {
+        display: block;
+        margin: 8px 0;
+        padding: 9px 10px;
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        border-radius: 9px;
+        background: rgba(9, 9, 11, 0.9);
+        color: var(--cyan);
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.35;
+        word-break: break-all;
+        user-select: text;
       }
 
       .mic-actions {
@@ -648,6 +712,10 @@
         </button>
 
         <div class="pill" id="pill" title="Tensa — потяни, чтобы переместить">
+          <div class="voice-beacon" id="voice-beacon" hidden>
+            <span class="voice-dot"></span>
+            <span id="voice-beacon-label">ЗАПИСЬ</span>
+          </div>
           <button class="zone" id="mic" title="Голосовой ввод" aria-label="Микрофон">
             <svg viewBox="0 0 24 24" fill="none" stroke="#062b12" stroke-width="1.8">
               <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -1401,12 +1469,13 @@
         composer.style.display = 'none';
         content.innerHTML = '<div class="bubble">Загрузка…</div>';
         try {
-          const [version, speech, brain, emailConfig, telegram] = await Promise.all([
+          const [version, speech, brain, emailConfig, telegram, serverInfo] = await Promise.all([
             fetch('/api/v1/version').then((r) => r.text()),
             fetch('/api/v1/models/speech').then((r) => r.json()),
             fetch('/api/v1/brain/status').then((r) => r.json()).catch(() => ({})),
             fetch('/api/v1/email/config').then((r) => r.json()).catch(() => ({ accounts: [] })),
             fetch('/api/v1/telegram/status').then((r) => r.json()).catch(() => ({})),
+            fetch('/api/v1/server/info').then((r) => r.json()).catch(() => ({})),
           ]);
           let mics = await audioInputs();
           let permitted = mics.some((device) => device.label);
@@ -1423,8 +1492,22 @@
             const label = (device.label || `Микрофон ${options.length}`).replace(/</g, '&lt;');
             options.push(`<option value="${device.deviceId}">${label}</option>`);
           }
+          const server = serverInfo || {};
+          const serverUrl = server.url || server.local_url || location.origin;
+          const serverHint = server.url
+            ? 'Доступен по Wi-Fi. Телефон и ПК должны быть в одной сети.'
+            : 'Сервер слушает только этот ПК — перезапустите Tensa, чтобы открыть доступ по Wi-Fi.';
           content.innerHTML = `
             <div class="version-line">Версия ${escapeHtml(version.trim().replace(/^"|"$/g, ""))}</div>
+            <div class="bubble server-card">
+              <div class="card-title">Сервер для телефона</div>
+              <div class="model-desc">Введите этот адрес в приложении Tensa на смартфоне.</div>
+              <div class="server-address" id="server-address">${escapeHtml(serverUrl)}</div>
+              <div class="mic-actions">
+                <button id="copy-server" class="mini-btn">Копировать адрес</button>
+              </div>
+              <div class="mic-status" id="server-status">${serverHint}</div>
+            </div>
             <div class="bubble mic-card">
               <div class="card-title">Микрофон</div>
               <select id="mic-select" class="mic-select">${options.join('')}</select>
@@ -1471,6 +1554,20 @@
           };
           document.getElementById('mic-test').onclick = testMicrophone;
           document.getElementById('mic-auto').onclick = autoPickMicrophone;
+          document.getElementById('copy-server').onclick = async () => {
+            const button = document.getElementById('copy-server');
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(serverUrl);
+              } else {
+                throw new Error('буфер обмена недоступен');
+              }
+              button.textContent = 'Скопировано';
+              setTimeout(() => { button.textContent = 'Копировать адрес'; }, 1500);
+            } catch (error) {
+              button.textContent = 'Выделите адрес вручную';
+            }
+          };
           document.getElementById('settings-quit').onclick = () => sendIpc('quit');
           renderBrain(brain || {});
           renderEmail(emailConfig || { accounts: [] });
@@ -1675,12 +1772,25 @@
       // Голосовой ввод: запись WAV 16 кГц и локальный whisper на сервере.
       const micButton = document.getElementById('mic');
       const composerMic = document.getElementById('composer-mic');
+      const voiceBeacon = document.getElementById('voice-beacon');
+      const voiceBeaconLabel = document.getElementById('voice-beacon-label');
       let recorder = null;
       let recordingSource = 'composer';
+
+      function setVoiceBeacon(state) {
+        if (!voiceBeacon) return;
+        voiceBeacon.hidden = state === 'idle';
+        voiceBeacon.classList.toggle('recording', state === 'recording');
+        voiceBeacon.classList.toggle('processing', state === 'processing');
+        if (voiceBeaconLabel) {
+          voiceBeaconLabel.textContent = state === 'recording' ? 'ЗАПИСЬ' : 'РАСПОЗНАЮ…';
+        }
+      }
 
       function setMicRecording(on) {
         micButton.classList.toggle('recording', on);
         composerMic.classList.toggle('recording', on);
+        if (on) setVoiceBeacon('recording');
       }
 
       function mergeChunks(chunks) {
@@ -1743,6 +1853,7 @@
       async function startVoiceRecording(hold = false, origin = 'composer') {
         if (recorder) return;
         recordingSource = origin;
+        if (origin === 'pill') setVoiceBeacon('recording');
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           messages.push({ role: 'error', text: 'Микрофон недоступен в этом движке.' });
           view = 'chat';
@@ -1766,6 +1877,7 @@
           }
           if (hold && !voiceHeld) {
             stream.getTracks().forEach((track) => track.stop());
+            setVoiceBeacon('idle');
             return;
           }
           const context = new AudioContext();
@@ -1785,6 +1897,7 @@
         } catch (error) {
           recorder = null;
           setMicRecording(false);
+          setVoiceBeacon('idle');
           messages.push({ role: 'error', text: `Микрофон: ${error.message ?? error}` });
           renderChat();
         }
@@ -1812,6 +1925,7 @@
         current.stream.getTracks().forEach((track) => track.stop());
         const samples = downsample(mergeChunks(current.chunks), current.rate, 16000);
         current.context.close();
+        setVoiceBeacon('processing');
         let peak = 0;
         for (let index = 0; index < samples.length; index += 1) {
           peak = Math.max(peak, Math.abs(samples[index]));
@@ -1825,6 +1939,7 @@
         input.placeholder = 'Распознаю…';
         if (samples.length < 800) {
           input.placeholder = 'Спросите Tensa…';
+          setVoiceBeacon('idle');
           messages.push({ role: 'error', text: 'Слишком короткая запись — держите микрофон, пока говорите.' });
           if (source === 'pill') setExpanded(true);
           renderChat();
@@ -1843,6 +1958,7 @@
           })
           .then((data) => {
             input.placeholder = 'Спросите Tensa…';
+            setVoiceBeacon('idle');
             if (data.text) {
               input.value = `${input.value ? `${input.value} ` : ''}${data.text}`.trim();
               send({ expandOnReply: source === 'pill' });
@@ -1850,6 +1966,7 @@
           })
           .catch((error) => {
             input.placeholder = 'Спросите Tensa…';
+            setVoiceBeacon('idle');
             messages.push({ role: 'error', text: `Голос: ${humanVoiceError(error.message)}` });
             if (source === 'pill') setExpanded(true);
             renderChat();
