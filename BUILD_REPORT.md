@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `5f32112` — `feat(android): ASR fallback through PC and tested mobile UI`  
-**Последний релиз:** [v0.2.14](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.14)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `5f32112` — отдельная проверка.
+**Последний код перед отчётом:** `656a9aa` — `feat(android): ASR fallback through PC and tested mobile UI`  
+**Последний релиз:** [v0.2.15](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.15)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `656a9aa` — отдельная проверка.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.13 | 231 119 561 байт (220.4 МиБ) | `614b111029fa7dc24455b94848c170a97e26adffa3428c54f18ed8fccbd3cc82` | GitHub Release v0.2.14 |
-| `Tensa.apk` v0.2.14 | 239 146 225 байт (228.1 МиБ) | `e3e93f32c86ea2a232f100a3afb5e373997a1c674ae8290c75abb15442dec223` | GitHub Release v0.2.14 |
-| Исходный код | — | — | `main`, commit `5f32112` |
+| `TensaSetup.exe` v0.2.15 | 231 119 603 байт (220.4 МиБ) | `db15840e492da8f285a3eb0cc214c199b9d27deebf7f39c67723bdb4e8ae73c2` | GitHub Release v0.2.15 |
+| `Tensa.apk` v0.2.15 | 239 146 227 байт (228.1 МиБ) | `a4829aa80a28ca9040bc99b9c4a28e6cf029f2a2c146847fcfaf3d449c632325` | GitHub Release v0.2.15 |
+| Исходный код | — | — | `main`, commit `656a9aa` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.14/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.14/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.15/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.15/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=3`, `versionName=0.2.14`,
+Ожидаемые значения: `versionCode=4`, `versionName=0.2.15`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -286,7 +286,7 @@ aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 | `cargo build --release -p tensa-desktop` | успешно |
 | `build_installer.ps1` + NSIS | `TensaSetup.exe` создан |
 | `build_apk.ps1` | APK собран и подписан |
-| `aapt2 dump badging` | version 0.2.14, MainActivity, иконка |
+| `aapt2 dump badging` | version 0.2.15, MainActivity, иконка |
 | чистая установка Windows | настройки при первом запуске, активных бейджей нет |
 
 Проверка артефактов:
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.14 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.15 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -313,7 +313,11 @@ APK проверен на официальном Android Emulator (Android 14) �
 3. dashboard «ПК на связи»;
 4. чат: сообщение `find` → локальный ответ «Ничего не нашёл…», без 503;
 5. микрофон: разрешение, овал **«СЛУШАЮ…»**, fallback-запись WAV;
-6. Settings → Back → dashboard (навигация корректна).
+   удержание микрофона и отпускание — как в desktop; клавиатура скрывается
+   (`mInputShown=false`);
+6. Settings → Back → dashboard (навигация корректна);
+7. «Поверх приложений»: overlay-пилюля Tensa остаётся поверх Pixel Launcher
+   и получает Bearer-токен для API.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -357,6 +361,8 @@ APK установлен через `127.0.0.1:5555`.
 [`android14-home-icon.png`](docs/screenshots/android14-home-icon.png),
 [`android14-settings-back.png`](docs/screenshots/android14-settings-back.png),
 [`android14-chat.png`](docs/screenshots/android14-chat.png),
+[`android14-ptt.png`](docs/screenshots/android14-ptt.png),
+[`android14-overlay.png`](docs/screenshots/android14-overlay.png),
 [`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png),
 [`trinity-dashboard.png`](docs/screenshots/trinity-dashboard.png).
 
@@ -391,6 +397,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.12 | мобильный APK: onboarding, dashboard, чат, голос, файлы |
 | v0.2.13 | «первый файл в списке», опечатки email-команд, локальные файловые ответы |
 | v0.2.14 | Android: fallback ASR через ПК, тест на Android Emulator/Genymotion/Trinity |
+| v0.2.15 | push-to-talk через ASR ПК, скрытие клавиатуры, overlay «Поверх приложений» |
 
 ---
 
@@ -405,7 +412,7 @@ APK установлен через `127.0.0.1:5555`.
 5. Старый `~/.tensa/models` может использоваться как fallback, если
    `asr-active.txt` ссылается на файл там; основной путь — каталог установки.
 6. `OPENROUTER_API_KEY` в окружении имеет приоритет над файлом (см. §10).
-7. Мобильный APK проверен на официальном Android Emulator (Android 14), Genymotion Android 15 и Trinity Android 9. На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`). Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны, поэтому качество голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
+7. Мобильный APK проверен на официальном Android Emulator (Android 14), Genymotion Android 15 и Trinity Android 9. На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`). На официальном эмуляторе проверены push-to-talk, скрытие клавиатуры и overlay поверх launcher. Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны, поэтому качество голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
 
 ---
 
