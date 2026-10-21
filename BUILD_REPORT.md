@@ -296,11 +296,31 @@ Get-FileHash apps/desktop-lite/TensaSetup.exe -Algorithm SHA256
 Get-FileHash apps/android-lite/Tensa.apk -Algorithm SHA256
 ```
 
-APK проверен на эмуляторе Genymotion (Android 15); детали — в §9.1.
+APK проверен на официальном Android Emulator (Android 14) и Genymotion (Android 15); детали — в §9.1.
 
-### 9.1. Ручной тест Android (Genymotion + Trinity)
+### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
-Устройство 1: **Xiaomi Redmi Note 9, Android 15**, Genymotion AVD
+Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.14 установлен
+через ADB; приложение запускается, иконка **Tensa** видна в launcher
+(Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
+а не выкидывает в launcher.
+
+Проверено на официальном эмуляторе:
+
+1. onboarding с пустыми полями;
+2. ввод адреса `http://192.168.1.101:8765` и токена `pwa_token`;
+3. dashboard «ПК на связи»;
+4. чат: сообщение `find` → локальный ответ «Ничего не нашёл…», без 503;
+5. микрофон: разрешение, овал **«СЛУШАЮ…»**, fallback-запись WAV;
+6. Settings → Back → dashboard (навигация корректна).
+
+Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
+установки Android-x86 на диск**, поэтому при перезапуске APK и данные
+исчезали. Это не ошибка APK. Для проверки выбран официальный эмулятор с
+постоянным AVD.
+
+Устройство 2: **Xiaomi Redmi Note 9, Android 15**, Genymotion AVD
 `192.168.21.101:5555`. APK установлен через ADB, версия `0.2.14`.
 
 Проверено по шагам:
@@ -332,9 +352,11 @@ APK установлен через `127.0.0.1:5555`.
 адрес `http://192.168.1.101:8765`. Trinity работает в landscape
 1920×1080, поэтому это дополнительная проверка широкого экрана.
 
-Скриншоты: [`mobile-onboarding.png`](docs/screenshots/mobile-onboarding.png),
-[`mobile-dashboard.png`](docs/screenshots/mobile-dashboard.png),
-[`mobile-chat.png`](docs/screenshots/mobile-chat.png),
+Скриншоты: [`android14-onboarding.png`](docs/screenshots/android14-onboarding.png),
+[`android14-dashboard.png`](docs/screenshots/android14-dashboard.png),
+[`android14-home-icon.png`](docs/screenshots/android14-home-icon.png),
+[`android14-settings-back.png`](docs/screenshots/android14-settings-back.png),
+[`android14-chat.png`](docs/screenshots/android14-chat.png),
 [`mobile-voice-beacon.png`](docs/screenshots/mobile-voice-beacon.png),
 [`trinity-dashboard.png`](docs/screenshots/trinity-dashboard.png).
 
@@ -368,7 +390,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.11 | постоянный ASR-worker, маяк записи, адрес сервера в настройках |
 | v0.2.12 | мобильный APK: onboarding, dashboard, чат, голос, файлы |
 | v0.2.13 | «первый файл в списке», опечатки email-команд, локальные файловые ответы |
-| v0.2.14 | Android: fallback ASR через ПК, тест на Genymotion и Trinity |
+| v0.2.14 | Android: fallback ASR через ПК, тест на Android Emulator/Genymotion/Trinity |
 
 ---
 
@@ -383,11 +405,7 @@ APK установлен через `127.0.0.1:5555`.
 5. Старый `~/.tensa/models` может использоваться как fallback, если
    `asr-active.txt` ссылается на файл там; основной путь — каталог установки.
 6. `OPENROUTER_API_KEY` в окружении имеет приоритет над файлом (см. §10).
-7. Мобильный APK проверен на Genymotion Android 15 и Trinity Android 9.
-   На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`).
-   Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны,
-   поэтому качество голосового распознавания с живым микрофоном ещё нужно
-   проверить на телефоне.
+7. Мобильный APK проверен на официальном Android Emulator (Android 14), Genymotion Android 15 и Trinity Android 9. На BlueStacks Pie64 установка 228-МБ APK не завершилась (`protocol fault`). Реальный микрофон и системный SpeechRecognizer на эмуляторах недоступны, поэтому качество голосового распознавания с живым микрофоном ещё нужно проверить на телефоне.
 
 ---
 
