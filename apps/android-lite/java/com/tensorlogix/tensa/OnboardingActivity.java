@@ -67,7 +67,7 @@ public class OnboardingActivity extends android.app.Activity {
 
         card.addView(Ui.text(this, "Адрес сервера", 13, Ui.MUTED,
                 android.graphics.Typeface.BOLD));
-        serverField = Ui.field(this, "http://192.168.1.101:8765", Prefs.server(this),
+        serverField = Ui.field(this, "http://<ip-пк>:8765", Prefs.server(this),
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         serverField.setSingleLine(true);
         serverField.setPadding(Ui.dp(this, 14), Ui.dp(this, 12),

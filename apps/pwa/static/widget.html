@@ -776,6 +776,7 @@
         <button data-view="approvals">Одобрения</button>
         <button data-view="settings">Настройки</button>
         <button data-view="chat">Чат</button>
+        <button id="all-sections">Все разделы</button>
         <button id="collapse">Свернуть</button>
         <button id="quit" class="danger">Выход</button>
       </div>
@@ -868,6 +869,23 @@
         return [...new Set(paths.map((path) => path.trim().replace(/[.,;:]+$/, '')))];
       }
 
+      function appendDownload(actions, path, name) {
+        if (window.TensaHost && window.TensaHost.downloadFile) {
+          const button = document.createElement('button');
+          button.className = 'mini-btn';
+          button.textContent = 'Скачать';
+          button.onclick = () => window.TensaHost.downloadFile(path, name);
+          actions.appendChild(button);
+          return;
+        }
+        const download = document.createElement('a');
+        download.className = 'mini-btn';
+        download.textContent = 'Скачать';
+        download.href = `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+        download.download = name;
+        actions.appendChild(download);
+      }
+
       function appendPathRow(path) {
         const name = path.split(/[\\/]/).pop() || path;
         const row = document.createElement('div');
@@ -879,12 +897,7 @@
         label.onclick = () => openFile({ path, name });
         const actions = document.createElement('div');
         actions.className = 'file-actions';
-        const download = document.createElement('a');
-        download.className = 'mini-btn';
-        download.textContent = 'Скачать';
-        download.href = `/api/v1/files/download?path=${encodeURIComponent(path)}`;
-        download.download = name;
-        actions.appendChild(download);
+        appendDownload(actions, path, name);
         row.append(label, actions);
         content.appendChild(row);
       }
@@ -935,12 +948,7 @@
             name.onclick = () => openFile(file);
             const actions = document.createElement('div');
             actions.className = 'file-actions';
-            const download = document.createElement('a');
-            download.className = 'mini-btn';
-            download.textContent = 'Скачать';
-            download.href = `/api/v1/files/download?path=${encodeURIComponent(file.path)}`;
-            download.download = file.name;
-            actions.appendChild(download);
+            appendDownload(actions, file.path, file.name);
             row.append(name, actions);
             content.appendChild(row);
           }
@@ -2156,6 +2164,18 @@
       composerMic.addEventListener('pointerup', endComposerVoice);
       composerMic.addEventListener('pointercancel', endComposerVoice);
       document.getElementById('letter').onclick = () => { if (suppressClick) return; view = 'chat'; setExpanded(true); };
+      const allSections = document.getElementById('all-sections');
+      if (allSections) {
+        if (!(window.TensaHost && window.TensaHost.openApp)) {
+          allSections.style.display = 'none';
+        } else {
+          allSections.onclick = () => {
+            menu.classList.remove('open');
+            setExpanded(false);
+            sendIpc('app');
+          };
+        }
+      }
       document.getElementById('dots').onclick = (event) => {
         if (suppressClick) return;
         event.stopPropagation();

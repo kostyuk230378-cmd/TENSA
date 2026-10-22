@@ -1,6 +1,7 @@
 package com.tensorlogix.tensa;
 
 import android.Manifest;
+import android.app.DownloadManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -13,6 +14,7 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.os.Handler;
 import android.os.IBinder;
@@ -201,6 +203,48 @@ public class OverlayService extends Service {
         public void selectMic(int id, String name) {
             Prefs.setMic(OverlayService.this, id, name == null ? "" : name);
         }
+
+        /** Открыть полный дашборд Tensa из виджета (кнопка «Все разделы»). */
+        @JavascriptInterface
+        public void openApp() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Intent intent = new Intent(OverlayService.this, MainActivity.class);
+                    intent.putExtra("full", true);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                }
+            });
+        }
+
+        /** Скачать найденный файл с ПК в «Загрузки» телефона. */
+        @JavascriptInterface
+        public void downloadFile(String path, String name) {
+            if (path == null || path.trim().isEmpty()) {
+                return;
+            }
+            String fileName = (name == null || name.trim().isEmpty()) ? "tensa-file" : name.trim();
+            fileName = fileName.replace('/', '_').replace('\\', '_');
+            try {
+                DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                if (manager == null) {
+                    return;
+                }
+                Uri uri = Uri.parse(server + "/api/v1/files/download?path=" + Uri.encode(path));
+                DownloadManager.Request request = new DownloadManager.Request(uri);
+                request.addRequestHeader("Authorization", "Bearer " + access);
+                request.setTitle("Tensa: " + fileName);
+                request.setDescription("Файл с ПК");
+                request.setNotificationVisibility(
+                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS, "Tensa/" + fileName);
+                manager.enqueue(request);
+            } catch (Exception ignored) {
+                // DownloadManager сам покажет ошибку в уведомлении
+            }
+        }
     }
 
     /** Нативный старт записи для overlay-микрофона. */
@@ -366,6 +410,12 @@ public class OverlayService extends Service {
             case "quit":
                 Prefs.setOverlayEnabled(this, false);
                 stopSelf();
+                break;
+            case "app":
+                Intent full = new Intent(this, MainActivity.class);
+                full.putExtra("full", true);
+                full.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(full);
                 break;
             default:
                 if (message.startsWith("move ")) {

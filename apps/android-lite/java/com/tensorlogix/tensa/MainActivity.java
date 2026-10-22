@@ -28,10 +28,13 @@ public class MainActivity extends android.app.Activity {
     private View connectionDot;
     /** Адрес сервера/подсказка. */
     private TextView connectionHint;
+    /** Полный дашборд открыт из виджета и не должен сворачиваться. */
+    private boolean fullMode;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        fullMode = getIntent().getBooleanExtra("full", false);
         if (!Prefs.onboardingDone(this) && Prefs.server(this).isEmpty()) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
@@ -191,12 +194,43 @@ public class MainActivity extends android.app.Activity {
     protected void onResume() {
         super.onResume();
         refreshConnection();
+        requestOverlayIfNeeded();
         maybeStartOverlay();
         minimizeToWidget();
     }
 
+    /** Первый запуск у любого пользователя: сразу попросить разрешение на виджет. */
+    private void requestOverlayIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || Settings.canDrawOverlays(this)
+                || Prefs.overlayAsked(this)
+                || !Prefs.overlayEnabled(this)
+                || Prefs.server(this).isEmpty()
+                || Prefs.coreToken(this).isEmpty()) {
+            return;
+        }
+        Prefs.setOverlayAsked(this, true);
+        Toast.makeText(this,
+                "Разрешите Tensa «Поверх других приложений» — тогда она свернётся в виджет.",
+                Toast.LENGTH_LONG).show();
+        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName())));
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent.getBooleanExtra("full", false)) {
+            fullMode = true;
+        }
+    }
+
     /** Не держать окно Tensa на экране: пользователь должен видеть свои приложения. */
     private void minimizeToWidget() {
+        if (fullMode) {
+            return;
+        }
         if (Prefs.overlayEnabled(this)
                 && !Prefs.server(this).isEmpty()
                 && !Prefs.coreToken(this).isEmpty()
@@ -250,6 +284,7 @@ public class MainActivity extends android.app.Activity {
             startService(service);
         }
         Toast.makeText(this, "Tensa поверх приложений", Toast.LENGTH_SHORT).show();
+        moveTaskToBack(true);
     }
 
     /** Проверить ядро и обновить верхнюю карточку. */

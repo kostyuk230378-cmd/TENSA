@@ -28,6 +28,8 @@ public final class Prefs {
     private static final String KEY_OVERLAY = "overlay_enabled";
     /** Системный запрос добавления home-screen виджета уже показан. */
     private static final String KEY_WIDGET_ASKED = "widget_asked";
+    /** Запрос разрешения «поверх приложений» уже показан. */
+    private static final String KEY_OVERLAY_ASKED = "overlay_asked";
     /** Выбранный пользователем микрофон Android (AudioDeviceInfo id). */
     private static final String KEY_MIC_ID = "mic_id";
     /** Имя выбранного микрофона для показа без повторного опроса. */
@@ -114,6 +116,16 @@ public final class Prefs {
     /** Отметить показ запроса home-screen виджета. */
     public static void setWidgetAsked(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_WIDGET_ASKED, value).apply();
+    }
+
+    /** Показывали ли системный запрос разрешения overlay. */
+    public static boolean overlayAsked(Context context) {
+        return prefs(context).getBoolean(KEY_OVERLAY_ASKED, false);
+    }
+
+    /** Отметить показ запроса разрешения overlay. */
+    public static void setOverlayAsked(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_OVERLAY_ASKED, value).apply();
     }
 
     /** Id выбранного микрофона; 0 — системный по умолчанию. */
