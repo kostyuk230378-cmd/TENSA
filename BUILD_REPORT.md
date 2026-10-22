@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `65efc35` — `fix(search): find Russian names in any case`  
-**Последний релиз:** [v0.2.23](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.23)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Rust-коммита `65efc35` — Android build и ручной тест.
+**Последний код перед отчётом:** `f19bc98` — `feat(android): launch as desktop-style floating widget`  
+**Последний релиз:** [v0.2.24](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.24)  
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Rust-коммита `f19bc98` — Android build и ручной тест.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,15 +17,15 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.23 | 231 114 633 байт (220.4 МиБ) | `090452619102c53e9d708160dfabb47f06c0bdde8bf2cc67e542c07199fbcff3` | GitHub Release v0.2.23 |
-| `Tensa.apk` v0.2.23 | 239 154 787 байт (228.1 МиБ) | `36b6d79308cc3c7faa436880fff2e6671a575615a9c799e6b6006dcd615c6985` | GitHub Release v0.2.23 |
-| Исходный код | — | — | `main`, commit `65efc35` |
+| `TensaSetup.exe` v0.2.24 | 231 114 639 байт (220.4 МиБ) | `093c7344a5d5be83189eed6d906d0b552deab39a9ed8ed9e8f0c2d1605bf8496` | GitHub Release v0.2.24 |
+| `Tensa.apk` v0.2.24 | 239 154 787 байт (228.1 МиБ) | `d335c8d527a48fa1020ecc27662f090b0254f63fbfaa0d804c15ce1c2f9a4800` | GitHub Release v0.2.24 |
+| Исходный код | — | — | `main`, commit `f19bc98` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
 
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.23/TensaSetup.exe>
-- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.23/Tensa.apk>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.24/TensaSetup.exe>
+- <https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.24/Tensa.apk>
 
 Бинарники не коммитятся в git: они публикуются как assets GitHub Release.
 В репозитории лежат исходники, скрипты сборки и документация.
@@ -201,7 +201,7 @@ aapt2 dump badging apps/android-lite/Tensa.apk
 aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 ```
 
-Ожидаемые значения: `versionCode=12`, `versionName=0.2.23`,
+Ожидаемые значения: `versionCode=13`, `versionName=0.2.24`,
 `launchable-activity=.MainActivity`, иконка `res/mipmap-*/ic_launcher.png`.
 
 ---
@@ -301,7 +301,7 @@ APK проверен на официальном Android Emulator (Android 14) �
 ### 9.1. Ручной тест Android (Android Emulator + Genymotion + Trinity)
 
 Основной тест: **Android Emulator 37.2.12, AVD TensaPixel, Android 14**,
-запущен с окном телефона, ADB `emulator-5554`. APK v0.2.23 установлен
+запущен с окном телефона, ADB `emulator-5554`. APK v0.2.24 установлен
 через ADB; приложение запускается, иконка **Tensa** видна в launcher
 (Pixel Launcher, hotseat), `Settings → Back` возвращает в `MainActivity`,
 а не выкидывает в launcher.
@@ -358,6 +358,11 @@ APK проверен на официальном Android Emulator (Android 14) �
     Сервер приводит «Рому/Рома/Роме» к основе «Ром» и находит падежи.
     Голос на эмуляторе без реального микрофона по-прежнему даёт
     «речь не распознана»; текстовый запрос и API проверены.
+
+16. Запуск как на десктопе: после открытия Tensa окно приложения сразу
+    сворачивается, пользователь остаётся в Gmail/Chrome/на рабочем столе,
+    а зелёная пилюля Tensa висит поверх; проверено на Gmail — окно Tensa
+    не занимает экран и не перекрывает приложение.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
@@ -461,7 +466,7 @@ APK установлен через `127.0.0.1:5555`.
 | v0.2.20 | home-screen виджет Tensa 4×2 |
 | v0.2.21 | home-screen widget убран; плавающий overlay поверх экрана, двигается |
 | v0.2.22 | выбор любого системного микрофона (USB/Bluetooth/гарнитура), полная прокрутка настроек |
-| v0.2.23 | видимая кнопка «‹ Назад» в настройках Android |
+| v0.2.24 | запуск как на десктопе: окно Tensa сразу сворачивается, поверх остаётся пилюля |
 
 ---
 
