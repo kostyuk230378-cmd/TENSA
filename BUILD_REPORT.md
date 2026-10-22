@@ -3,9 +3,9 @@
 **Дата:** 21.10.2026  
 **Репозиторий:** <https://github.com/kostyuk230378-cmd/TENSA>  
 **Ветка:** `main`  
-**Последний код перед отчётом:** `1251b65` — `fix(android): visible back button in settings`  
+**Последний код перед отчётом:** `65efc35` — `fix(search): find Russian names in any case`  
 **Последний релиз:** [v0.2.23](https://github.com/kostyuk230378-cmd/TENSA/releases/tag/v0.2.23)  
-**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Java-коммита `1251b65` — Android build и ручной тест.
+**CI:** зелёный на `6836b51` ([run 39599324087](https://github.com/kostyuk230378-cmd/TENSA/actions/runs/39599324087)); для Rust-коммита `65efc35` — Android build и ручной тест.
 
 Документ описывает, как собраны Windows-дистрибутив и Android APK, что именно
 опубликовано в GitHub и какие проверки выполнены. Это отчёт о сборке, а не
@@ -17,9 +17,9 @@
 
 | Артефакт | Размер | SHA-256 | Где |
 |---|---:|---|---|
-| `TensaSetup.exe` v0.2.23 | 231 133 440 байт (220.4 МиБ) | `56c84f95c02bfcfdf077f07e2176f7863f3265f0972475276b8e92c2624c2cfb` | GitHub Release v0.2.23 |
+| `TensaSetup.exe` v0.2.23 | 231 114 633 байт (220.4 МиБ) | `090452619102c53e9d708160dfabb47f06c0bdde8bf2cc67e542c07199fbcff3` | GitHub Release v0.2.23 |
 | `Tensa.apk` v0.2.23 | 239 154 787 байт (228.1 МиБ) | `36b6d79308cc3c7faa436880fff2e6671a575615a9c799e6b6006dcd615c6985` | GitHub Release v0.2.23 |
-| Исходный код | — | — | `main`, commit `1251b65` |
+| Исходный код | — | — | `main`, commit `65efc35` |
 | Отчёт | — | — | `BUILD_REPORT.md` в `main` и в assets релиза |
 
 Ссылки на скачивание:
@@ -280,7 +280,7 @@ aapt2 dump xmltree --file AndroidManifest.xml apps/android-lite/Tensa.apk
 | `cargo fmt --all --check` | чисто |
 | `cargo clippy --workspace --all-targets -- -D warnings` | 0 предупреждений |
 | `cargo test --workspace` (CI) | success |
-| локальные серверные тесты | 33 passed |
+| локальные серверные тесты | 35 passed |
 | `cargo build --release -p tensa-server --features native` | успешно |
 | `cargo build --release -p tensa-asr` | успешно |
 | `cargo build --release -p tensa-desktop` | успешно |
@@ -352,6 +352,12 @@ APK проверен на официальном Android Emulator (Android 14) �
 14. Возврат: в нативном экране настроек сверху слева есть **‹ Назад**;
     нажатие возвращает на dashboard. Системный Android Back тоже работает.
     В overlay — **←** в шапке и **×** для закрытия.
+
+15. Поиск имени: запрос **«Найди Рому»** на ядре вернул 6 файлов; первым —
+    `C:\Users\Сергей\Desktop\Рома практика\Отчёт почитать Роме.docx`.
+    Сервер приводит «Рому/Рома/Роме» к основе «Ром» и находит падежи.
+    Голос на эмуляторе без реального микрофона по-прежнему даёт
+    «речь не распознана»; текстовый запрос и API проверены.
 
 Причина «где Tensa?» на Trinity: Trinity был запущен в **live-режиме без
 установки Android-x86 на диск**, поэтому при перезапуске APK и данные
