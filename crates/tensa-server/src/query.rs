@@ -301,6 +301,16 @@ fn clean_model_text(text: &str) -> String {
     }
 }
 
+/// Прочитать необязательное целое из `[brain]` без паники.
+#[cfg(feature = "native")]
+fn brain_u32(brain: &toml::Table, key: &str, fallback: u32) -> u32 {
+    brain
+        .get(key)
+        .and_then(|value| value.as_integer())
+        .and_then(|value| u32::try_from(value).ok())
+        .unwrap_or(fallback)
+}
+
 /// Собрать локальный провайдер (только сборка с `native`).
 #[cfg(feature = "native")]
 fn build_local(brain: &toml::Table, paths: &TensaPaths) -> (Option<Arc<dyn LocalBackend>>, String) {
@@ -319,6 +329,11 @@ fn build_local(brain: &toml::Table, paths: &TensaPaths) -> (Option<Arc<dyn Local
 
     let config = tensa_llm::LlmConfig {
         model_path,
+        context_size: brain_u32(brain, "context_size", 4096).clamp(512, 8192),
+        threads: brain_u32(brain, "threads", 0).min(32),
+        batch_size: brain_u32(brain, "batch_size", 512).clamp(64, 1024),
+        gpu_layers: brain_u32(brain, "gpu_layers", 0).min(999),
+        max_tokens: brain_u32(brain, "max_tokens", 512).clamp(64, 1024),
         ..Default::default()
     };
     let name = config
@@ -422,7 +437,7 @@ impl LocalBackend for NativeLocal {
             }],
             tools: Vec::new(),
             // Короткий ответ: /query — интерактивный чат, а не пакетная генерация.
-            max_tokens: Some(256),
+            max_tokens: Some(self.config.max_tokens),
             temperature: None,
         };
         let response = self.engine.chat(chat).await?;

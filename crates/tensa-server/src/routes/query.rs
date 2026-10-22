@@ -334,6 +334,10 @@ fn mentions_file(text: &str) -> bool {
             "документы",
             "отчет",
             "отчёт",
+            "file",
+            "files",
+            "document",
+            "documents",
         ]
         .iter()
         .any(|stem| word.starts_with(stem))

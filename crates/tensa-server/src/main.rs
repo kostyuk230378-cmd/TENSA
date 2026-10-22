@@ -92,6 +92,16 @@ async fn run() -> tensa_server::Result<()> {
 
     state.voice.preload();
 
+    // Автонарезка чанков: старт ядра сразу готовит индекс к поиску по смыслу,
+    // без отдельной команды после установки LLM.
+    let chunk_files = files.clone();
+    tokio::spawn(async move {
+        match chunk_files.ensure_chunks().await {
+            Ok(count) => tracing::info!(chunks = count, "чанки файлов готовы"),
+            Err(error) => tracing::warn!(error = %error, "автонарезка чанков"),
+        }
+    });
+
     // Автоиндексация файлов в фоне (TENSA_INDEX_ON_START=0 отключает).
     if std::env::var("TENSA_INDEX_ON_START").as_deref() != Ok("0") && !index_dirs.is_empty() {
         let files = files.clone();

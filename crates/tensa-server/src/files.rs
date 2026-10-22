@@ -56,6 +56,8 @@ pub struct FilesStatus {
     pub indexed_run: u64,
     /// Каталог, который обрабатывается сейчас.
     pub current_dir: String,
+    /// Сколько чанков проиндексировано (для проверки автонарезки).
+    pub chunks: i64,
 }
 
 /// Индекс файлов (ленивое подключение к SQLite).
@@ -89,6 +91,17 @@ impl FilesIndex {
     /// Флаг «идёт сканирование» (для `/files/status`).
     pub fn scanning_flag(&self) -> Arc<AtomicBool> {
         self.scanning.clone()
+    }
+
+    /// Гарантировать чанки для всего индекса (автоматически при старте).
+    pub async fn ensure_chunks(&self) -> Result<usize> {
+        let pool = self.pool().await?;
+        backfill_chunks(pool).await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_chunks")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| FilesError::Storage(format!("чанки: {e}")))?;
+        Ok(count.0 as usize)
     }
 
     /// Подключиться и создать схему (однократно).
@@ -131,10 +144,32 @@ impl FilesIndex {
         };
         let pool = self.pool().await?;
         let candidates = (limit * 5).clamp(10, 100);
-        let mut rows = self
-            .run_match(pool, &strict, candidates)
-            .await
-            .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
+        let mut rows = Vec::new();
+        let phrase = phrase_query(query);
+        if let Some(ref phrase) = phrase {
+            rows.extend(
+                self.run_chunk_match(pool, phrase, candidates)
+                    .await
+                    .map_err(|e| FilesError::Storage(format!("поиск по чанкам: {e}")))?,
+            );
+            rows.extend(
+                self.run_match(pool, phrase, candidates)
+                    .await
+                    .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?,
+            );
+        }
+        if rows.is_empty() {
+            rows.extend(
+                self.run_chunk_match(pool, &strict, candidates)
+                    .await
+                    .map_err(|e| FilesError::Storage(format!("поиск по чанкам: {e}")))?,
+            );
+            rows.extend(
+                self.run_match(pool, &strict, candidates)
+                    .await
+                    .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?,
+            );
+        }
         if rows.is_empty() {
             rows = self
                 .run_match(pool, &loose, candidates)
@@ -142,8 +177,10 @@ impl FilesIndex {
                 .map_err(|e| FilesError::Storage(format!("поиск: {e}")))?;
         }
 
-        let scored: Vec<(usize, usize, FileHit)> = rows
+        let mut seen = std::collections::HashSet::new();
+        let scored: Vec<(usize, usize, usize, FileHit)> = rows
             .into_iter()
+            .filter(|(path, _, _, _)| seen.insert(path.to_lowercase()))
             .map(|(path, name, snippet, text)| {
                 let name_lower = name.to_lowercase();
                 let text_lower = text.to_lowercase();
@@ -158,6 +195,7 @@ impl FilesIndex {
                 (
                     matches,
                     name_matches,
+                    Self::document_priority(&path),
                     FileHit {
                         path,
                         name,
@@ -169,19 +207,33 @@ impl FilesIndex {
 
         let best = scored
             .iter()
-            .map(|(matches, _, _)| *matches)
+            .map(|(matches, _, _, _)| *matches)
             .max()
             .unwrap_or(0);
-        let mut kept: Vec<(usize, usize, FileHit)> = scored
+        let mut kept: Vec<(usize, usize, usize, FileHit)> = scored
             .into_iter()
-            .filter(|(matches, _, _)| *matches >= best)
+            .filter(|(matches, _, _, _)| *matches >= best)
             .collect();
-        kept.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+        kept.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(b.2.cmp(&a.2)));
         kept.truncate(limit);
-        Ok(kept.into_iter().map(|(_, _, hit)| hit).collect())
+        Ok(kept.into_iter().map(|(_, _, _, hit)| hit).collect())
     }
 
-    /// Выполнить MATCH-запрос (вес имени 50, текста 1).
+    /// Приоритет реального документа над служебным/текстовым файлом.
+    fn document_priority(path: &str) -> usize {
+        match std::path::Path::new(path)
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(|value| value.to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("docx" | "pdf" | "xlsx" | "pptx") => 3,
+            Some("txt" | "md" | "csv" | "log") => 1,
+            _ => 0,
+        }
+    }
+
+    /// Выполнить MATCH-запрос по полному тексту (вес имени 50, текста 1).
     async fn run_match(
         &self,
         pool: &SqlitePool,
@@ -192,6 +244,27 @@ impl FilesIndex {
             "SELECT f.path, f.name, snippet(files_fts, 1, '«', '»', '…', 18), f.text \
              FROM files_fts JOIN files f ON f.id = files_fts.rowid \
              WHERE files_fts MATCH ? ORDER BY bm25(files_fts, 50.0, 1.0) LIMIT ?",
+        )
+        .bind(match_query)
+        .bind(limit as i64)
+        .fetch_all(pool)
+        .await
+    }
+
+    /// Выполнить MATCH-запрос по чанкам и вернуть файл с фрагментом чанка.
+    async fn run_chunk_match(
+        &self,
+        pool: &SqlitePool,
+        match_query: &str,
+        limit: usize,
+    ) -> std::result::Result<Vec<(String, String, String, String)>, sqlx::Error> {
+        sqlx::query_as::<_, (String, String, String, String)>(
+            "SELECT f.path, f.name, snippet(file_chunks_fts, 0, '«', '»', '…', 18), fc.text \
+             FROM file_chunks_fts \
+             JOIN file_chunks fc ON fc.id = file_chunks_fts.rowid \
+             JOIN files f ON f.id = fc.file_id \
+             WHERE file_chunks_fts MATCH ? \
+             ORDER BY bm25(file_chunks_fts) LIMIT ?",
         )
         .bind(match_query)
         .bind(limit as i64)
@@ -221,6 +294,10 @@ impl FilesIndex {
             .fetch_one(pool)
             .await
             .map_err(|e| FilesError::Storage(format!("время: {e}")))?;
+        let chunks: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_chunks")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| FilesError::Storage(format!("чанки: {e}")))?;
         let current_dir = self
             .current_dir
             .lock()
@@ -234,6 +311,7 @@ impl FilesIndex {
             scanned: self.scanned.load(Ordering::Relaxed),
             indexed_run: self.indexed_run.load(Ordering::Relaxed),
             current_dir,
+            chunks: chunks.0,
         })
     }
 
@@ -387,6 +465,9 @@ impl FilesIndex {
                 .execute(pool)
                 .await
                 .map_err(|e| FilesError::Storage(format!("fts delete: {e}")))?;
+            delete_chunks(pool, id)
+                .await
+                .map_err(|e| FilesError::Storage(format!("чанки delete: {e}")))?;
             sqlx::query("DELETE FROM files WHERE id = ?")
                 .bind(id)
                 .execute(pool)
@@ -416,6 +497,9 @@ impl FilesIndex {
             .execute(pool)
             .await
             .map_err(|e| FilesError::Storage(format!("fts insert: {e}")))?;
+        insert_chunks(pool, inserted.0, name, text)
+            .await
+            .map_err(|e| FilesError::Storage(format!("чанки insert: {e}")))?;
         Ok(())
     }
 
@@ -426,13 +510,113 @@ impl FilesIndex {
     }
 }
 
-/// Схема: файлы + FTS5 по имени и тексту.
+/// Удалить чанки файла перед переиндексацией.
+async fn delete_chunks(pool: &SqlitePool, file_id: i64) -> std::result::Result<(), sqlx::Error> {
+    let ids: Vec<(i64,)> = sqlx::query_as("SELECT id FROM file_chunks WHERE file_id = ?")
+        .bind(file_id)
+        .fetch_all(pool)
+        .await?;
+    for (id,) in ids {
+        sqlx::query("DELETE FROM file_chunks_fts WHERE rowid = ?")
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    sqlx::query("DELETE FROM file_chunks WHERE file_id = ?")
+        .bind(file_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// Нарезать текст на перекрывающиеся чанки и проиндексировать их.
+async fn insert_chunks(
+    pool: &SqlitePool,
+    file_id: i64,
+    name: &str,
+    text: &str,
+) -> std::result::Result<(), sqlx::Error> {
+    for (number, chunk) in text_chunks(name, text).into_iter().enumerate() {
+        let (chunk_id,): (i64,) = sqlx::query_as(
+            "INSERT INTO file_chunks (file_id, chunk_no, text) VALUES (?, ?, ?) RETURNING id",
+        )
+        .bind(file_id)
+        .bind(number as i64)
+        .bind(&chunk)
+        .fetch_one(pool)
+        .await?;
+        sqlx::query("INSERT INTO file_chunks_fts (rowid, text) VALUES (?, ?)")
+            .bind(chunk_id)
+            .bind(&chunk)
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Разбить текст по границам символов; заголовок файла повторяется в каждом чанке.
+fn text_chunks(name: &str, text: &str) -> Vec<String> {
+    let body = if text.trim().is_empty() { name } else { text };
+    let chars: Vec<char> = body.chars().collect();
+    if chars.is_empty() {
+        return vec![name.to_string()];
+    }
+    let mut chunks = Vec::new();
+    let mut start = 0usize;
+    while start < chars.len() {
+        let end = (start + CHUNK_CHARS).min(chars.len());
+        let body: String = chars[start..end].iter().collect();
+        chunks.push(format!("{name}\n{body}"));
+        if end == chars.len() {
+            break;
+        }
+        let next = end.saturating_sub(CHUNK_OVERLAP);
+        if next <= start {
+            break;
+        }
+        start = next;
+    }
+    chunks
+}
+
+/// Заполнить чанки для уже существующего индекса (миграция без пересканирования).
+async fn backfill_chunks(pool: &SqlitePool) -> Result<()> {
+    loop {
+        let rows: Vec<(i64, String, String)> = sqlx::query_as(
+            "SELECT f.id, f.name, f.text FROM files f \
+             WHERE NOT EXISTS (SELECT 1 FROM file_chunks c WHERE c.file_id = f.id) \
+             LIMIT 50",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| FilesError::Storage(format!("backfill select: {e}")))?;
+        if rows.is_empty() {
+            break;
+        }
+        for (id, name, text) in rows {
+            insert_chunks(pool, id, &name, &text)
+                .await
+                .map_err(|e| FilesError::Storage(format!("backfill insert: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
+/// Схема: файлы + FTS5 по имени и тексту + чанки для точного поиска.
 const SCHEMA: &[&str] = &[
     "CREATE TABLE IF NOT EXISTS files (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, \
      name TEXT NOT NULL, dir TEXT NOT NULL, ext TEXT NOT NULL, size INTEGER NOT NULL, \
      mtime INTEGER NOT NULL, text TEXT NOT NULL, indexed_at INTEGER NOT NULL);",
     "CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(name, text);",
+    "CREATE TABLE IF NOT EXISTS file_chunks (id INTEGER PRIMARY KEY, file_id INTEGER NOT NULL, \
+     chunk_no INTEGER NOT NULL, text TEXT NOT NULL);",
+    "CREATE INDEX IF NOT EXISTS idx_file_chunks_file ON file_chunks(file_id);",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS file_chunks_fts USING fts5(text);",
 ];
+
+/// Размер чанка и перекрытие в символах: заголовок/фраза не теряется на стыке.
+const CHUNK_CHARS: usize = 900;
+const CHUNK_OVERLAP: usize = 120;
 
 /// Максимальная глубина обхода.
 const MAX_DEPTH: u8 = 64;
@@ -531,26 +715,51 @@ fn stem_term(word: &str) -> String {
     word.to_string()
 }
 
+/// Служебные слова поиска не должны попадать в выдачу (иначе «файлы»/
+/// «найди» находят сам репозиторий вместо документов пользователя).
+const STOPWORDS: [&str; 21] = [
+    "найди",
+    "найти",
+    "поищи",
+    "поиск",
+    "покажи",
+    "файл",
+    "файлы",
+    "файлов",
+    "документ",
+    "документы",
+    "документов",
+    "где",
+    "надпись",
+    "надписи",
+    "надписью",
+    "find",
+    "search",
+    "file",
+    "files",
+    "document",
+    "documents",
+];
+
+/// Точная фраза из значимых слов: «Типовой проект».
+fn phrase_query(raw: &str) -> Option<String> {
+    let words: Vec<String> = raw
+        .split(|c: char| !c.is_alphanumeric())
+        .map(str::trim)
+        .filter(|word| word.chars().count() >= 3)
+        .filter(|word| !STOPWORDS.iter().any(|stop| *stop == word.to_lowercase()))
+        .map(|word| word.replace('"', "\"\""))
+        .collect();
+    if words.len() < 2 || words.len() > 6 {
+        return None;
+    }
+    Some(format!("\"{}\"", words.join(" ")))
+}
+
 /// Построить FTS5-запрос: термины длиной от 3 символов, префиксный поиск, OR.
 fn fts_queries(raw: &str) -> Option<(String, String, Vec<String>)> {
-    // Служебные слова поиска не должны попадать в выдачу (иначе «файлы»/
-    // «найди» находят сам репозиторий вместо документов пользователя).
-    const STOPWORDS: [&str; 14] = [
-        "найди",
-        "найти",
-        "поищи",
-        "поиск",
-        "покажи",
-        "файл",
-        "файлы",
-        "файлов",
-        "документ",
-        "документы",
-        "документов",
-        "где",
-        "find",
-        "search",
-    ];
+    // Служебные слова поиска не должны попадать в выдачу. Список общий с
+    // phrase_query, чтобы «с надписью Типовой проект» искало саму фразу.
     let mut terms: Vec<String> = Vec::new();
     let mut plain: Vec<String> = Vec::new();
     for word in raw.split(|c: char| !c.is_alphanumeric()) {
@@ -692,6 +901,20 @@ mod tests {
         assert_eq!(strict, "\"Ром\"*");
     }
 
+    #[test]
+    fn generic_file_words_do_not_search_repository() {
+        assert!(fts_queries("files").is_none());
+        assert!(fts_queries("file document").is_none());
+    }
+
+    #[test]
+    fn phrase_finds_typical_project_title() {
+        assert_eq!(
+            phrase_query("Найди файл с надписью Типовой проект").as_deref(),
+            Some("\"Типовой проект\"")
+        );
+    }
+
     #[tokio::test]
     async fn search_finds_russian_name_in_any_case() {
         let index = index();
@@ -706,6 +929,25 @@ mod tests {
         let hits = index.search("Рому", 10).await.expect("поиск");
         assert_eq!(hits.len(), 1);
         assert!(hits[0].name.contains("Роме"));
+    }
+
+    #[tokio::test]
+    async fn search_finds_typical_project_by_phrase() {
+        let index = index();
+        index
+            .upsert_text(
+                r"C:\Users\User\Desktop\ДЕМОНТАЖ БРУ\Приложение к КП ДЕМОНТАЖ.docx",
+                "Приложение к КП ДЕМОНТАЖ.docx",
+                "План производства работ. Типовой проект 409-28-38, 1976 г.п.",
+            )
+            .await
+            .expect("запись");
+        let hits = index
+            .search("Найди файл с надписью Типовой проект", 10)
+            .await
+            .expect("поиск");
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].name.contains("ДЕМОНТАЖ"));
     }
 
     #[tokio::test]
