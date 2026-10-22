@@ -192,6 +192,18 @@ public class MainActivity extends android.app.Activity {
         super.onResume();
         refreshConnection();
         maybeStartOverlay();
+        minimizeToWidget();
+    }
+
+    /** Не держать окно Tensa на экране: пользователь должен видеть свои приложения. */
+    private void minimizeToWidget() {
+        if (Prefs.overlayEnabled(this)
+                && !Prefs.server(this).isEmpty()
+                && !Prefs.coreToken(this).isEmpty()
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && Settings.canDrawOverlays(this)) {
+            moveTaskToBack(true);
+        }
     }
 
     /** Плавающий виджет поверх экрана, если разрешён и включён. */
