@@ -508,6 +508,29 @@ pub fn default_scan_roots() -> Vec<PathBuf> {
     vec![PathBuf::from("/")]
 }
 
+/// Основа русских слов для поиска: «Рому», «Рома», «Роман» → «Ром».
+fn stem_term(word: &str) -> String {
+    let lowered = word.to_lowercase();
+    if !lowered
+        .chars()
+        .any(|ch| ('а'..='я').contains(&ch) || ch == 'ё')
+    {
+        return word.to_string();
+    }
+    const ENDINGS: [&str; 29] = [
+        "ами", "ями", "ого", "его", "ому", "ему", "ыми", "ими", "ая", "яя", "ое", "ее", "ые", "ие",
+        "ой", "ей", "ом", "ем", "ах", "ях", "ую", "юю", "а", "я", "у", "ю", "е", "о", "ы",
+    ];
+    for ending in ENDINGS {
+        if let Some(stem) = lowered.strip_suffix(ending) {
+            if stem.chars().count() >= 3 {
+                return word[..stem.len()].to_string();
+            }
+        }
+    }
+    word.to_string()
+}
+
 /// Построить FTS5-запрос: термины длиной от 3 символов, префиксный поиск, OR.
 fn fts_queries(raw: &str) -> Option<(String, String, Vec<String>)> {
     // Служебные слова поиска не должны попадать в выдачу (иначе «файлы»/
@@ -539,9 +562,10 @@ fn fts_queries(raw: &str) -> Option<(String, String, Vec<String>)> {
         if STOPWORDS.iter().any(|stop| *stop == lowered) {
             continue;
         }
-        let escaped = word.replace('"', "\"\"");
+        let term = stem_term(word);
+        let escaped = term.replace('"', "\"\"");
         terms.push(format!("\"{escaped}\"*"));
-        plain.push(word.to_lowercase());
+        plain.push(term.to_lowercase());
     }
     if terms.is_empty() {
         return None;
@@ -656,6 +680,32 @@ mod tests {
         assert_eq!(strict, "\"Договор\"* AND \"ВСТК\"*");
         assert_eq!(loose, "\"Договор\"* OR \"ВСТК\"*");
         assert!(fts_queries("и в").is_none());
+    }
+
+    #[test]
+    fn fts_query_finds_russian_name_cases() {
+        let (strict, loose, words) = fts_queries("найди Рому").expect("запрос");
+        assert_eq!(strict, "\"Ром\"*");
+        assert_eq!(loose, "\"Ром\"*");
+        assert_eq!(words, vec!["ром".to_string()]);
+        let (strict, _, _) = fts_queries("Рома").expect("запрос");
+        assert_eq!(strict, "\"Ром\"*");
+    }
+
+    #[tokio::test]
+    async fn search_finds_russian_name_in_any_case() {
+        let index = index();
+        index
+            .upsert_text(
+                r"C:\Users\User\Desktop\Рома практика\Отчёт почитать Роме.docx",
+                "Отчёт почитать Роме.docx",
+                "Отчёт по практике. Получатель: Рома.",
+            )
+            .await
+            .expect("запись");
+        let hits = index.search("Рому", 10).await.expect("поиск");
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].name.contains("Роме"));
     }
 
     #[tokio::test]
