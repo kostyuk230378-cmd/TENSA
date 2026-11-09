@@ -5,7 +5,8 @@
 //! scaffolding генерируется в `build.rs` и подключается ниже.
 //!
 //! Реально подключены к ядру: [`ApprovalStore`], [`NotesStore`],
-//! [`ContactsStore`], [`ConfigStore`], [`NodeRegistry`], [`CoreMemoryStore`].
+//! [`ContactsStore`], [`ConfigStore`], [`NodeRegistry`], [`CoreMemoryStore`],
+//! [`FirstRunWizard`].
 //! Остальные интерфейсы объявлены и отвечают «ещё не реализовано»
 //! (см. [`stubs`]); namespace-функции — [`init`], [`health`], [`version`].
 //!
@@ -20,6 +21,7 @@ pub mod contacts;
 pub mod convert;
 pub mod core_memory;
 pub mod error;
+pub mod first_run;
 pub mod nodes;
 pub mod notes;
 pub mod serde_impl;
@@ -31,11 +33,10 @@ pub use config::ConfigStore;
 pub use contacts::ContactsStore;
 pub use core_memory::CoreMemoryStore;
 pub use error::TensaError;
+pub use first_run::FirstRunWizard;
 pub use nodes::NodeRegistry;
 pub use notes::NotesStore;
-pub use stubs::{
-    AppLauncher, CalendarClient, EmailClient, FirstRunWizard, MemoryStore, QueryEngine, VoiceEngine,
-};
+pub use stubs::{AppLauncher, CalendarClient, EmailClient, MemoryStore, QueryEngine, VoiceEngine};
 pub use types::*;
 
 use std::path::Path;

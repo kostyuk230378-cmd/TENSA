@@ -5,12 +5,12 @@
 //! причины в лог: этапы указаны в доккомментариях. Так мобильные клиенты
 //! видят полную поверхность контракта и отличают «ещё нет» от выключенного
 //! доступа. Заглушки убираются по мере подключения крейтов (tensa-tools,
-//! tensa-router, voice-стек, мастер запуска).
+//! tensa-router, voice-стек; мастер запуска перенесён в [`crate::first_run`]).
 
 use crate::error::TensaError;
 use crate::types::{
-    AppInfo, CalendarEvent, Conflict, Email, EmailAccount, NewCalendarEvent, OutgoingEmail,
-    QueryRequest, QueryResponse, WhatsAppConfig, WizardResult,
+    AppInfo, CalendarEvent, Conflict, Email, NewCalendarEvent, OutgoingEmail, QueryRequest,
+    QueryResponse,
 };
 
 /// Конструктор-заглушка: интерфейс ещё не привязан к ядру.
@@ -240,76 +240,5 @@ impl VoiceEngine {
         _format: String,
     ) -> Result<String, TensaError> {
         Err(TensaError::not_implemented("voice.transcribe"))
-    }
-}
-
-/// `FirstRunWizard` — мастер первого запуска (этап UI-мастеров приложений).
-///
-/// В tensa-core мастер реализован (`FirstRunWizard`), но UDL-словарь
-/// `EmailAccount` неполон для шага почты (нет `email`/`credential`),
-/// а UDL-варианта `NotImplemented` нет — расхождения зафиксированы в отчёте;
-/// до их согласования мастер на FFI-поверхности отвечает заглушкой.
-pub struct FirstRunWizard;
-
-impl FirstRunWizard {
-    /// Этап: согласование неполноты UDL-словарей (email/whatsapp).
-    pub async fn new(_config_path: String) -> Result<Self, TensaError> {
-        stub_constructor().await?;
-        Ok(Self)
-    }
-
-    /// Первый ли запуск.
-    pub async fn is_first_run(&self) -> Result<bool, TensaError> {
-        Err(TensaError::not_implemented("wizard.is_first_run"))
-    }
-
-    /// Шаг 1: язык.
-    pub async fn step_language(&self, _language: String) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_language"))
-    }
-
-    /// Шаг 2: знакомство.
-    pub async fn step_introduction(
-        &self,
-        _owner_name: String,
-        _owner_title: String,
-        _secretary_name: String,
-        _timezone: String,
-    ) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_introduction"))
-    }
-
-    /// Шаг 3: модели.
-    pub async fn step_models(&self) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_models"))
-    }
-
-    /// Шаг 4: Telegram.
-    pub async fn step_telegram(
-        &self,
-        _bot_credential: String,
-        _owner_chat_id: String,
-    ) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_telegram"))
-    }
-
-    /// Шаг 5: почта.
-    pub async fn step_email(&self, _account: EmailAccount) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_email"))
-    }
-
-    /// Шаг 6: WhatsApp.
-    pub async fn step_whatsapp(&self, _config: Option<WhatsAppConfig>) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_whatsapp"))
-    }
-
-    /// Шаг 7: Tailscale.
-    pub async fn step_tailscale(&self) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented("wizard.step_tailscale"))
-    }
-
-    /// Шаг 8: завершение.
-    pub async fn step_finish(&self) -> Result<WizardResult, TensaError> {
-        Err(TensaError::not_implemented("wizard.step_finish"))
     }
 }
