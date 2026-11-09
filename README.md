@@ -10,7 +10,8 @@ Tensa — self-hosted секретарь для одного человека: �
 за пределами приложения — отправить письмо, поставить встречу, запустить программу — проходит
 через `ApprovalStore`: сначала одобрение владельца, потом выполнение, с аудитом.
 
-Ядро — Rust-воркспейс (14 членов: ядро и обёртки llama.cpp). Клиенты: **PWA** (Svelte 5),
+Ядро — Rust-воркспейс из 17 крейтов (ядро, HTTP-сервер, CLI, память, обёртки
+llama.cpp и whisper.cpp). Клиенты: **PWA** (Svelte 5),
 **Android** (нативный клиент, APK) и **Windows-установщик** (ядро + CLI + Telegram-бот + PWA).
 Синхронизация узлов (gRPC) — в разработке.
 
@@ -64,17 +65,39 @@ Tensa — self-hosted секретарь для одного человека: �
 
 | Платформа | Файл | Размер |
 |---|---|---|
-| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.28/TensaSetup.exe) | 220 МБ |
-| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.28/Tensa.apk) | 239 МБ |
+| Windows | [TensaSetup.exe](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.28/TensaSetup.exe) | 220.4 МиБ |
+| Android | [Tensa.apk](https://github.com/kostyuk230378-cmd/TENSA/releases/download/v0.2.28/Tensa.apk) | 228.1 МиБ |
+
+Размеры дистрибутивов указаны в МиБ (1 МиБ = 1 048 576 байт).
 
 ## Скриншоты
 
 ![Чат через ядро](https://raw.githubusercontent.com/kostyuk230378-cmd/TENSA/main/pwa/screenshots/07-chat.png)
 ![Статус ядра](https://raw.githubusercontent.com/kostyuk230378-cmd/TENSA/main/pwa/screenshots/02-status.png)
 
+## Сборка из исходников (Windows): LLVM/libclang
+
+Крейт `tensa-whisper` собирается через `whisper-rs-sys`, которому на этапе сборки нужен
+`libclang` (генерация биндингов bindgen). Без него `cargo test --workspace` и
+`cargo build --workspace` падают на `whisper-rs-sys` с ошибкой вида «libclang not found»
+(в CI на Ubuntu ставится `libclang-dev`, поэтому там дополнительных настроек не нужно).
+
+Установка и настройка:
+
+1. Установите LLVM: `winget install LLVM.LLVM` (или установщик со страницы релизов
+   <https://github.com/llvm/llvm-project/releases>).
+2. Пропишите переменную окружения — путь к каталогу с `libclang.dll`:
+   `setx LIBCLANG_PATH "C:\Program Files\LLVM\bin"`.
+3. Перезапустите терминал и проверьте: `echo $env:LIBCLANG_PATH`.
+
+Если LLVM ставить не нужно, крейт можно исключить:
+`cargo test --workspace --exclude tensa-whisper` — остальные 16 крейтов собираются
+и тестируются без libclang.
+
 ## Тесты и качество
 
-- `cargo test --workspace` — **356 passed, 0 failed, 1 ignored** (48 тестовых бинарей);
+- `cargo test --workspace --exclude tensa-whisper` — **388 passed, 0 failed, 1 ignored**
+  (50 тестовых бинарей); на CI (Ubuntu) полный `cargo test --workspace` — зелёный;
 - feature-прогоны: `tensa-memory --features lance,fastembed` — **35 passed** (1 ignored),
   `tensa-llama --features native` — **36 passed** (2 ignored — требуют реальную GGUF-модель);
 - `cargo clippy --workspace --all-targets -- -D warnings` — 0 предупреждений; `cargo fmt --check` — чисто;
