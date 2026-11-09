@@ -234,13 +234,18 @@ pub struct NewContact {
     pub tags: Vec<String>,
 }
 
-/// Учётная запись почты (Контракт 6).
+/// Учётная запись почты (Контракт 6; UDL-словарь расширен 09.11.2026
+/// с апрува Архитектора: `email` и `credential` нужны шагу почты мастера).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EmailAccount {
     /// Идентификатор аккаунта.
     pub id: String,
     /// Отображаемое имя.
     pub label: String,
+    /// Адрес почты (без него ядро не принимает аккаунт).
+    pub email: Option<String>,
+    /// Пароль/токен (секрет — уходит в secrets.toml, не логируется).
+    pub credential: Option<String>,
     /// IMAP-хост.
     pub imap_host: String,
     /// IMAP-порт.

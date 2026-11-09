@@ -1690,6 +1690,10 @@ interface ContactsStore {
 dictionary EmailAccount {
     string id;
     string label;
+    // Расширено с апрува Архитектора 09.11.2026 (Фаза 1): адрес и секрет
+    // нужны шагу почты мастера первого запуска; секрет уходит в secrets.toml.
+    string? email;
+    string? credential;
     string imap_host;
     u16 imap_port;
     string smtp_host;

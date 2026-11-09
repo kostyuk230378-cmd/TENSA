@@ -101,9 +101,64 @@ async fn unknown_language_is_error() {
 }
 
 #[tokio::test]
-async fn step_email_is_not_implemented_on_ffi() {
-    // UDL-словарь EmailAccount (Контракт 9) не содержит email/credential —
-    // шаг почты отвечает «ещё не реализовано» (см. first_run.rs).
+async fn step_email_saves_account_and_credential() {
+    let root = temp_root();
+    let config_path = root.join("config.toml");
+    let wizard = FirstRunWizard::new(config_path.to_string_lossy().to_string())
+        .await
+        .expect("wizard");
+    wizard.step_language("ru".into()).await.expect("язык");
+    wizard
+        .step_introduction(
+            "Иван".into(),
+            "Шеф".into(),
+            "Tensa".into(),
+            "Europe/Moscow".into(),
+        )
+        .await
+        .expect("знакомство");
+    wizard
+        .step_email(tensa_ffi::EmailAccount {
+            id: "personal".into(),
+            label: "Личный".into(),
+            email: Some("test@example.com".into()),
+            credential: Some("app-password".into()),
+            imap_host: "imap.example.com".into(),
+            imap_port: 993,
+            smtp_host: "smtp.example.com".into(),
+            smtp_port: 587,
+        })
+        .await
+        .expect("шаг почты");
+    let result = wizard.step_finish().await.expect("финиш");
+    assert!(result.config_saved && result.secrets_saved);
+
+    // Аккаунт — в config, секрет — в secrets.toml.
+    let config = tensa_core::Config::load(&config_path).expect("config");
+    let accounts = config
+        .email
+        .get("accounts")
+        .and_then(|value| value.get("personal"))
+        .expect("аккаунт personal в config");
+    assert_eq!(
+        accounts.get("email").and_then(|value| value.as_str()),
+        Some("test@example.com")
+    );
+    let secrets = tensa_core::Secrets::load(&root.join("secrets.toml")).expect("secrets");
+    assert_eq!(
+        secrets
+            .email
+            .accounts
+            .get("personal")
+            .and_then(|secret| secret.credential.clone()),
+        Some("app-password".into())
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn step_email_without_address_is_error() {
+    // Ядро не принимает аккаунт без адреса (валидация step_email).
     let root = temp_root();
     let wizard = FirstRunWizard::new(root.join("config.toml").to_string_lossy().to_string())
         .await
@@ -113,6 +168,8 @@ async fn step_email_is_not_implemented_on_ffi() {
             .step_email(tensa_ffi::EmailAccount {
                 id: "personal".into(),
                 label: "Личный".into(),
+                email: None,
+                credential: None,
                 imap_host: "imap.example.com".into(),
                 imap_port: 993,
                 smtp_host: "smtp.example.com".into(),
@@ -120,7 +177,7 @@ async fn step_email_is_not_implemented_on_ffi() {
             })
             .await
             .is_err(),
-        "шаг почты — честная заглушка до расширения UDL"
+        "аккаунт без адреса отклоняется"
     );
     let _ = std::fs::remove_dir_all(root);
 }

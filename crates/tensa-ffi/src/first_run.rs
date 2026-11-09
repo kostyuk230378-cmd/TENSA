@@ -115,17 +115,24 @@ impl FirstRunWizard {
         Ok(())
     }
 
-    /// Шаг 5: почта — не реализован на FFI-поверхности.
+    /// Шаг 5: почта (аккаунт — в config.toml, секрет — в secrets.toml).
     ///
-    /// UDL-словарь `EmailAccount` (Контракт 9) не содержит `email` и
-    /// `credential`, без которых ядро не принимает аккаунт (валидация
-    /// `step_email`). Контракты не меняются без утверждения Архитектора —
-    /// расширение словаря предложено в отчёте; до согласования метод
-    /// отвечает «ещё не реализовано».
-    pub async fn step_email(&self, _account: EmailAccount) -> Result<(), TensaError> {
-        Err(TensaError::not_implemented(
-            "wizard.step_email: UDL EmailAccount без email/credential",
-        ))
+    /// UDL-словарь `EmailAccount` расширен 09.11.2026 с апрува Архитектора
+    /// (`email`, `credential`) — ранее шаг отвечал «ещё не реализовано»,
+    /// потому что словарь не нёс адреса и секрета.
+    pub async fn step_email(&self, account: EmailAccount) -> Result<(), TensaError> {
+        let core_account = tensa_core::EmailAccount {
+            id: account.id,
+            label: account.label,
+            email: account.email.unwrap_or_default(),
+            imap_host: account.imap_host,
+            imap_port: account.imap_port,
+            smtp_host: account.smtp_host,
+            smtp_port: account.smtp_port,
+            credential: account.credential,
+        };
+        self.inner.step_email(core_account).await?;
+        Ok(())
     }
 
     /// Шаг 6: WhatsApp (опционально; `access_token` уходит в secrets.toml).
