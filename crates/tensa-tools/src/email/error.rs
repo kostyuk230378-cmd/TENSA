@@ -27,6 +27,10 @@ pub enum EmailError {
     #[error("email: SMTP: {0}")]
     Smtp(String),
 
+    /// Ошибка IMAP-транспорта (текст обрезан, секреты не выводятся).
+    #[error("email: IMAP: {0}")]
+    Imap(String),
+
     /// Ошибка ядра (конфиг/секреты).
     #[error("email: ошибка ядра: {0}")]
     Core(#[from] tensa_core::CoreError),

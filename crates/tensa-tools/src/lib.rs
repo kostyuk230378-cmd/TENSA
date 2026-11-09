@@ -19,6 +19,7 @@
 //! отдельный подкрейт `crates/tensa-tools/wol`): выделение подкрейтов требует
 //! правки корневого `Cargo.toml` воркспейса и делается отдельной задачей.
 
+pub mod apps;
 pub mod audit;
 pub mod documents;
 pub mod email;
@@ -31,6 +32,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+pub use apps::ScannedApp;
 pub use documents::{DocumentError, DocumentKind, DocumentsTool, ExtractedDocument};
 pub use email::{EmailError, EmailService, EmailTool};
 pub use error::{Result, ToolsError};

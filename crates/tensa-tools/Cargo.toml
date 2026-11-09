@@ -27,6 +27,13 @@ reqwest.workspace = true
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls-tls", "builder", "hostname"] }
 toml.workspace = true
 calamine = "0.36"
+# IMAP (Контракт 6, апрув Архитектора 09.11.2026): протокол без TLS-фичи —
+# транспорт (rustls или mock-TCP в тестах) оборачивает поток снаружи.
+async-imap = { version = "0.10", default-features = false, features = ["runtime-tokio"] }
+tokio-rustls.workspace = true
+rustls.workspace = true
+webpki-roots.workspace = true
+futures.workspace = true
 pdf-extract = "0.12"
 zip = "9"
 quick-xml = "0.42"

@@ -90,6 +90,12 @@ fastembed = "7.1"
 sysinfo = "0.39"
 # Windows API: батарея (GetSystemPowerStatus); используется под cfg(windows).
 windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
+# IMAP-клиент (Контракт 6; tensa-tools/email; апрув Архитектора 09.11.2026)
+# Под фичей runtime-tokio async-imap требует tokio::io трейты.
+async-imap = { version = "0.10", default-features = false, features = ["runtime-tokio"] }
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
+webpki-roots = "0.26"
 # Tauri-десктоп (Контракт 10; apps/desktop/src-tauri, апрув Архитектора 09.11.2026)
 tauri = "2"
 tauri-build = "2"

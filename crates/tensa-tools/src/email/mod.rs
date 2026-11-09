@@ -14,6 +14,7 @@
 pub mod autodetect;
 pub mod connections;
 pub mod error;
+pub mod imap;
 pub mod smtp;
 
 use std::path::{Path, PathBuf};
