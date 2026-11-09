@@ -20,29 +20,9 @@ pub fn routes() -> Router<AppState> {
         // Документы.
         .route("/documents", get(not_implemented))
         .route("/documents/:id", get(not_implemented))
-        // Контакты.
-        .route("/contacts", get(not_implemented).post(not_implemented))
-        .route("/contacts/search", get(not_implemented))
-        .route(
-            "/contacts/:id",
-            get(not_implemented)
-                .put(not_implemented)
-                .delete(not_implemented),
-        )
-        // Почта: подключение/папки/письма/отправка (Контракт 6).
-        .route("/email/accounts/:id/connect", post(not_implemented))
-        .route("/email/accounts/:id/disconnect", post(not_implemented))
-        .route("/email/accounts/:id/folders", get(not_implemented))
-        .route("/email/accounts/:id/emails", get(not_implemented))
-        .route("/email/accounts/:id/search", get(not_implemented))
-        .route("/email/send", post(not_implemented))
-        // Календарь реализован в `routes::calendar`.
-        // Приложения операционной системы.
-        .route("/apps", get(not_implemented))
-        .route("/apps/scan", post(not_implemented))
-        .route("/apps/launch", post(not_implemented))
-        .route("/apps/open-file", post(not_implemented))
-        .route("/apps/open-url", post(not_implemented))
+        // Контакты, календарь и приложения реализованы в своих модулях.
+        // Почта: IMAP-чтение и отправка — в `routes::email_imap`;
+        // /apps/open-file покрывается /files/open.
         // Узлы сети (Контракт 9).
         .route("/nodes", get(not_implemented))
         .route("/nodes/heavy", get(not_implemented))

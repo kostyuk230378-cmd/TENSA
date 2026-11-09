@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tensa_approval::{ApprovalConfig, SqliteApprovalStore};
-use tensa_core::{Config, Secrets, SqliteNotesStore, TensaPaths};
+use tensa_core::{Config, Secrets, SqliteContactsStore, SqliteNotesStore, TensaPaths};
 use tensa_server::{load_or_create_token, serve, AppState, QueryService};
 
 #[tokio::main]
@@ -52,6 +52,10 @@ async fn run() -> tensa_server::Result<()> {
     )
     .await?;
     let notes = SqliteNotesStore::new(&paths.notes_db(), node_id.clone()).await?;
+    // Контакты — та же БД notes.db (Контракт 3).
+    let contacts = SqliteContactsStore::new(&paths.notes_db(), node_id.clone())
+        .await
+        .map_err(|error| tensa_server::ServerError::Storage(format!("contacts: {error}")))?;
 
     // Инициализатор core memory мастера первого запуска (доп. ТЗ tensa-core):
     // DefaultMemoryManager поверх SQLite-хранилищ (core/recall — memory.db,
@@ -106,24 +110,29 @@ async fn run() -> tensa_server::Result<()> {
         paths.root().join("files.db"),
     ));
     let index_dirs = index_dirs(&config, &paths);
-    let state = AppState::new(Arc::new(approvals), Arc::new(notes), access)
-        .with_query(Arc::new(query))
-        .with_calendar(calendar)
-        .with_email_accounts(email_accounts)
-        .with_first_run_memory(Some(Arc::new(memory_manager)))
-        .with_data_root(paths.root())
-        .with_config_path(config_path.clone())
-        .with_files(files.clone(), index_dirs.clone())
-        .with_voice(Arc::new(tensa_server::voice::VoiceService::new(
-            &paths.root(),
-        )))
-        .with_speech_models(Arc::new(tensa_server::speech_models::SpeechModels::new(
-            &paths.root(),
-        )))
-        .with_brain(Arc::new(tensa_server::brain::BrainService::new(
-            &paths.root(),
-            config_path.clone(),
-        )));
+    let state = AppState::new(
+        Arc::new(approvals),
+        Arc::new(notes),
+        Arc::new(contacts),
+        access,
+    )
+    .with_query(Arc::new(query))
+    .with_calendar(calendar)
+    .with_email_accounts(email_accounts)
+    .with_first_run_memory(Some(Arc::new(memory_manager)))
+    .with_data_root(paths.root())
+    .with_config_path(config_path.clone())
+    .with_files(files.clone(), index_dirs.clone())
+    .with_voice(Arc::new(tensa_server::voice::VoiceService::new(
+        &paths.root(),
+    )))
+    .with_speech_models(Arc::new(tensa_server::speech_models::SpeechModels::new(
+        &paths.root(),
+    )))
+    .with_brain(Arc::new(tensa_server::brain::BrainService::new(
+        &paths.root(),
+        config_path.clone(),
+    )));
 
     state.voice.preload();
 

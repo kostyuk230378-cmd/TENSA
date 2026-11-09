@@ -5,9 +5,12 @@
 //! публична — браузер не прикладывает заголовок при навигации.
 
 pub mod approvals;
+pub mod apps;
 pub mod brain;
 pub mod calendar;
+pub mod contacts;
 pub mod email;
+pub mod email_imap;
 pub mod email_setup;
 pub mod events;
 pub mod files;
@@ -50,6 +53,30 @@ pub fn api() -> Router<AppState> {
             "/notes/:id",
             get(notes::get).put(notes::update).delete(notes::delete),
         )
+        // Контакты (Контракт 3).
+        .route("/contacts", get(contacts::list).post(contacts::create))
+        .route("/contacts/search", get(contacts::search))
+        .route(
+            "/contacts/:id",
+            get(contacts::get)
+                .put(contacts::update)
+                .delete(contacts::delete),
+        )
+        // Приложения ОС (Контракт 5).
+        .route("/apps", get(apps::list))
+        .route("/apps/scan", post(apps::scan))
+        .route("/apps/launch", post(apps::launch))
+        .route("/apps/open-url", post(apps::open_url))
+        // Почта: IMAP-чтение и отправка (Контракт 6).
+        .route("/email/accounts/:id/connect", post(email_imap::connect))
+        .route(
+            "/email/accounts/:id/disconnect",
+            post(email_imap::disconnect),
+        )
+        .route("/email/accounts/:id/folders", get(email_imap::folders))
+        .route("/email/accounts/:id/emails", get(email_imap::emails))
+        .route("/email/accounts/:id/search", get(email_imap::search))
+        .route("/email/send", post(email_imap::send))
         // Первый запуск (Контракт 12, доп. ТЗ tensa-core).
         .route("/first-run", get(first_run::status))
         .route("/first-run/step/language", post(first_run::step_language))

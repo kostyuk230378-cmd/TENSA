@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tensa_approval::ApprovalStore;
-use tensa_core::{FirstRunWizard, MemoryInitializer, NotesStore, TensaPaths};
+use tensa_core::{ContactsStore, FirstRunWizard, MemoryInitializer, NotesStore, TensaPaths};
 use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
@@ -76,6 +76,8 @@ pub struct AppState {
     pub approvals: Arc<dyn ApprovalStore>,
     /// Хранилище заметок (`tensa-core`).
     pub notes: Arc<dyn NotesStore>,
+    /// Хранилище контактов (`tensa-core`, notes.db).
+    pub contacts: Arc<dyn ContactsStore>,
     /// Мастер первого запуска: сессия с накопленными ответами шагов
     /// (создаётся лениво при первом шаге, сбрасывается после `finish`).
     pub first_run: Arc<tokio::sync::RwLock<Option<Arc<FirstRunWizard>>>>,
@@ -121,12 +123,14 @@ impl AppState {
     pub fn new(
         approvals: Arc<dyn ApprovalStore>,
         notes: Arc<dyn NotesStore>,
+        contacts: Arc<dyn ContactsStore>,
         access: PwaToken,
     ) -> Self {
         let (events, _receiver) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         Self {
             approvals,
             notes,
+            contacts,
             first_run: Arc::new(tokio::sync::RwLock::new(None)),
             first_run_memory: None,
             query: Arc::new(tokio::sync::RwLock::new(Arc::new(QueryService::disabled()))),

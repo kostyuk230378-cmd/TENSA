@@ -12,7 +12,7 @@ use axum::http::{header, Request, StatusCode};
 use axum::Router;
 use serde_json::{json, Value};
 use tensa_approval::SqliteApprovalStore;
-use tensa_core::SqliteNotesStore;
+use tensa_core::{SqliteContactsStore, SqliteNotesStore};
 use tensa_server::{router, AppState, PwaToken};
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
@@ -28,8 +28,16 @@ async fn test_app() -> Router {
     let notes = SqliteNotesStore::new_in_memory()
         .await
         .expect("in-memory хранилище заметок");
-    let state = AppState::new(Arc::new(approvals), Arc::new(notes), PwaToken::new(TOKEN))
-        .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
+    let contacts = SqliteContactsStore::new_in_memory()
+        .await
+        .expect("контакты");
+    let state = AppState::new(
+        Arc::new(approvals),
+        Arc::new(notes),
+        Arc::new(contacts),
+        PwaToken::new(TOKEN),
+    )
+    .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
     router(state)
 }
 
@@ -212,11 +220,21 @@ async fn approvals_list_is_empty_and_stubs_return_501() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(json_body(response).await, json!([]));
 
+    // Фаза 2: /apps реализован (кэш/сканирование). Заглушки остаются
+    // только на неисполненных маршрутах Контракта 12.
     let response = app
         .clone()
         .oneshot(request("GET", "/api/v1/apps", true, None))
         .await
-        .expect("ответ заглушки");
+        .expect("ответ списка приложений");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(json_body(response).await["apps"].is_array());
+
+    let response = app
+        .clone()
+        .oneshot(request("GET", "/api/v1/nodes", true, None))
+        .await
+        .expect("ответ заглушки узлов");
     assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
 }
 

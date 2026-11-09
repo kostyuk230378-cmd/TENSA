@@ -757,7 +757,7 @@ mod tests {
     use crate::query::QueryService;
     use crate::router;
     use tensa_approval::{ApprovalConfig, SqliteApprovalStore};
-    use tensa_core::SqliteNotesStore;
+    use tensa_core::{SqliteContactsStore, SqliteNotesStore};
 
     /// Состояние с реальными хранилищами и шлюзом без провайдеров.
     async fn test_state() -> AppState {
@@ -773,9 +773,13 @@ mod tests {
         let notes = SqliteNotesStore::new(&root.join("notes.db"), "node".to_string())
             .await
             .expect("notes");
+        let contacts = SqliteContactsStore::new_in_memory()
+            .await
+            .expect("контакты");
         AppState::new(
             Arc::new(approval),
             Arc::new(notes),
+            Arc::new(contacts),
             PwaToken::new("test-token-1234567890"),
         )
         .with_query(Arc::new(QueryService::disabled()))

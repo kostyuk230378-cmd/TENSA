@@ -13,7 +13,7 @@ use axum::http::{header, Request, StatusCode};
 use axum::Router;
 use serde_json::{json, Value};
 use tensa_approval::SqliteApprovalStore;
-use tensa_core::{Config, Language, Secrets, SqliteNotesStore};
+use tensa_core::{Config, Language, Secrets, SqliteContactsStore, SqliteNotesStore};
 use tensa_memory::{
     CoreMemoryConfig, CoreMemoryStore as _, DefaultMemoryManager, HashEmbedder,
     MemoryManagerConfig, SqliteArchivalMemoryStore, SqliteCoreMemoryStore, SqliteRecallMemoryStore,
@@ -67,15 +67,23 @@ async fn test_app_at(config_path: PathBuf, data_root: PathBuf) -> Router {
     )
     .await
     .expect("менеджер памяти");
-    let state = AppState::new(Arc::new(approvals), Arc::new(notes), PwaToken::new(TOKEN))
-        .with_first_run_memory(Some(Arc::new(manager)))
-        .with_brain(Arc::new(tensa_server::brain::BrainService::new(
-            &data_root,
-            config_path.clone(),
-        )))
-        .with_data_root(data_root)
-        .with_config_path(config_path)
-        .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
+    let contacts = SqliteContactsStore::new_in_memory()
+        .await
+        .expect("контакты");
+    let state = AppState::new(
+        Arc::new(approvals),
+        Arc::new(notes),
+        Arc::new(contacts),
+        PwaToken::new(TOKEN),
+    )
+    .with_first_run_memory(Some(Arc::new(manager)))
+    .with_brain(Arc::new(tensa_server::brain::BrainService::new(
+        &data_root,
+        config_path.clone(),
+    )))
+    .with_data_root(data_root)
+    .with_config_path(config_path)
+    .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
     router(state)
 }
 
