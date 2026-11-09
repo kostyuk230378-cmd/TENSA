@@ -232,13 +232,14 @@ fn walk_desktops(dir: &Path, depth: usize, apps: &mut Vec<ScannedApp>) {
             let Ok(content) = std::fs::read_to_string(&path) else {
                 continue;
             };
-            // Exec обязателен для запуска (Desktop Entry Specification).
+            // Exec обязателен для запуска (Desktop Entry Specification);
+            // подстановки %F/%U и пр. убираем — аргументов у нас нет.
             let Some((_, exec)) = parse_desktop(&content) else {
                 continue;
             };
             apps.push(ScannedApp {
                 name,
-                path: exec,
+                path: clean_exec(&exec),
                 source: "applications".to_string(),
             });
         }
