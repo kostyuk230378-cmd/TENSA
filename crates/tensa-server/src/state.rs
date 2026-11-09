@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tensa_approval::ApprovalStore;
 use tensa_core::{ContactsStore, FirstRunWizard, MemoryInitializer, NotesStore, TensaPaths};
+use tensa_memory::MemoryManager;
 use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
@@ -84,6 +85,9 @@ pub struct AppState {
     /// Инициализатор core memory для мастера (собирается в `main` из
     /// `tensa-memory`; без него `finish` вернёт `core_memory_initialized=false`).
     pub first_run_memory: Option<Arc<dyn MemoryInitializer>>,
+    /// Координатор памяти (ADR-021): memory tool calls модели применяются
+    /// в `/query` без одобрения (агент редактирует память сам).
+    pub memory: Option<Arc<dyn MemoryManager>>,
     /// Шлюз запросов к моделям (`/query`).
     pub query: Arc<tokio::sync::RwLock<Arc<QueryService>>>,
     /// Модель ассистента: локальная Gemma или OpenRouter.
@@ -133,6 +137,7 @@ impl AppState {
             contacts,
             first_run: Arc::new(tokio::sync::RwLock::new(None)),
             first_run_memory: None,
+            memory: None,
             query: Arc::new(tokio::sync::RwLock::new(Arc::new(QueryService::disabled()))),
             brain: Arc::new(BrainService::disabled()),
             calendar: Arc::new(CalendarStore::in_memory()),
@@ -189,6 +194,12 @@ impl AppState {
     /// Инициализатор core memory для мастера первого запуска (`tensa-memory`).
     pub fn with_first_run_memory(mut self, memory: Option<Arc<dyn MemoryInitializer>>) -> Self {
         self.first_run_memory = memory;
+        self
+    }
+
+    /// Координатор памяти для memory tool calls (`/query`, ADR-021).
+    pub fn with_memory_manager(mut self, memory: Option<Arc<dyn MemoryManager>>) -> Self {
+        self.memory = memory;
         self
     }
 

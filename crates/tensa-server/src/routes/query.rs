@@ -742,6 +742,28 @@ pub async fn query(
 
     let query = state.query.read().await.clone();
     let response = query.query(&request, body.model.as_deref()).await?;
+    // Инструменты памяти (ADR-021) агент редактирует сам — применяем сразу;
+    // остальные tool_calls уходят клиенту (одобрение как обычно).
+    if let Some(memory) = &state.memory {
+        let mut applied = 0;
+        for call in response.tool_calls.iter().filter(|call| {
+            tensa_memory::MEMORY_TOOLS
+                .iter()
+                .any(|tool| tool.name == call.tool)
+        }) {
+            match tensa_memory::dispatch_tool(memory.as_ref(), &call.tool, &call.params).await {
+                Ok(_) => applied += 1,
+                Err(error) => tracing::warn!(
+                    tool = %call.tool,
+                    error = %error,
+                    "memory tool не применён",
+                ),
+            }
+        }
+        if applied > 0 {
+            tracing::info!(applied, "memory tool calls применены");
+        }
+    }
     Ok(Json(response))
 }
 

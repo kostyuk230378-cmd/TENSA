@@ -81,15 +81,17 @@ async fn run() -> tensa_server::Result<()> {
     )
     .await
     .map_err(|error| memory_error("memory/archival.db", error))?;
-    let memory_manager = tensa_memory::DefaultMemoryManager::new(
-        Arc::new(core_store),
-        Arc::new(recall_store),
-        Arc::new(archival_store),
-        tensa_memory::MemoryManagerConfig::default(),
-        node_id.clone(),
-    )
-    .await
-    .map_err(|error| memory_error("memory manager", error))?;
+    let memory_manager = Arc::new(
+        tensa_memory::DefaultMemoryManager::new(
+            Arc::new(core_store),
+            Arc::new(recall_store),
+            Arc::new(archival_store),
+            tensa_memory::MemoryManagerConfig::default(),
+            node_id.clone(),
+        )
+        .await
+        .map_err(|error| memory_error("memory manager", error))?,
+    );
 
     let access = load_or_create_token(&paths.root()).await?;
 
@@ -119,7 +121,10 @@ async fn run() -> tensa_server::Result<()> {
     .with_query(Arc::new(query))
     .with_calendar(calendar)
     .with_email_accounts(email_accounts)
-    .with_first_run_memory(Some(Arc::new(memory_manager)))
+    .with_first_run_memory(Some(
+        memory_manager.clone() as Arc<dyn tensa_core::MemoryInitializer>
+    ))
+    .with_memory_manager(Some(memory_manager as Arc<dyn tensa_memory::MemoryManager>))
     .with_data_root(paths.root())
     .with_config_path(config_path.clone())
     .with_files(files.clone(), index_dirs.clone())

@@ -430,29 +430,41 @@ impl LocalBackend for NativeLocal {
                 *loaded = true;
             }
         }
+        // Протокол секретаря (system_prompt_tensa.md): системный промпт
+        // с инструментами; ответ модели разбирается парсером протокола —
+        // невалидный JSON даёт fallback ask_user.
+        let system =
+            tensa_router::protocol::build_system_prompt(tensa_router::protocol::SECRETARY_TOOLS);
         let chat = tensa_llm::ChatRequest {
-            messages: vec![tensa_llm::ChatMessage {
-                role: tensa_llm::Role::User,
-                content: request.text.clone(),
-            }],
+            messages: vec![
+                tensa_llm::ChatMessage {
+                    role: tensa_llm::Role::System,
+                    content: system,
+                },
+                tensa_llm::ChatMessage {
+                    role: tensa_llm::Role::User,
+                    content: request.text.clone(),
+                },
+            ],
             tools: Vec::new(),
             // Короткий ответ: /query — интерактивный чат, а не пакетная генерация.
             max_tokens: Some(self.config.max_tokens),
             temperature: None,
         };
         let response = self.engine.chat(chat).await?;
+        // Локальная модель не обучена нативному function calling: JSON из текста
+        // разбирается парсером протокола; невалидный ответ — fallback ask_user
+        // (вопрос уже в тексте ответа — LocalReply отдаёт его как есть).
+        let known: Vec<&str> = tensa_router::protocol::SECRETARY_TOOLS
+            .iter()
+            .map(|(name, _)| *name)
+            .collect();
+        let parsed = tensa_router::protocol::parse_tool_reply(&response.message.content, &known);
         Ok(LocalReply {
             text: response.message.content,
             tokens_generated: response.tokens_generated,
-            tool_calls: response
-                .tool_calls
-                .into_iter()
-                .map(|call| tensa_router::models::ToolCall {
-                    tool: call.name,
-                    params: call.params,
-                })
-                .collect(),
-            reasoning: None,
+            tool_calls: parsed.tool_calls,
+            reasoning: parsed.reasoning,
         })
     }
 }
