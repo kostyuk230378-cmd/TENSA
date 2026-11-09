@@ -10789,6 +10789,9 @@ dependencies = [
  "tauri-build",
  "tensa-core",
  "tensa-memory",
+ "tensa-tools",
+ "toml 0.8.2",
+ "tracing",
  "uuid",
 ]
 
