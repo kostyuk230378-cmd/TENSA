@@ -25,6 +25,7 @@ pub mod fallback;
 pub mod local;
 pub mod models;
 pub mod node_selector;
+pub mod protocol;
 pub mod remote;
 pub mod router;
 
