@@ -12,3 +12,5 @@ apps/android-lite/Tensa.apk
 apps/android-lite/Tensa.apk.idsig
 pwa/static/Tensa.apk
 apps/desktop-lite/TensaSetup.exe
+
+# Кэш сканирования приложений (приватные данные машины)\napps_cache.json
