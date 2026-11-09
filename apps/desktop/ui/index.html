@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Tensa — первый запуск</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; color: #1a1a1a; }
+    h1 { font-size: 1.3rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 12px; padding: 10px 12px; }
+    legend { font-weight: 600; padding: 0 6px; }
+    label { display: block; margin: 6px 0 2px; font-size: 0.9rem; }
+    input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 4px; }
+    button { padding: 6px 14px; margin-top: 6px; cursor: pointer; }
+    #log { background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; min-height: 80px; }
+    .ok { color: #0a7d28; } .err { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>Мастер первого запуска Tensa</h1>
+  <div id="status">Проверка состояния…</div>
+
+  <fieldset>
+    <legend>Шаг 1 — язык</legend>
+    <select id="language"><option value="ru">Русский</option><option value="en">English</option></select>
+    <button onclick="doLanguage()">Сохранить язык</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Шаг 2 — знакомство</legend>
+    <label>Ваше имя</label><input id="owner_name" value="Владелец" />
+    <label>Как обращаться</label><input id="owner_title" value="Шеф" />
+    <label>Имя секретаря</label><input id="secretary_name" value="Tensa" />
+    <label>Часовой пояс</label><input id="timezone" value="Europe/Moscow" />
+    <button onclick="doIntroduction()">Сохранить знакомство</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Шаги 3–7 — сервисы (опционально)</legend>
+    <button onclick="doModels()">Шаг 3: согласие на загрузку моделей</button>
+    <label>Шаг 4: Telegram — бот и chat id</label>
+    <input id="bot_credential" placeholder="токен бота (уйдёт в secrets.toml)" />
+    <input id="owner_chat_id" placeholder="chat id владельца" />
+    <button onclick="doTelegram()">Сохранить Telegram</button>
+    <label>Шаг 6: WhatsApp (пусто — пропустить)</label>
+    <input id="wa_credential" placeholder="access token (уйдёт в secrets.toml)" />
+    <input id="wa_phone" placeholder="phone number id" />
+    <input id="wa_waba" placeholder="waba id" />
+    <button onclick="doWhatsApp()">Сохранить WhatsApp</button>
+    <button onclick="doTailscale()">Шаг 7: включить Tailscale</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Шаг 8 — завершение</legend>
+    <button onclick="doFinish()">Завершить настройку</button>
+  </fieldset>
+
+  <div id="log"></div>
+
+  <script>
+    const invoke = window.__TAURI__.core.invoke;
+    const log = (text, cls) => {
+      const el = document.getElementById('log');
+      el.textContent += text + '\n';
+      el.className = cls || '';
+      el.scrollTop = el.scrollHeight;
+    };
+
+    async function is_first_run() {
+      try {
+        const first = await invoke('is_first_run');
+        document.getElementById('status').textContent = first
+          ? 'Первый запуск: заполните шаги ниже.'
+          : 'Настройка уже выполнена (config.toml существует).';
+      } catch (e) { log('is_first_run: ' + e, 'err'); }
+    }
+
+    async function doLanguage() {
+      try { await invoke('wizard_step_language', { language: document.getElementById('language').value }); log('язык сохранён', 'ok'); }
+      catch (e) { log('язык: ' + e, 'err'); }
+    }
+    async function doIntroduction() {
+      const v = (id) => document.getElementById(id).value;
+      try {
+        await invoke('wizard_step_introduction', {
+          ownerName: v('owner_name'), ownerTitle: v('owner_title'),
+          secretaryName: v('secretary_name'), timezone: v('timezone')
+        });
+        log('знакомство сохранено', 'ok');
+      } catch (e) { log('знакомство: ' + e, 'err'); }
+    }
+    async function doModels() {
+      try { await invoke('wizard_step_models'); log('модели: согласие сохранено', 'ok'); }
+      catch (e) { log('модели: ' + e, 'err'); }
+    }
+    async function doTelegram() {
+      const v = (id) => document.getElementById(id).value;
+      try { await invoke('wizard_step_telegram', { botToken: v('bot_credential'), ownerChatId: v('owner_chat_id') }); log('telegram сохранён', 'ok'); }
+      catch (e) { log('telegram: ' + e, 'err'); }
+    }
+    async function doWhatsApp() {
+      const v = (id) => document.getElementById(id).value;
+      const config = v('wa_credential') ? { access_token: v('wa_credential'), phone_number_id: v('wa_phone'), waba_id: v('wa_waba') } : null;
+      try { await invoke('wizard_step_whatsapp', { config }); log('whatsapp: ' + (config ? 'сохранён' : 'пропущен'), 'ok'); }
+      catch (e) { log('whatsapp: ' + e, 'err'); }
+    }
+    async function doTailscale() {
+      try { await invoke('wizard_step_tailscale'); log('tailscale включён', 'ok'); }
+      catch (e) { log('tailscale: ' + e, 'err'); }
+    }
+    async function doFinish() {
+      try {
+        const result = await invoke('wizard_step_finish');
+        log('готово: config=' + result.config_saved + ', secrets=' + result.secrets_saved
+          + ', память=' + result.core_memory_initialized, 'ok');
+      } catch (e) { log('финиш: ' + e, 'err'); }
+    }
+
+    is_first_run();
+  </script>
+</body>
+</html>

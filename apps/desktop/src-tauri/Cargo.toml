@@ -1,0 +1,28 @@
+[package]
+name = "tensa-desktop-tauri"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tauri-обёртка десктопа (Контракт 10): IPC-команды для Svelte-фронтенда"
+
+[lib]
+name = "tensa_desktop_tauri"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+# Сборка контекста Tauri (таuri.conf.json, UI-статика)
+tauri-build.workspace = true
+
+[dependencies]
+# Внутренние
+tensa-core = { path = "../../../crates/tensa-core" }
+tensa-memory = { path = "../../../crates/tensa-memory" }
+
+# Tauri v2 (Контракт 10; апрув Архитектора 09.11.2026)
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true

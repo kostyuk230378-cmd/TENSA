@@ -20,6 +20,7 @@ members = [
     "crates/tensa-llm",
     "crates/tensa-llm/llama-sys",
     "crates/tensa-llm/llama",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
@@ -89,6 +90,9 @@ fastembed = "7.1"
 sysinfo = "0.39"
 # Windows API: батарея (GetSystemPowerStatus); используется под cfg(windows).
 windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
+# Tauri-десктоп (Контракт 10; apps/desktop/src-tauri, апрув Архитектора 09.11.2026)
+tauri = "2"
+tauri-build = "2"
 
 [profile.release]
 opt-level = 3
