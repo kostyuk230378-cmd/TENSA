@@ -37,6 +37,9 @@ async fn test_app() -> Router {
         Arc::new(contacts),
         PwaToken::new(TOKEN),
     )
+    .with_data_root(
+        std::env::temp_dir().join(format!("tensa-integration-{}", uuid::Uuid::new_v4())),
+    )
     .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
     router(state)
 }
