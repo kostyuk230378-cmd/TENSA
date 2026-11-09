@@ -10141,7 +10141,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-approval"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10156,7 +10156,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-asr"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "serde_json",
  "transcribe-cpp",
@@ -10164,7 +10164,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-cli"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "anyhow",
  "chrono",
@@ -10192,7 +10192,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-core"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10209,7 +10209,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-desktop"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "tao",
  "wry",
@@ -10217,7 +10217,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-ffi"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "serde",
  "serde_json",
@@ -10235,7 +10235,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-llama"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "futures",
@@ -10251,7 +10251,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-llama-sys"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "bindgen",
  "cmake",
@@ -10259,14 +10259,14 @@ dependencies = [
 
 [[package]]
 name = "tensa-llm"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "tensa-llama",
 ]
 
 [[package]]
 name = "tensa-memory"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10287,7 +10287,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-nodes"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10303,7 +10303,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-perf"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10322,7 +10322,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-router"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10344,7 +10344,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-server"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "axum",
@@ -10374,7 +10374,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-sync"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10399,7 +10399,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-tools"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "async-trait",
  "calamine",
@@ -10421,7 +10421,7 @@ dependencies = [
 
 [[package]]
 name = "tensa-whisper"
-version = "0.1.0"
+version = "0.2.28"
 dependencies = [
  "whisper-rs",
 ]

@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.28"
 edition = "2021"
 rust-version = "1.95"
 authors = ["Tensa Contributors"]
