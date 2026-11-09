@@ -20,9 +20,12 @@ tauri-build.workspace = true
 # Внутренние
 tensa-core = { path = "../../../crates/tensa-core" }
 tensa-memory = { path = "../../../crates/tensa-memory" }
+tensa-tools = { path = "../../../crates/tensa-tools" }
 
 # Tauri v2 (Контракт 10; апрув Архитектора 09.11.2026)
 tauri.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
+tracing.workspace = true
 uuid.workspace = true

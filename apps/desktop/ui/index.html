@@ -13,6 +13,7 @@
     button { padding: 6px 14px; margin-top: 6px; cursor: pointer; }
     #log { background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; min-height: 80px; }
     .ok { color: #0a7d28; } .err { color: #b00020; }
+    .hint { font-size: 0.8rem; color: #555; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -37,10 +38,17 @@
   <fieldset>
     <legend>Шаги 3–7 — сервисы (опционально)</legend>
     <button onclick="doModels()">Шаг 3: согласие на загрузку моделей</button>
+    <div class="hint">Скачивание моделей — в «Настройках» PWA после установки (прогресс там же).</div>
     <label>Шаг 4: Telegram — бот и chat id</label>
     <input id="bot_credential" placeholder="токен бота (уйдёт в secrets.toml)" />
     <input id="owner_chat_id" placeholder="chat id владельца" />
-    <button onclick="doTelegram()">Сохранить Telegram</button>
+    <button onclick="doTelegram()">Проверить и сохранить Telegram</button>
+    <label>Шаг 5: почта (SMTP-проверка)</label>
+    <input id="mail_email" placeholder="адрес" />
+    <input id="mail_credential" placeholder="пароль приложения (уйдёт в secrets.toml)" />
+    <input id="mail_imap" placeholder="IMAP-хост" />
+    <input id="mail_smtp" placeholder="SMTP-хост" />
+    <button onclick="doEmail()">Проверить и сохранить почту</button>
     <label>Шаг 6: WhatsApp (пусто — пропустить)</label>
     <input id="wa_credential" placeholder="access token (уйдёт в secrets.toml)" />
     <input id="wa_phone" placeholder="phone number id" />
@@ -51,6 +59,14 @@
 
   <fieldset>
     <legend>Шаг 8 — завершение</legend>
+    <label>Модель ассистента</label>
+    <select id="brain">
+      <option value="">Не менять (гибрид по умолчанию)</option>
+      <option value="local">Локальная (модель скачивается в «Настройках»)</option>
+      <option value="cloud">Облачная (OpenRouter)</option>
+    </select>
+    <label>Ключ OpenRouter (если облачная; уйдёт в secrets.toml)</label>
+    <input id="openrouter_credential" placeholder="sk-or-…" />
     <button onclick="doFinish()">Завершить настройку</button>
   </fieldset>
 
@@ -94,8 +110,27 @@
     }
     async function doTelegram() {
       const v = (id) => document.getElementById(id).value;
-      try { await invoke('wizard_step_telegram', { botToken: v('bot_credential'), ownerChatId: v('owner_chat_id') }); log('telegram сохранён', 'ok'); }
-      catch (e) { log('telegram: ' + e, 'err'); }
+      try {
+        await invoke('wizard_step_telegram', {
+          botToken: v('bot_credential'), ownerChatId: v('owner_chat_id'), validate: true
+        });
+        log('telegram проверен и сохранён', 'ok');
+      } catch (e) { log('telegram: ' + e, 'err'); }
+    }
+    async function doEmail() {
+      const v = (id) => document.getElementById(id).value;
+      try {
+        await invoke('wizard_step_email', {
+          account: {
+            id: 'personal', label: 'Личный', email: v('mail_email'),
+            credential: v('mail_credential') || null,
+            imap_host: v('mail_imap'), imap_port: 993,
+            smtp_host: v('mail_smtp'), smtp_port: 587
+          },
+          validate: true
+        });
+        log('почта проверена и сохранена', 'ok');
+      } catch (e) { log('почта: ' + e, 'err'); }
     }
     async function doWhatsApp() {
       const v = (id) => document.getElementById(id).value;
@@ -108,8 +143,12 @@
       catch (e) { log('tailscale: ' + e, 'err'); }
     }
     async function doFinish() {
+      const v = (id) => document.getElementById(id).value;
       try {
-        const result = await invoke('wizard_step_finish');
+        const result = await invoke('wizard_step_finish', {
+          brain: v('brain') || null,
+          openrouterCredential: v('openrouter_credential') || null
+        });
         log('готово: config=' + result.config_saved + ', secrets=' + result.secrets_saved
           + ', память=' + result.core_memory_initialized, 'ok');
       } catch (e) { log('финиш: ' + e, 'err'); }

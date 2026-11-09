@@ -69,6 +69,10 @@ async fn test_app_at(config_path: PathBuf, data_root: PathBuf) -> Router {
     .expect("менеджер памяти");
     let state = AppState::new(Arc::new(approvals), Arc::new(notes), PwaToken::new(TOKEN))
         .with_first_run_memory(Some(Arc::new(manager)))
+        .with_brain(Arc::new(tensa_server::brain::BrainService::new(
+            &data_root,
+            config_path.clone(),
+        )))
         .with_data_root(data_root)
         .with_config_path(config_path)
         .with_static_dir(std::env::temp_dir().join("tensa-server-no-static"));
@@ -176,7 +180,7 @@ async fn first_run_full_cycle_writes_config_secrets_memory() {
         .oneshot(request(
             "POST",
             "/api/v1/first-run/step/telegram",
-            Some(json!({ "bot_token": "bot-secret", "owner_chat_id": "42" })),
+            Some(json!({ "bot_token": "bot-secret", "owner_chat_id": "42", "validate": false })),
         ))
         .await
         .expect("ответ шага telegram");
@@ -300,7 +304,8 @@ async fn first_run_email_without_imap_host_is_400() {
                     "imap_port": 993,
                     "smtp_host": "smtp.example.com",
                     "smtp_port": 587
-                }
+                },
+                "validate": false
             })),
         ))
         .await
@@ -324,5 +329,68 @@ async fn first_run_finish_config_save_error_is_500() {
         .await
         .expect("ответ finish");
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn first_run_finish_brain_cloud_saves_key_and_mode() {
+    let root = temp_root();
+    let config_path = root.join("config.toml");
+    let app = test_app(config_path.clone()).await;
+    pass_language(&app).await;
+    pass_introduction(&app).await;
+    let response = app
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/api/v1/first-run/step/telegram",
+            Some(json!({ "bot_token": "bot-secret", "owner_chat_id": "42", "validate": false })),
+        ))
+        .await
+        .expect("ответ шага telegram");
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let response = app
+        .oneshot(request(
+            "POST",
+            "/api/v1/first-run/step/finish",
+            Some(json!({
+                "brain": "cloud",
+                "openrouter_credential": "sk-or-test-1234567890abcdef"
+            })),
+        ))
+        .await
+        .expect("ответ finish");
+    assert_eq!(response.status(), StatusCode::OK);
+    let result = json_body(response).await;
+    assert_eq!(result["core_memory_initialized"], json!(true));
+    // Ключ — в secrets, режим — в config.brain.
+    let secrets = Secrets::load(&root.join("secrets.toml")).expect("secrets");
+    assert_eq!(
+        secrets.openrouter.credential.as_deref(),
+        Some("sk-or-test-1234567890abcdef")
+    );
+    let config = Config::load(&config_path).expect("config");
+    assert_eq!(
+        config.brain.get("mode").and_then(|value| value.as_str()),
+        Some("cloud")
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn first_run_finish_cloud_without_key_is_400() {
+    let root = temp_root();
+    let app = test_app(root.join("config.toml")).await;
+    pass_language(&app).await;
+    pass_introduction(&app).await;
+    let response = app
+        .oneshot(request(
+            "POST",
+            "/api/v1/first-run/step/finish",
+            Some(json!({ "brain": "cloud" })),
+        ))
+        .await
+        .expect("ответ finish");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let _ = std::fs::remove_dir_all(root);
 }

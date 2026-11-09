@@ -5,17 +5,30 @@
 //! (форма Контракта 10: `Result<T, String>`); секреты в аргументах команд
 //! уходят в `secrets.toml` и не логируются.
 //!
+//! Расширения: шаги 4/5 выполняют живые проверки (Telegram getMe +
+//! тестовое сообщение, SMTP) до записи в сессию; шаг 8 принимает выбор
+//! модели ассистента (`local`/`cloud`) и ключ OpenRouter — применяются
+//! после записи config.toml ядром. Скачивание моделей из Tauri-мастера
+//! недоступно (сервисы в tensa-server) — модули ставятся из «Настроек»
+//! PWA после установки.
+//!
 //! Остальные команды Контракта 10 (approvals, notes, query, ...) добавляются
 //! по мере реализации фаз плана завершения.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use tensa_core::{Config, FirstRunWizard, Language, MemoryInitializer, TensaPaths};
+use tensa_core::{
+    Config, EmailAccount, FirstRunWizard, Language, MemoryInitializer, Secrets, TensaPaths,
+};
 use tensa_memory::{
     CoreMemoryConfig, DefaultMemoryManager, HashEmbedder, MemoryManagerConfig,
     SqliteArchivalMemoryStore, SqliteCoreMemoryStore, SqliteRecallMemoryStore,
 };
+use tensa_tools::email::autodetect::SmtpTls;
+use tensa_tools::email::connections::Account as SmtpAccount;
+use tensa_tools::email::smtp;
+use tensa_tools::telegram::TelegramClient;
 
 /// Состояние приложения: сессия мастера первого запуска (создаётся лениво
 /// на первом шаге, сбрасывается после завершения — как в HTTP-бэкенде).
@@ -111,7 +124,7 @@ async fn build_wizard() -> Result<FirstRunWizard, String> {
 /// (доп. ТЗ: `run_first_run_wizard() -> WizardResult`).
 #[tauri::command]
 async fn run_first_run_wizard(state: tauri::State<'_, AppState>) -> Result<WizardResult, String> {
-    finish(&state).await
+    finish(&state, None, None).await
 }
 
 /// Шаг 1: язык интерфейса (`ru` | `en`).
@@ -148,9 +161,13 @@ async fn wizard_step_introduction(
         .map_err(|error| error.to_string())
 }
 
-/// Шаг 3: загрузка моделей (согласие).
+/// Шаг 3: согласие на загрузку моделей.
+///
+/// Скачивание из Tauri-мастера недоступно (сервисы загрузки живут в
+/// HTTP-бэкенде): модули ставятся из «Настроек» PWA после установки.
 #[tauri::command]
 async fn wizard_step_models(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    tracing::info!("мастер: согласие на модели сохранено; скачивание — из «Настроек» PWA");
     session(&state)
         .await?
         .step_models()
@@ -158,13 +175,35 @@ async fn wizard_step_models(state: tauri::State<'_, AppState>) -> Result<(), Str
         .map_err(|error| error.to_string())
 }
 
-/// Шаг 4: Telegram-бот (токен — в secrets.toml).
+/// Шаг 4: Telegram-бот — живая проверка (getMe + тестовое сообщение),
+/// токен — в secrets.toml.
 #[tauri::command]
 async fn wizard_step_telegram(
     state: tauri::State<'_, AppState>,
     bot_token: String,
     owner_chat_id: String,
+    validate: Option<bool>,
 ) -> Result<(), String> {
+    if bot_token.trim().is_empty() {
+        return Err("нужен токен бота".to_string());
+    }
+    if validate != Some(false) {
+        let client =
+            TelegramClient::new(bot_token.trim()).map_err(|error| format!("Telegram: {error}"))?;
+        client
+            .get_me()
+            .await
+            .map_err(|error| format!("Telegram: {error}"))?;
+        let owner = if owner_chat_id.trim().is_empty() {
+            return Err("укажите chat id владельца (или напишите боту /start)".to_string());
+        } else {
+            owner_chat_id.trim().to_string()
+        };
+        client
+            .send_message(&owner, "Tensa: подключение настроено.", None)
+            .await
+            .map_err(|error| format!("Telegram: не могу написать в чат: {error}"))?;
+    }
     session(&state)
         .await?
         .step_telegram(bot_token, owner_chat_id)
@@ -172,12 +211,37 @@ async fn wizard_step_telegram(
         .map_err(|error| error.to_string())
 }
 
-/// Шаг 5: почта (аккаунт — в config.toml, секрет — в secrets.toml).
+/// Шаг 5: почта — живая проверка SMTP, аккаунт — в config, секрет — в
+/// secrets.toml (IMAP-проверка — с Фазы 2).
 #[tauri::command]
 async fn wizard_step_email(
     state: tauri::State<'_, AppState>,
-    account: tensa_core::EmailAccount,
+    account: EmailAccount,
+    validate: Option<bool>,
 ) -> Result<(), String> {
+    if validate != Some(false) {
+        let credential = account
+            .credential
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| "нужен пароль приложения".to_string())?;
+        let smtp_account = SmtpAccount {
+            id: "test".to_string(),
+            email: account.email.clone(),
+            label: account.label.clone(),
+            imap_host: account.imap_host.clone(),
+            imap_port: account.imap_port,
+            smtp_host: account.smtp_host.clone(),
+            smtp_port: account.smtp_port,
+            smtp_tls: match account.smtp_port {
+                465 => SmtpTls::Implicit,
+                _ => SmtpTls::StartTls,
+            },
+        };
+        smtp::test_connection(&smtp_account, credential.trim())
+            .await
+            .map_err(|error| format!("SMTP: {error}"))?;
+    }
     session(&state)
         .await?
         .step_email(account)
@@ -208,20 +272,30 @@ async fn wizard_step_tailscale(state: tauri::State<'_, AppState>) -> Result<(), 
         .map_err(|error| error.to_string())
 }
 
-/// Шаг 8: завершение (config.toml + secrets.toml + core memory).
+/// Шаг 8: завершение — config.toml, secrets.toml, core memory; затем
+/// модель ассистента (`local`/`cloud`) и ключ OpenRouter.
 #[tauri::command]
-async fn wizard_step_finish(state: tauri::State<'_, AppState>) -> Result<WizardResult, String> {
-    finish(&state).await
+async fn wizard_step_finish(
+    state: tauri::State<'_, AppState>,
+    brain: Option<String>,
+    openrouter_credential: Option<String>,
+) -> Result<WizardResult, String> {
+    finish(&state, brain, openrouter_credential).await
 }
 
 /// Общая логика завершения: записать файлы, инициализировать память,
-/// сбросить сессию.
-async fn finish(state: &tauri::State<'_, AppState>) -> Result<WizardResult, String> {
+/// применить выбор мозга, сбросить сессию.
+async fn finish(
+    state: &tauri::State<'_, AppState>,
+    brain: Option<String>,
+    openrouter_credential: Option<String>,
+) -> Result<WizardResult, String> {
     let wizard = session(state).await?;
     let result = wizard
         .step_finish()
         .await
         .map_err(|error| error.to_string())?;
+    apply_brain(brain, openrouter_credential).await?;
     *slot(state) = None;
     // Успешный finish означает, что оба файла записаны ядром.
     Ok(WizardResult {
@@ -229,6 +303,41 @@ async fn finish(state: &tauri::State<'_, AppState>) -> Result<WizardResult, Stri
         secrets_saved: true,
         core_memory_initialized: result.core_memory_initialized,
     })
+}
+
+/// Применить выбор модели ассистента: ключ — в secrets.toml (валидация
+/// формата), режим мозга — в config.toml (файл уже записан ядром).
+async fn apply_brain(
+    brain: Option<String>,
+    openrouter_credential: Option<String>,
+) -> Result<(), String> {
+    let paths = TensaPaths::new();
+    if let Some(key) = openrouter_credential
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if key.len() < 20 || !key.starts_with("sk-or-") {
+            return Err("ключ OpenRouter должен начинаться с sk-or-".to_string());
+        }
+        let mut secrets = Secrets::load(&paths.secrets_file())
+            .map_err(|error| format!("secrets.toml: {error}"))?;
+        secrets.openrouter.credential = Some(key.to_string());
+        secrets
+            .save(&paths.secrets_file())
+            .map_err(|error| format!("secrets.toml: {error}"))?;
+    }
+    let mode = match brain.as_deref() {
+        Some("cloud") | Some("local") => brain.expect("проверено выше"),
+        _ => return Ok(()),
+    };
+    let mut config = Config::load(&paths.config_file()).map_err(|error| error.to_string())?;
+    config
+        .brain
+        .insert("mode".to_string(), toml::Value::String(mode.to_string()));
+    config
+        .save(&paths.config_file())
+        .map_err(|error| error.to_string())
 }
 
 /// Запуск Tauri-приложения (вызывается из `main.rs`; ошибки — значением).

@@ -114,7 +114,7 @@ pub async fn save(
     })))
 }
 
-async fn detect_chat(client: &TelegramClient) -> Result<String> {
+pub(crate) async fn detect_chat(client: &TelegramClient) -> Result<String> {
     let updates = client
         .get_updates(None, 0)
         .await
