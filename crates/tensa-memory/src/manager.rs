@@ -176,22 +176,35 @@ impl MemoryManager for DefaultMemoryManager {
 
     async fn get_context(&self) -> Result<MemoryContext> {
         let core_blocks = self.core.get_all_blocks().await?;
-        let recent_messages = self
+        let mut recent_messages = self
             .recall
             .get_recent(self.config.message_buffer_size)
             .await?;
-        let total_tokens: u32 = core_blocks
+        let message_tokens = |message: &crate::models::RecallMessage| {
+            (message.content.chars().count() as u32 / 4).max(1)
+        };
+        let core_tokens: u32 = core_blocks
             .iter()
             .map(|b| b.size_tokens.max(0) as u32)
-            .sum::<u32>()
-            + recent_messages
-                .iter()
-                .map(|m| (m.content.chars().count() as u32 / 4).max(1))
-                .sum::<u32>();
+            .sum::<u32>();
+        let mut total = core_tokens + recent_messages.iter().map(message_tokens).sum::<u32>();
+        // Контекст укладывается в max_context_tokens (dop_tz): режем старейшие
+        // сообщения recall; core memory не трогаем — она всегда в контексте.
+        while total > self.config.max_context_tokens && !recent_messages.is_empty() {
+            let removed = message_tokens(&recent_messages.remove(0));
+            total = total.saturating_sub(removed);
+        }
+        if total > self.config.max_context_tokens {
+            tracing::warn!(
+                total,
+                max = self.config.max_context_tokens,
+                "core memory превышает max_context_tokens — контекст обрезан частично"
+            );
+        }
         Ok(MemoryContext {
             core_blocks,
             recent_messages,
-            total_tokens,
+            total_tokens: total,
         })
     }
 }
