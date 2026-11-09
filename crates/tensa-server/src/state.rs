@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tensa_approval::ApprovalStore;
-use tensa_core::NotesStore;
+use tensa_core::{FirstRunWizard, MemoryInitializer, NotesStore, TensaPaths};
 use tokio::sync::broadcast;
 
 use crate::auth::PwaToken;
@@ -62,6 +62,13 @@ impl ServerEvent {
     }
 }
 
+/// Путь к `secrets.toml` по корню данных (Контракт 4: секреты рядом с
+/// config.toml). Отдельная функция — ею пользуются мастер первого запуска
+/// и почтовый сервис.
+pub fn secrets_path(root: &std::path::Path) -> std::path::PathBuf {
+    TensaPaths::with_root(root.to_path_buf()).secrets_file()
+}
+
 /// Состояние сервера: хранилища, доступ, канал событий, статика.
 #[derive(Clone)]
 pub struct AppState {
@@ -69,6 +76,12 @@ pub struct AppState {
     pub approvals: Arc<dyn ApprovalStore>,
     /// Хранилище заметок (`tensa-core`).
     pub notes: Arc<dyn NotesStore>,
+    /// Мастер первого запуска: сессия с накопленными ответами шагов
+    /// (создаётся лениво при первом шаге, сбрасывается после `finish`).
+    pub first_run: Arc<tokio::sync::RwLock<Option<Arc<FirstRunWizard>>>>,
+    /// Инициализатор core memory для мастера (собирается в `main` из
+    /// `tensa-memory`; без него `finish` вернёт `core_memory_initialized=false`).
+    pub first_run_memory: Option<Arc<dyn MemoryInitializer>>,
     /// Шлюз запросов к моделям (`/query`).
     pub query: Arc<tokio::sync::RwLock<Arc<QueryService>>>,
     /// Модель ассистента: локальная Gemma или OpenRouter.
@@ -114,6 +127,8 @@ impl AppState {
         Self {
             approvals,
             notes,
+            first_run: Arc::new(tokio::sync::RwLock::new(None)),
+            first_run_memory: None,
             query: Arc::new(tokio::sync::RwLock::new(Arc::new(QueryService::disabled()))),
             brain: Arc::new(BrainService::disabled()),
             calendar: Arc::new(CalendarStore::in_memory()),
@@ -164,6 +179,12 @@ impl AppState {
     /// Почтовые аккаунты из конфига.
     pub fn with_email_accounts(mut self, accounts: Vec<AccountInfo>) -> Self {
         self.email_accounts = accounts;
+        self
+    }
+
+    /// Инициализатор core memory для мастера первого запуска (`tensa-memory`).
+    pub fn with_first_run_memory(mut self, memory: Option<Arc<dyn MemoryInitializer>>) -> Self {
+        self.first_run_memory = memory;
         self
     }
 

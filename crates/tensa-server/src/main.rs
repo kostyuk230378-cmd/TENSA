@@ -51,7 +51,41 @@ async fn run() -> tensa_server::Result<()> {
         node_id.clone(),
     )
     .await?;
-    let notes = SqliteNotesStore::new(&paths.notes_db(), node_id).await?;
+    let notes = SqliteNotesStore::new(&paths.notes_db(), node_id.clone()).await?;
+
+    // Инициализатор core memory мастера первого запуска (доп. ТЗ tensa-core):
+    // DefaultMemoryManager поверх SQLite-хранилищ (core/recall — memory.db,
+    // архив — memory/archival.db). Эмбеддер архива — HashEmbedder: для
+    // инициализации дефолтных блоков эмбеддинги не нужны, реальная модель
+    // e5-small подключается в CLI за фичей fastembed.
+    let memory_error = |context: &str, error: tensa_memory::MemoryError| {
+        tensa_server::ServerError::Storage(format!("{context}: {error}"))
+    };
+    let core_store = tensa_memory::SqliteCoreMemoryStore::new(
+        &paths.root().join("memory.db"),
+        tensa_memory::CoreMemoryConfig::default(),
+        node_id.clone(),
+    )
+    .await
+    .map_err(|error| memory_error("memory.db (core)", error))?;
+    let recall_store = tensa_memory::SqliteRecallMemoryStore::new(&paths.root().join("memory.db"))
+        .await
+        .map_err(|error| memory_error("memory.db (recall)", error))?;
+    let archival_store = tensa_memory::SqliteArchivalMemoryStore::new(
+        &paths.memory_dir().join("archival.db"),
+        Arc::new(tensa_memory::HashEmbedder::new(384)),
+    )
+    .await
+    .map_err(|error| memory_error("memory/archival.db", error))?;
+    let memory_manager = tensa_memory::DefaultMemoryManager::new(
+        Arc::new(core_store),
+        Arc::new(recall_store),
+        Arc::new(archival_store),
+        tensa_memory::MemoryManagerConfig::default(),
+        node_id.clone(),
+    )
+    .await
+    .map_err(|error| memory_error("memory manager", error))?;
 
     let access = load_or_create_token(&paths.root()).await?;
 
@@ -76,6 +110,7 @@ async fn run() -> tensa_server::Result<()> {
         .with_query(Arc::new(query))
         .with_calendar(calendar)
         .with_email_accounts(email_accounts)
+        .with_first_run_memory(Some(Arc::new(memory_manager)))
         .with_data_root(paths.root())
         .with_config_path(config_path.clone())
         .with_files(files.clone(), index_dirs.clone())

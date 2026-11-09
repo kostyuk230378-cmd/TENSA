@@ -79,6 +79,7 @@ impl ServerError {
             ServerError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServerError::Core(CoreError::NotFound(_)) => StatusCode::NOT_FOUND,
             ServerError::Core(CoreError::Config(_)) => StatusCode::BAD_REQUEST,
+            ServerError::Core(CoreError::FirstRunNotCompleted) => StatusCode::BAD_REQUEST,
             ServerError::Approval(ApprovalError::NotFound(_)) => StatusCode::NOT_FOUND,
             ServerError::Approval(
                 ApprovalError::InvalidTransition { .. } | ApprovalError::Expired(_),
@@ -143,6 +144,10 @@ mod tests {
         assert_eq!(
             ServerError::Core(CoreError::NotFound("note".into())).status(),
             StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            ServerError::Core(CoreError::FirstRunNotCompleted).status(),
+            StatusCode::BAD_REQUEST
         );
         assert_eq!(
             ServerError::Approval(ApprovalError::NotFound("action".into())).status(),

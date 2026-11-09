@@ -10358,6 +10358,7 @@ dependencies = [
  "tensa-approval",
  "tensa-core",
  "tensa-llm",
+ "tensa-memory",
  "tensa-router",
  "tensa-tools",
  "thiserror 1.0.69",

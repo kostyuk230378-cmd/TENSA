@@ -15,6 +15,8 @@ tensa-approval = { path = "../tensa-approval" }
 tensa-router = { path = "../tensa-router" }
 tensa-llm = { path = "../tensa-llm" }
 tensa-tools = { path = "../tensa-tools" }
+# Мастер первого запуска: инициализация core memory (Фаза 1; MemoryInitializer)
+tensa-memory = { path = "../tensa-memory" }
 
 # Внешние (из workspace)
 axum.workspace = true

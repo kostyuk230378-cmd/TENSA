@@ -11,6 +11,7 @@ pub mod email;
 pub mod email_setup;
 pub mod events;
 pub mod files;
+pub mod first_run;
 pub mod health;
 pub mod notes;
 pub mod query;
@@ -49,6 +50,19 @@ pub fn api() -> Router<AppState> {
             "/notes/:id",
             get(notes::get).put(notes::update).delete(notes::delete),
         )
+        // Первый запуск (Контракт 12, доп. ТЗ tensa-core).
+        .route("/first-run", get(first_run::status))
+        .route("/first-run/step/language", post(first_run::step_language))
+        .route(
+            "/first-run/step/introduction",
+            post(first_run::step_introduction),
+        )
+        .route("/first-run/step/models", post(first_run::step_models))
+        .route("/first-run/step/telegram", post(first_run::step_telegram))
+        .route("/first-run/step/email", post(first_run::step_email))
+        .route("/first-run/step/whatsapp", post(first_run::step_whatsapp))
+        .route("/first-run/step/tailscale", post(first_run::step_tailscale))
+        .route("/first-run/step/finish", post(first_run::step_finish))
         // Поток событий (SSE).
         .route("/events", get(events::events))
         // Запросы к моделям через ядро (Контракт 12): облако/локальная GGUF.

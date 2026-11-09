@@ -52,17 +52,6 @@ pub fn routes() -> Router<AppState> {
         .route("/config/reload", post(not_implemented))
         // Потоковый ответ модели — вне объёма MVP (/query реализован отдельно).
         .route("/query/stream", post(not_implemented))
-        // Голос.
-        // Первый запуск: шаги мастера (Контракт 11).
-        .route("/first-run", get(not_implemented))
-        .route("/first-run/step/language", post(not_implemented))
-        .route("/first-run/step/introduction", post(not_implemented))
-        .route("/first-run/step/models", post(not_implemented))
-        .route("/first-run/step/telegram", post(not_implemented))
-        .route("/first-run/step/email", post(not_implemented))
-        .route("/first-run/step/whatsapp", post(not_implemented))
-        .route("/first-run/step/tailscale", post(not_implemented))
-        .route("/first-run/step/finish", post(not_implemented))
 }
 
 /// Общий обработчик заглушек: 501 с указанием метода и пути.
