@@ -176,3 +176,134 @@ pub trait ContactsStore: Send + Sync {
         offset: usize,
     ) -> crate::error::Result<Vec<Contact>>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn sample_contact() -> Contact {
+        Contact {
+            id: Uuid::new_v4(),
+            name: "Иван".into(),
+            email: Some("ivan@example.com".into()),
+            phone: Some("+7 900".into()),
+            telegram: Some("@ivan".into()),
+            whatsapp: None,
+            notes: None,
+            tags: vec!["работа".into()],
+            created_at: 1,
+            updated_at: 2,
+            created_on_node: "a".into(),
+            updated_on_node: "a".into(),
+            deleted: false,
+            vector_clock: VectorClock::new(),
+        }
+    }
+
+    /// Контакт — serde-раундтрип без потерь полей.
+    #[test]
+    fn contact_serde_roundtrip() {
+        let contact = sample_contact();
+        let value = serde_json::to_value(&contact).expect("в JSON");
+        assert_eq!(value["name"], "Иван");
+        assert_eq!(value["email"], "ivan@example.com");
+        assert_eq!(value["tags"][0], "работа");
+        assert_eq!(value["deleted"], false);
+        let restored: Contact = serde_json::from_value(value).expect("из JSON");
+        assert_eq!(
+            serde_json::to_value(&restored).expect("обратно"),
+            serde_json::to_value(&contact).expect("оригинал")
+        );
+    }
+
+    /// NewContact — десериализация тела HTTP-запроса (Контракт 12).
+    #[test]
+    fn new_contact_deserializes_from_body() {
+        let body = serde_json::json!({
+            "name": "Ольга",
+            "telegram": "@olga",
+            "tags": []
+        });
+        let new_contact: NewContact = serde_json::from_value(body).expect("тело запроса");
+        assert_eq!(new_contact.name, "Ольга");
+        assert_eq!(new_contact.email, None);
+        assert!(new_contact.tags.is_empty());
+    }
+
+    /// Debug EmailAccount/WhatsAppConfig не печатает секреты.
+    #[test]
+    fn email_account_debug_hides_fields() {
+        let account = EmailAccount {
+            id: "personal".into(),
+            label: "Личный".into(),
+            email: "user@example.com".into(),
+            imap_host: "imap.example.com".into(),
+            imap_port: 993,
+            smtp_host: "smtp.example.com".into(),
+            smtp_port: 587,
+            credential: Some("секрет".into()),
+        };
+        let debug = format!("{account:?}");
+        assert!(!debug.contains("секрет"), "секрет в Debug: {debug}");
+        let whatsapp = WhatsAppConfig {
+            credential: "whatsapp-секрет".into(),
+            phone_number_id: "123".into(),
+            waba_id: "456".into(),
+        };
+        let debug = format!("{whatsapp:?}");
+        assert!(
+            !debug.contains("whatsapp-секрет"),
+            "секрет в Debug: {debug}"
+        );
+    }
+
+    /// EmailAccount — serde-раундтрип (Контракт 9: dictionary EmailAccount).
+    #[test]
+    fn email_account_serde_roundtrip() {
+        let account = EmailAccount {
+            id: "personal".into(),
+            label: "Личный".into(),
+            email: "user@example.com".into(),
+            credential: None,
+            imap_host: "imap.example.com".into(),
+            imap_port: 993,
+            smtp_host: "smtp.example.com".into(),
+            smtp_port: 587,
+        };
+        let restored: EmailAccount =
+            serde_json::from_value(serde_json::to_value(&account).expect("в JSON"))
+                .expect("из JSON");
+        assert_eq!(restored, account);
+    }
+
+    /// Note — serde-раундтрип (Контракт 3).
+    #[test]
+    fn note_serde_roundtrip() {
+        let note = Note {
+            id: Uuid::new_v4(),
+            title: "Заметка".into(),
+            body: "Текст".into(),
+            tags: vec![],
+            created_at: 1,
+            updated_at: 2,
+            created_on_node: "a".into(),
+            updated_on_node: "b".into(),
+            deleted: true,
+            vector_clock: VectorClock::new(),
+        };
+        let restored: Note =
+            serde_json::from_value(serde_json::to_value(&note).expect("в JSON")).expect("из JSON");
+        assert_eq!(
+            serde_json::to_value(&restored).expect("обратно"),
+            serde_json::to_value(&note).expect("оригинал")
+        );
+    }
+
+    /// Language — serde в нижний регистр (Контракт 8).
+    #[test]
+    fn language_serde_lowercase() {
+        assert_eq!(serde_json::to_value(Language::Ru).expect("ru"), "ru");
+        assert_eq!(serde_json::to_value(Language::En).expect("en"), "en");
+    }
+}

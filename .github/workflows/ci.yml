@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: fmt + clippy + tests
+  fmt:
+    name: Форматирование
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -24,22 +24,105 @@ jobs:
       - name: Установка Rust (stable)
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
-
-      - name: Кэш зависимостей
-        uses: Swatinem/rust-cache@v2
-
-      - name: libclang, cmake и GTK/WebKit (whisper-хелпер + Tauri)
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+          components: rustfmt
 
       - name: Форматирование (cargo fmt)
         run: cargo fmt --all --check
 
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: libclang, cmake, GTK/WebKit (whisper-хелпер + Tauri)
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
       - name: Линтер (cargo clippy, без предупреждений)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+  test:
+    name: Тесты (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: libclang, cmake, GTK/WebKit (только Ubuntu: whisper + Tauri)
+        if: matrix.os == 'ubuntu-24.04'
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
       - name: Тесты (cargo test --workspace)
         run: cargo test --workspace
+
+  coverage:
+    name: Покрытие (llvm-cov)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: libclang, cmake, GTK/WebKit (whisper + Tauri + all-features)
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      - name: Установка cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Покрытие (порог 60% строк)
+        run: cargo llvm-cov --workspace --all-features --exclude tensa-whisper --fail-under-lines 60 --lcov --output-path lcov.info
+
+      - name: Артефакт lcov.info
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: lcov.info
+
+  audit:
+    name: Аудит зависимостей
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Установка cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit
 
   memory-vector:
     name: tensa-memory (Lance + fastembed)
@@ -91,3 +174,44 @@ jobs:
 
       - name: Проверка сборки на MSRV (cargo check)
         run: cargo check --workspace --all-targets
+
+  android:
+    name: Android (aarch64, библиотеки ядра)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: NDK r26b
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
+      - name: Сборка библиотек ядра под Android
+        run: cargo build --release --target aarch64-linux-android --lib -p tensa-core -p tensa-approval -p tensa-memory -p tensa-sync -p tensa-nodes -p tensa-router -p tensa-llm -p tensa-tools
+
+  ios:
+    name: iOS (aarch64, библиотеки ядра)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Кэш зависимостей
+        uses: Swatinem/rust-cache@v2
+
+      - name: Сборка библиотек ядра под iOS
+        run: cargo build --release --target aarch64-apple-ios --lib -p tensa-core -p tensa-approval -p tensa-memory -p tensa-sync -p tensa-nodes -p tensa-router -p tensa-llm -p tensa-tools

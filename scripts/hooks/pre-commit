@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Pre-commit hook (07-ci.md): fmt + clippy + тесты перед коммитом.
+#
+# Установка (один раз на машину):
+#   git config core.hooksPath scripts/hooks
+# (Windows — через Git Bash; путь к cargo должен быть в PATH).
+set -e
+
+echo "[pre-commit] cargo fmt --all -- --check"
+cargo fmt --all -- --check
+
+echo "[pre-commit] cargo clippy --workspace --exclude tensa-whisper --all-targets -- -D warnings"
+cargo clippy --workspace --exclude tensa-whisper --all-targets -- -D warnings
+
+echo "[pre-commit] cargo test --workspace --exclude tensa-whisper"
+cargo test --workspace --exclude tensa-whisper
+
+echo "[pre-commit] все проверки пройдены"

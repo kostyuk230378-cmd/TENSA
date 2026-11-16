@@ -96,6 +96,9 @@ async-imap = { version = "0.10", default-features = false, features = ["runtime-
 tokio-rustls = "0.26"
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
 webpki-roots = "0.26"
+# Тестирование (02-testing.md, Фаза 5): property-тесты и benchmark
+proptest = "1.4"
+criterion = { version = "0.5", features = ["async_tokio"] }
 # Tauri-десктоп (Контракт 10; apps/desktop/src-tauri, апрув Архитектора 09.11.2026)
 tauri = "2"
 tauri-build = "2"

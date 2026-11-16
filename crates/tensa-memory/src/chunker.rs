@@ -31,11 +31,17 @@ pub fn chunk_text(text: &str, config: &MemoryConfig) -> Vec<String> {
     while start < n {
         let end = (start + chunk_size).min(n);
         let mut slice: String = chars[start..end].iter().collect();
-        // Поиск границы слова в правой части среза (если не конец текста).
+        let slice_chars = end - start;
+        // Следующий старт: жёсткий шаг; при усечении по пробелу — сразу
+        // после пробела минус перекрытие (иначе символы между пробелом
+        // и следующим стартом теряются из индекса).
+        let mut next = start + step.max(1);
         if end < n {
             if let Some(space) = slice.rfind(char::is_whitespace) {
-                if space > overlap.min(slice.len().saturating_sub(1)) {
+                let space_chars = slice[..space].chars().count();
+                if space_chars > overlap.min(slice_chars.saturating_sub(1)) {
                     slice.truncate(space);
+                    next = start + space_chars + 1 - overlap;
                 }
             }
         }
@@ -46,9 +52,7 @@ pub fn chunk_text(text: &str, config: &MemoryConfig) -> Vec<String> {
         if end >= n {
             break;
         }
-        start += step.max(1);
-        // Защита от зацикливания: если срез не продвинулся, режем жёстко.
-        let _ = start;
+        start = next.max(start + 1);
     }
     chunks
 }

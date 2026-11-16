@@ -38,3 +38,9 @@ lance = ["dep:lance"]
 fastembed = ["dep:fastembed"]
 
 [dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "search"
+harness = false
