@@ -455,6 +455,10 @@ pub enum NodesCommand {
 /// Аргументы `sync`.
 #[derive(Debug, Args)]
 pub struct SyncArgs {
+    /// Адрес узла для push/pull (host:port).
+    #[arg(long)]
+    pub node: Option<String>,
+
     #[command(subcommand)]
     pub command: SyncCommand,
 }

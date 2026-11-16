@@ -20,7 +20,9 @@ tensa-memory = { path = "../tensa-memory", features = ["fastembed"] }
 tensa-nodes = { path = "../tensa-nodes" }
 tensa-perf = { path = "../tensa-perf" }
 tensa-router = { path = "../tensa-router" }
-tensa-sync = { path = "../tensa-sync" }
+tensa-sync = { path = "../tensa-sync", features = ["grpc"] }
+# Endpoint для gRPC-клиента синхронизации
+tonic.workspace = true
 tensa-llm = { path = "../tensa-llm" }
 
 # Внешние (из workspace; набор по ТЗ tensa-cli)

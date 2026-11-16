@@ -245,7 +245,6 @@ fn stubs_report_unimplemented_clearly() {
     for args in [
         vec!["query", "привет"],
         vec!["start"],
-        vec!["sync", "status"],
         vec!["email", "folders", "work"],
     ] {
         let output = run(&config, &args);
@@ -256,4 +255,21 @@ fn stubs_report_unimplemented_clearly() {
             stderr(&output)
         );
     }
+}
+
+/// `tensa sync status` — реестр узлов и настройки синхронизации (Фаза 4).
+#[test]
+fn sync_status_lists_registry() {
+    let root = temp_root();
+    let config = init_root(&root);
+
+    let output = run(&config, &["sync", "status"]);
+    assert!(
+        output.status.success(),
+        "sync status упал: {}",
+        stderr(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("Узлов в реестре: 0"), "stdout: {out}");
+    assert!(out.contains("gRPC-порт"), "stdout: {out}");
 }
