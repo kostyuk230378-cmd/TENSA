@@ -224,6 +224,6 @@ jobs:
       - name: Кэш зависимостей
         uses: Swatinem/rust-cache@v2
 
-      - name: Сборка библиотек ядра под iOS (без tensa-perf/sysinfo —
-        # sysinfo не собирается под ios-таргет: mach API вне libc)
+      # sysinfo не собирается под ios-таргет (mach API вне libc) — без tensa-perf.
+      - name: Сборка библиотек ядра под iOS
         run: cargo build --release --target aarch64-apple-ios --lib -p tensa-core -p tensa-approval -p tensa-memory -p tensa-sync -p tensa-nodes
