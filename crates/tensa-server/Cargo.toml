@@ -17,6 +17,9 @@ tensa-llm = { path = "../tensa-llm" }
 tensa-tools = { path = "../tensa-tools" }
 # Мастер первого запуска: инициализация core memory (Фаза 1; MemoryInitializer)
 tensa-memory = { path = "../tensa-memory" }
+tensa-nodes = { path = "../tensa-nodes" }
+# gRPC-сервер синхронизации (ADR-012; tonic, vendored protoc)
+tensa-sync = { path = "../tensa-sync", features = ["grpc"] }
 
 # Внешние (из workspace)
 axum.workspace = true

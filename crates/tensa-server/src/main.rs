@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use tensa_approval::{ApprovalConfig, SqliteApprovalStore};
 use tensa_core::{Config, Secrets, SqliteContactsStore, SqliteNotesStore, TensaPaths};
+use tensa_nodes::SqliteNodeRegistry;
 use tensa_server::{load_or_create_token, serve, AppState, QueryService};
 
 #[tokio::main]
@@ -93,6 +94,10 @@ async fn run() -> tensa_server::Result<()> {
         .map_err(|error| memory_error("memory manager", error))?,
     );
 
+    // Реестр узлов (Контракт 7).
+    let nodes = SqliteNodeRegistry::new(&paths.nodes_db())
+        .await
+        .map_err(|error| tensa_server::ServerError::Storage(format!("nodes: {error}")))?;
     let access = load_or_create_token(&paths.root()).await?;
 
     let secrets = Secrets::load(&paths.secrets_file())?;
@@ -112,10 +117,12 @@ async fn run() -> tensa_server::Result<()> {
         paths.root().join("files.db"),
     ));
     let index_dirs = index_dirs(&config, &paths);
+    let approval_store = Arc::new(approvals);
     let state = AppState::new(
-        Arc::new(approvals),
+        approval_store.clone(),
         Arc::new(notes),
         Arc::new(contacts),
+        Arc::new(nodes),
         access,
     )
     .with_query(Arc::new(query))
@@ -166,6 +173,41 @@ async fn run() -> tensa_server::Result<()> {
     }
     // Адрес сервера: по умолчанию — только локально (ТЗ apps/pwa: 127.0.0.1:8765);
     // для доступа с телефона/по Tailscale задаётся TENSA_BIND=0.0.0.0:8765.
+    // gRPC-сервер синхронизации (ADR-012/013): узлы, события, on-demand.
+    if config.sync.enabled {
+        let deps = tensa_sync::server::ServerDeps {
+            approval: approval_store.clone(),
+            notes_sync: Arc::new(tensa_sync::adapters::StoreNotesSync::new(
+                state.notes.clone(),
+            )),
+            contacts_sync: Arc::new(tensa_sync::adapters::StoreContactsSync::new(
+                state.contacts.clone(),
+            )),
+            registry: state.nodes.clone(),
+            notes: state.notes.clone(),
+            contacts: state.contacts.clone(),
+            approval_store: approval_store.clone(),
+            memory: None,
+        };
+        let grpc_port = config.sync.grpc_port;
+        tokio::spawn(async move {
+            match tokio::net::TcpListener::bind(("0.0.0.0", grpc_port)).await {
+                Ok(listener) => {
+                    tracing::info!(
+                        port = grpc_port,
+                        "gRPC-сервер синхронизации запущен (ADR-012)"
+                    );
+                    if let Err(error) = tensa_sync::server::serve(listener, deps).await {
+                        tracing::warn!(error = %error, "gRPC-сервер синхронизации остановился");
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(error = %error, port = grpc_port, "gRPC-порт синхронизации недоступен");
+                }
+            }
+        });
+    }
+
     let raw_addr = std::env::var("TENSA_BIND").unwrap_or_else(|_| "127.0.0.1:8765".to_string());
     let addr: std::net::SocketAddr = raw_addr.parse().map_err(|error| {
         tensa_server::ServerError::BadRequest(format!("TENSA_BIND «{raw_addr}»: {error}"))

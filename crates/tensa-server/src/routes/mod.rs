@@ -16,6 +16,7 @@ pub mod events;
 pub mod files;
 pub mod first_run;
 pub mod health;
+pub mod nodes;
 pub mod notes;
 pub mod query;
 pub mod speech_models;
@@ -77,6 +78,10 @@ pub fn api() -> Router<AppState> {
         .route("/email/accounts/:id/emails", get(email_imap::emails))
         .route("/email/accounts/:id/search", get(email_imap::search))
         .route("/email/send", post(email_imap::send))
+        // Узлы сети (Контракт 7 / ADR-012): read-only реестр.
+        .route("/nodes", get(nodes::list))
+        .route("/nodes/heavy", get(nodes::heavy))
+        .route("/nodes/:id", get(nodes::get))
         // Первый запуск (Контракт 12, доп. ТЗ tensa-core).
         .route("/first-run", get(first_run::status))
         .route("/first-run/step/language", post(first_run::step_language))

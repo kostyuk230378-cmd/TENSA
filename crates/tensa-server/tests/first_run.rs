@@ -18,6 +18,7 @@ use tensa_memory::{
     CoreMemoryConfig, CoreMemoryStore as _, DefaultMemoryManager, HashEmbedder,
     MemoryManagerConfig, SqliteArchivalMemoryStore, SqliteCoreMemoryStore, SqliteRecallMemoryStore,
 };
+use tensa_nodes::SqliteNodeRegistry;
 use tensa_server::{router, AppState, PwaToken};
 use tower::ServiceExt;
 
@@ -70,10 +71,12 @@ async fn test_app_at(config_path: PathBuf, data_root: PathBuf) -> Router {
     let contacts = SqliteContactsStore::new_in_memory()
         .await
         .expect("контакты");
+    let nodes = SqliteNodeRegistry::new_in_memory().await.expect("узлы");
     let state = AppState::new(
         Arc::new(approvals),
         Arc::new(notes),
         Arc::new(contacts),
+        Arc::new(nodes),
         PwaToken::new(TOKEN),
     )
     .with_first_run_memory(Some(Arc::new(manager)))

@@ -13,6 +13,7 @@ use axum::Router;
 use serde_json::{json, Value};
 use tensa_approval::SqliteApprovalStore;
 use tensa_core::{SqliteContactsStore, SqliteNotesStore};
+use tensa_nodes::SqliteNodeRegistry;
 use tensa_server::{router, AppState, PwaToken};
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
@@ -31,10 +32,12 @@ async fn test_app() -> Router {
     let contacts = SqliteContactsStore::new_in_memory()
         .await
         .expect("контакты");
+    let nodes = SqliteNodeRegistry::new_in_memory().await.expect("узлы");
     let state = AppState::new(
         Arc::new(approvals),
         Arc::new(notes),
         Arc::new(contacts),
+        Arc::new(nodes),
         PwaToken::new(TOKEN),
     )
     .with_data_root(
@@ -237,7 +240,17 @@ async fn approvals_list_is_empty_and_stubs_return_501() {
         .clone()
         .oneshot(request("GET", "/api/v1/nodes", true, None))
         .await
-        .expect("ответ заглушки узлов");
+        .expect("ответ списка узлов");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await, json!([]));
+
+    // Заглушки остаются только на неисполненных маршрутах (Фаза 4: /nodes
+    // реализован; /config, /documents — ещё нет).
+    let response = app
+        .clone()
+        .oneshot(request("GET", "/api/v1/config", true, None))
+        .await
+        .expect("ответ заглушки конфигурации");
     assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
 }
 

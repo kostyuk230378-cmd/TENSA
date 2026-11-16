@@ -54,6 +54,11 @@ impl TensaPaths {
         self.root.join("notes.db")
     }
 
+    /// Реестр узлов (Контракт 7: ~/.tensa/nodes.db).
+    pub fn nodes_db(&self) -> PathBuf {
+        self.root.join("nodes.db")
+    }
+
     pub fn memory_dir(&self) -> PathBuf {
         self.root.join("memory")
     }

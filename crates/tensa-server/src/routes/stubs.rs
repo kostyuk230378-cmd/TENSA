@@ -23,10 +23,6 @@ pub fn routes() -> Router<AppState> {
         // Контакты, календарь и приложения реализованы в своих модулях.
         // Почта: IMAP-чтение и отправка — в `routes::email_imap`;
         // /apps/open-file покрывается /files/open.
-        // Узлы сети (Контракт 9).
-        .route("/nodes", get(not_implemented))
-        .route("/nodes/heavy", get(not_implemented))
-        .route("/nodes/:id", get(not_implemented))
         // Конфигурация (чтение/изменение — Контракт 2).
         .route("/config", get(not_implemented).patch(not_implemented))
         .route("/config/reload", post(not_implemented))

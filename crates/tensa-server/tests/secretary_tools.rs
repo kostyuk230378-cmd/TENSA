@@ -11,6 +11,7 @@ use axum::Router;
 use serde_json::{json, Value};
 use tensa_approval::SqliteApprovalStore;
 use tensa_core::{SqliteContactsStore, SqliteNotesStore};
+use tensa_nodes::SqliteNodeRegistry;
 use tensa_server::{router, AppState, PwaToken};
 use tower::ServiceExt;
 
@@ -28,12 +29,14 @@ async fn test_app() -> Router {
     let contacts = SqliteContactsStore::new_in_memory()
         .await
         .expect("хранилище контактов");
+    let nodes = SqliteNodeRegistry::new_in_memory().await.expect("узлы");
     let data_root = std::env::temp_dir().join(format!("tensa-phase2-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&data_root).expect("корень данных");
     let state = AppState::new(
         Arc::new(approvals),
         Arc::new(notes),
         Arc::new(contacts),
+        Arc::new(nodes),
         PwaToken::new(TOKEN),
     )
     .with_data_root(data_root)
@@ -248,5 +251,33 @@ async fn email_unknown_account_is_404() {
         ))
         .await
         .expect("ответ подключения");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn nodes_list_empty_and_heavy_is_404() {
+    let app = test_app().await;
+    // Реестр пуст: список пуст, heavy-узла нет, карточка — 404.
+    let response = app
+        .clone()
+        .oneshot(request("GET", "/api/v1/nodes", None))
+        .await
+        .expect("ответ списка узлов");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await, json!([]));
+    let response = app
+        .clone()
+        .oneshot(request("GET", "/api/v1/nodes/heavy", None))
+        .await
+        .expect("ответ heavy");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let response = app
+        .oneshot(request(
+            "GET",
+            &format!("/api/v1/nodes/{}", uuid::Uuid::new_v4()),
+            None,
+        ))
+        .await
+        .expect("ответ карточки узла");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

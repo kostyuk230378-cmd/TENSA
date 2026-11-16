@@ -10,6 +10,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use tensa_approval::ApprovalError;
 use tensa_core::CoreError;
+use tensa_nodes::NodesError;
 use thiserror::Error;
 
 /// Удобный алиас результата крейта.
@@ -54,6 +55,10 @@ pub enum ServerError {
     #[error("approval error: {0}")]
     Approval(#[from] ApprovalError),
 
+    /// Ошибка реестра узлов.
+    #[error("nodes error: {0}")]
+    Nodes(#[from] tensa_nodes::NodesError),
+
     /// Ошибка ввода-вывода (токен, статика).
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
@@ -78,6 +83,11 @@ impl ServerError {
             ServerError::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             ServerError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServerError::Core(CoreError::NotFound(_)) => StatusCode::NOT_FOUND,
+            ServerError::Nodes(NodesError::NodeNotFound(_)) => StatusCode::NOT_FOUND,
+            ServerError::Nodes(NodesError::ResourceBusy { .. } | NodesError::LeaseExpired(_)) => {
+                StatusCode::CONFLICT
+            }
+            ServerError::Nodes(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServerError::Core(CoreError::Config(_)) => StatusCode::BAD_REQUEST,
             ServerError::Core(CoreError::FirstRunNotCompleted) => StatusCode::BAD_REQUEST,
             ServerError::Approval(ApprovalError::NotFound(_)) => StatusCode::NOT_FOUND,
