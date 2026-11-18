@@ -1,42 +1,61 @@
 # tensa-core
 
-Центральный крейт Tensa: общие типы, конфигурация, заметки/контакты
-(SQLite + FTS5), координатор подсистем, first-run wizard.
+Ядро Tensa: координатор `TensaCore`, конфигурация, заметки/контакты (SQLite + FTS5),
+master первого запуска и инициализация core memory.
 
 ## Назначение
 
-Реализует Контракты 3/4/13 и ТЗ `tensa-core` (+ `dop_tz_core.md`):
-- **Конфигурация** (`config.rs`): `Config` (секции по Контракту 4),
-  TOML load/save (атомарно, бэкап), `validate()`, трейт `ConfigStore`;
-- **Заметки и контакты** (`notes.rs`, `contacts.rs`): трейты
-  `NotesStore`/`ContactsStore` (Контракт 3) + SQLite-реализации с FTS5
-  (unicode61), soft delete, векторные часы, LWW;
-- **First-run wizard** (`first_run.rs`): 8 шагов (dop_tz_core, ADR-021);
-- **Инициализация памяти** (`init.rs`): 4 блока Контракта 13
-  (persona/human/tasks/preferences);
-- **Координатор** (`core.rs`): `CoreRuntime` — start/stop/health/reload
-  (подсистемы подключаются по мере появления их крейтов);
-- **Health** (`health.rs`): `HealthStatus`/`ComponentHealth` из ТЗ.
+- `TensaCore` — координатор подсистем (Контракт 4: один `config.toml`,
+  корень данных — каталог конфига; подсистемы подключаются снаружи трейтами);
+- `NotesStore` / `ContactsStore` (Контракт 3: SQLite + FTS5, soft delete,
+  LWW по `updated_at` + vector clock) — реализация `SqliteNotesStore` /
+  `SqliteContactsStore` в общей БД `notes.db`;
+- `FirstRunWizard` + `TensaCore::{is_first_run, run_first_run_wizard, init_memory}`
+  (доп. ТЗ tensa-core, ADR-021) — 8 шагов мастера, запись `config.toml` +
+  `secrets.toml` + инициализация core memory;
+- `InitParams` + тексты блоков core memory по умолчанию (Контракт 13).
 
-## Контракт 3: sync-методы (добавлено 2026-10-15, апрув Архитектора)
+## Принципы
 
-- `get_notes_since(timestamp)` / `get_contacts_since(timestamp)` — для
-  sync-адаптера (`tensa-sync`): изменённые позже timestamp, только
-  неудалённые, `ORDER BY updated_at ASC`;
-- `count_notes()` / `count_contacts()` — общий count для `DataService.total`.
+- Без `unwrap()` в прод-коде: ошибки — `CoreError` через `Result`.
+- Секреты (пароли почты, токены) не логируются и не попадают в `config.toml`.
+- Хранилища не синхронизируют и не принимают решений (ограничение ТЗ).
 
 ## Использование
 
 ```rust
-use tensa_core::{SqliteNotesStore, NotesStore, NewNote};
+use tensa_core::{SqliteContactsStore, NewContact};
 
-let store = SqliteNotesStore::new_in_memory().await?;
-let note = store.create_note(NewNote {
-    title: "план".into(),
-    body: "текст".into(),
-    tags: vec!["работа".into()],
-}).await?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let store = SqliteContactsStore::new_in_memory().await?;
+    let contact = store
+        .create_contact(NewContact {
+            name: "Иван".into(),
+            email: Some("ivan@example.com".into()),
+            phone: None,
+            telegram: Some("@ivan".into()),
+            whatsapp: None,
+            notes: None,
+            tags: vec!["работа".into()],
+        })
+        .await?;
+    let found = store.search_contacts("Иван", 10).await?;
+    println!("найдено: {}", found.len());
+    let _ = contact;
+    Ok(())
+}
 ```
+
+## Структура
+
+- `src/core.rs` — `TensaCore` (координатор);
+- `src/config.rs` — `Config` (Контракт 4);
+- `src/models.rs` — общие типы (Note, Contact, EmailAccount, …);
+- `src/notes.rs`, `src/contacts.rs` — SQLite-хранилища (Контракт 3);
+- `src/first_run.rs`, `src/init.rs` — мастер первого запуска (ADR-021);
+- `src/secrets.rs`, `src/paths.rs` — `secrets.toml` и пути `~/.tensa/`;
+- `schema.sql` — схема notes.db (встраивается через `include_str!`).
 
 ## Тесты
 
@@ -44,8 +63,7 @@ let note = store.create_note(NewNote {
 cargo test -p tensa-core
 ```
 
-## Ограничения
+## Связанные ADR и контракты
 
-Не дублирует логику других крейтов: `VectorClock` — из `tensa-approval`;
-ядро памяти — в `tensa-memory`. Секреты не хранятся в `config.toml`
-(только `secrets.toml`, Контракт 4).
+- ADR-001, ADR-021.
+- Контракты 3, 4, 7, 13; доп. ТЗ tensa-core (`FROM_GLM/dop_tz_core.md`).

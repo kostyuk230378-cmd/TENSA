@@ -125,7 +125,7 @@ impl FirstRunWizard {
     }
 
     /// Запустить мастер до конца (эквивалент [`Self::step_finish`];
-    /// [derived] в UI-сценарии шаги проходятся по одному).
+    /// \[derived\] в UI-сценарии шаги проходятся по одному).
     pub async fn run(&self) -> Result<WizardResult> {
         self.step_finish().await
     }

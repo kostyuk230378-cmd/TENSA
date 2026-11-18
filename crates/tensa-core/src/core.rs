@@ -103,14 +103,14 @@ impl TensaCore {
     }
 
     /// Первый ли это запуск?
-    /// [derived] признак — отсутствие `config.toml` (доп. ТЗ: «заполненный
+    /// \[derived\] признак — отсутствие `config.toml` (доп. ТЗ: «заполненный
     /// config.toml + secrets.toml + core memory» как результат мастера).
     pub async fn is_first_run(&self) -> Result<bool> {
         Ok(!self.config_path.exists())
     }
 
     /// Создать мастер первого запуска.
-    /// [derived] ТЗ: «запустить first-run wizard» — возвращаем объект
+    /// \[derived\] ТЗ: «запустить first-run wizard» — возвращаем объект
     /// мастера, шаги проходятся UI по одному (что и требует мастер).
     pub async fn run_first_run_wizard(&self) -> Result<FirstRunWizard> {
         let node_id = self.config.read().await.general.node_id.clone();

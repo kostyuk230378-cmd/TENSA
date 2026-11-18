@@ -1,74 +1,111 @@
-//! Общие типы (ТЗ tensa-core: Note, Contact, перечисления).
-//! VectorClock переиспользуется из tensa-approval (правило «не дублировать код»).
+//! Shared types (tensa-core spec: Note, Contact, enums).
+//! VectorClock is reused from tensa-approval (the "no code duplication" rule).
 
 pub use tensa_approval::VectorClock;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Заметка (Контракт 3: таблица notes).
+/// A note (Contract 3: the `notes` table).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
+    /// UUID (primary key).
     pub id: Uuid,
+    /// Note title.
     pub title: String,
+    /// Note body.
     pub body: String,
+    /// Tags (JSON array in storage).
     pub tags: Vec<String>,
+    /// Creation time, Unix timestamp.
     pub created_at: i64,
+    /// Last update time, Unix timestamp.
     pub updated_at: i64,
+    /// Node that created the note.
     pub created_on_node: String,
+    /// Node that last updated the note.
     pub updated_on_node: String,
+    /// Soft delete flag (Contract 3).
     pub deleted: bool,
+    /// Vector clock for sync conflict resolution.
     pub vector_clock: VectorClock,
 }
 
-/// Заявка на создание заметки.
+/// Request to create a note (Contract 12 request body).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewNote {
+    /// Note title.
     pub title: String,
+    /// Note body.
     pub body: String,
+    /// Tags.
     pub tags: Vec<String>,
 }
 
-/// Контакт (Контракт 3: таблица contacts).
+/// A contact (Contract 3: the `contacts` table).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Contact {
+    /// UUID (primary key).
     pub id: Uuid,
+    /// Display name.
     pub name: String,
+    /// Email address, if known.
     pub email: Option<String>,
+    /// Phone number, if known.
     pub phone: Option<String>,
+    /// Telegram username, if known.
     pub telegram: Option<String>,
+    /// WhatsApp number, if known.
     pub whatsapp: Option<String>,
+    /// Free-form notes about the contact.
     pub notes: Option<String>,
+    /// Tags (JSON array in storage).
     pub tags: Vec<String>,
+    /// Creation time, Unix timestamp.
     pub created_at: i64,
+    /// Last update time, Unix timestamp.
     pub updated_at: i64,
+    /// Node that created the contact.
     pub created_on_node: String,
+    /// Node that last updated the contact.
     pub updated_on_node: String,
+    /// Soft delete flag (Contract 3).
     pub deleted: bool,
+    /// Vector clock for sync conflict resolution.
     pub vector_clock: VectorClock,
 }
 
-/// Заявка на создание контакта.
+/// Request to create a contact (Contract 12 request body).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewContact {
+    /// Display name (required).
     pub name: String,
+    /// Email address, if known.
     pub email: Option<String>,
+    /// Phone number, if known.
     pub phone: Option<String>,
+    /// Telegram username, if known.
     pub telegram: Option<String>,
+    /// WhatsApp number, if known.
     pub whatsapp: Option<String>,
+    /// Free-form notes about the contact.
     pub notes: Option<String>,
+    /// Tags.
     pub tags: Vec<String>,
 }
 
-/// Язык интерфейса (Контракт 8: Language).
+/// UI language (Contract 8: Language).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
+    /// Russian.
     Ru,
+    /// English.
     En,
 }
 
 impl Language {
+    /// Lowercase code as used in config and HTTP API (`"ru"` / `"en"`).
     pub fn as_str(&self) -> &'static str {
         match self {
             Language::Ru => "ru",
@@ -77,41 +114,56 @@ impl Language {
     }
 }
 
-/// Тип устройства (Контракт 8: Platform, сокращённо по ТЗ).
+/// Device type (Contract 8: Platform, shortened per spec).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DeviceType {
+    /// Desktop (Windows/Linux).
     Desktop,
+    /// Android device.
     Android,
 }
 
-/// Роль узла (Контракт 8: NodeRole).
+/// Node role in the network (Contract 8: NodeRole).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeRole {
+    /// Heavy node: runs local inference.
     Heavy,
+    /// Thin node: delegates inference to heavy nodes.
     Thin,
+    /// Role chosen automatically from device resources.
     Auto,
 }
 
-/// Учётная запись почты (ТЗ/UDL tensa.udl: `EmailAccount`).
-/// [derived] Добавлены `email` (адрес нужен ядру) и `credential` — секрет
-/// (уходит только в secrets.toml, в config.toml не пишется); `Debug` секрет не печатает.
+/// Mail account (tensa.udl: `EmailAccount`).
+///
+/// \[derived\] Adds `email` (required by the core) and `credential` — a secret
+/// stored only in secrets.toml, never in config.toml. `Debug` hides it.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmailAccount {
+    /// Account identifier (`[email.accounts.<id>]` in config.toml).
     pub id: String,
+    /// Display label.
     pub label: String,
+    /// Email address (also the IMAP login).
     pub email: String,
+    /// IMAP host.
     pub imap_host: String,
+    /// IMAP port.
     pub imap_port: u16,
+    /// SMTP host.
     pub smtp_host: String,
+    /// SMTP port.
     pub smtp_port: u16,
+    /// App password / token — a secret; never logged or serialized back.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential: Option<String>,
 }
 
 impl std::fmt::Debug for EmailAccount {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // `credential` (a secret) is intentionally not printed.
         f.debug_struct("EmailAccount")
             .field("id", &self.id)
             .field("label", &self.label)
@@ -124,17 +176,22 @@ impl std::fmt::Debug for EmailAccount {
     }
 }
 
-/// WhatsApp Cloud API (ТЗ/UDL tensa.udl: `WhatsAppConfig`).
-/// [derived] Поле-секрет — `credential` (access token); `Debug` его не печатает.
+/// WhatsApp Cloud API configuration (tensa.udl: `WhatsAppConfig`).
+///
+/// \[derived\] `credential` (the access token) is a secret; `Debug` hides it.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct WhatsAppConfig {
+    /// Access token — a secret; never logged.
     pub credential: String,
+    /// Phone number identifier.
     pub phone_number_id: String,
+    /// WhatsApp Business Account identifier.
     pub waba_id: String,
 }
 
 impl std::fmt::Debug for WhatsAppConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // `credential` (a secret) is intentionally not printed.
         f.debug_struct("WhatsAppConfig")
             .field("phone_number_id", &self.phone_number_id)
             .field("waba_id", &self.waba_id)
@@ -142,34 +199,90 @@ impl std::fmt::Debug for WhatsAppConfig {
     }
 }
 
-// --- Трейты хранилищ (Контракт 3 / ТЗ tensa-core, сигнатуры дословно) ---
-// В структуре ТЗ для них нет отдельного файла — живут рядом с типами.
+// --- Storage traits (Contract 3 / tensa-core spec, signatures verbatim) ---
+// The spec has no separate file for them — they live next to the types.
 
-/// Хранилище заметок.
+/// Store of notes (Contract 3).
 #[async_trait::async_trait]
 pub trait NotesStore: Send + Sync {
+    /// Create a note (server assigns id/timestamps/vector clock).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn create_note(&self, note: NewNote) -> crate::error::Result<Note>;
+    /// Update a note (LWW by `updated_at` + vector clock tick).
+    ///
+    /// # Errors
+    /// Unknown note returns [`crate::error::CoreError::NotFound`].
     async fn update_note(&self, note: Note) -> crate::error::Result<Note>;
+    /// Soft-delete a note (Contract 3).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn delete_note(&self, id: Uuid) -> crate::error::Result<()>;
+    /// Get a note by id; `Ok(None)` when missing or soft-deleted.
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn get_note(&self, id: Uuid) -> crate::error::Result<Option<Note>>;
+    /// Full-text search (FTS5, `unicode61` — no word-form matching).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn search_notes(&self, query: &str, limit: usize) -> crate::error::Result<Vec<Note>>;
+    /// List notes (limit/offset paging).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn list_notes(&self, limit: usize, offset: usize) -> crate::error::Result<Vec<Note>>;
 }
 
-/// Хранилище контактов.
+/// Store of contacts (Contract 3).
 #[async_trait::async_trait]
 pub trait ContactsStore: Send + Sync {
+    /// Create a contact (server assigns id/timestamps/vector clock).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn create_contact(&self, contact: NewContact) -> crate::error::Result<Contact>;
+    /// Update a contact (LWW by `updated_at` + vector clock tick).
+    ///
+    /// # Errors
+    /// Unknown contact returns [`crate::error::CoreError::NotFound`].
     async fn update_contact(&self, contact: Contact) -> crate::error::Result<Contact>;
+    /// Soft-delete a contact (Contract 3).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn delete_contact(&self, id: Uuid) -> crate::error::Result<()>;
+    /// Get a contact by id; `Ok(None)` when missing or soft-deleted.
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn get_contact(&self, id: Uuid) -> crate::error::Result<Option<Contact>>;
+    /// Find a contact by exact email.
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn find_by_email(&self, email: &str) -> crate::error::Result<Option<Contact>>;
+    /// Find contacts by name.
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn find_by_name(&self, name: &str) -> crate::error::Result<Vec<Contact>>;
+    /// Full-text search (FTS5, `unicode61`).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn search_contacts(
         &self,
         query: &str,
         limit: usize,
     ) -> crate::error::Result<Vec<Contact>>;
+    /// List contacts (limit/offset paging).
+    ///
+    /// # Errors
+    /// Storage failure returns [`crate::error::CoreError`].
     async fn list_contacts(
         &self,
         limit: usize,

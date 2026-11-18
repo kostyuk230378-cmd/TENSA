@@ -121,7 +121,7 @@ pub fn validate_params(params: &InitParams) -> Result<()> {
 
 /// Обратный трейт инициализации памяти.
 ///
-/// [derived] `tensa-memory` зависит от `tensa-core`, поэтому прямая
+/// \[derived\] `tensa-memory` зависит от `tensa-core`, поэтому прямая
 /// зависимость на `MemoryManager` здесь дала бы цикл; связь — через этот
 /// трейт. Реализует `tensa_memory::DefaultMemoryManager`.
 #[async_trait::async_trait]

@@ -1,43 +1,50 @@
 # tensa-server
 
-HTTP-бэкенд PWA Tensa (Контракт 12): axum-роутер поверх крейтов воркспейса.
+HTTP-бэкенд PWA (Контракт 12): axum-роутер поверх крейтов Tensa, Bearer-доступ,
+SSE-события, статика PWA.
 
-## Состав MVP
+## Назначение
 
-| Маршрут (базовый путь `/api/v1`) | Назначение |
-| --- | --- |
-| `GET /health` | Сводный статус ядра (реальные пробы хранилищ) |
-| `GET /version` | Версия крейта (JSON-строка) |
-| `GET /approvals`, `GET /approvals/{id}` | Очередь одобрения |
-| `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` | Решение по действию |
-| `GET/POST /notes`, `GET/PUT/DELETE /notes/{id}`, `GET /notes/search?q=` | Заметки |
-| `GET /events` | SSE-поток (`welcome`, `status:health`, `approval:updated`) |
-| `GET /`, `GET /app`, `GET /static/...` | Статика PWA (публична, без токена) |
-| Остальные маршруты контракта | `501 Not Implemented` (заглушки в `routes::stubs`) |
+- `/api/v1` — API Контракта 12: health/version, одобрения, заметки, контакты,
+  календарь, файлы, модели, master первого запуска, узлы сети;
+- `/query` — шлюз моделей (облако/локальная GGUF) с парсером протокола
+  секретаря (`tensa-router::protocol`); memory tool calls применяются сразу;
+- `/events` — SSE-поток (broadcast);
+- `/` и `/app` — статика PWA (публична), ассеты — `/static/...`;
+- gRPC-сервер синхронизации (ADR-012) стартует в том же процессе при
+  `[sync] enabled = true`.
 
-## Доступ
+## Принципы
 
-Все API-маршруты требуют `Authorization: Bearer <токен>`.
-Токен читается из файла `<корень данных>/pwa_token`; если файла нет —
-генерируется (32 байта энтропии ОС, hex) и записывается. Значение токена
-не логируется: в лог уходит только путь файла.
+- Ошибки — `ServerError` → JSON `{"error": "..."}` с корректным HTTP-статусом;
+  секреты не логируются.
+- Маршруты, не реализованные в текущей фазе, отдают 501 (явные заглушки
+  `routes/stubs.rs` — не 404).
+- Паник в обработчиках нет: любые ошибки — значениями.
 
-## Точки входа
+## Использование
 
-- `tensa_server::router(state)` — собрать приложение (для тестов и встраивания);
-- `tensa_server::serve(addr, state)` — запустить сервер (ТЗ: `127.0.0.1:8765`);
-- `tensa_server::load_or_create_token(root)` — доступ PWA.
-
-## Проверки
-
-```powershell
-cargo test -p tensa-server
-cargo clippy -p tensa-server --all-targets -- -D warnings
+```bash
+# Запуск (порт 8765, статика pwa/static, токен из <root>/pwa_token):
+tensa-server [путь\к\config.toml]
+# Слушать на всех интерфейсах (для телефона/Tailscale):
+set TENSA_BIND=0.0.0.0:8765 && tensa-server
 ```
 
-## Ограничения MVP
+## Структура
 
-- Статика: каталог `pwa/static` из ТЗ; если его нет — HTML-заглушка.
-- Список одобрений отдаёт до лимита хранилища; пагинация — вне MVP.
-- Реализованы не все маршруты контракта: остальные отвечают 501 осознанно,
-  чтобы клиент, сгенерированный из `openapi.yaml`, отличал «ещё нет» от 404.
+- `src/routes/` — обработчики: approvals, notes, contacts, calendar, files,
+  email(+imap-контур), telegram_setup, brain, speech_models, first_run, nodes;
+- `src/state.rs` — `AppState` (хранилища, события, сессия мастера);
+- `src/error.rs` — `ServerError` (маппинг на HTTP-статусы);
+- `src/brain.rs`, `src/query.rs` — шлюз моделей и `/query`.
+
+## Тесты
+
+```bash
+cargo test -p tensa-server
+```
+
+## Связанные ADR и контракты
+
+- ADR-010, ADR-012, ADR-021; Контракты 1, 3, 6, 7, 12; ТЗ apps/pwa.

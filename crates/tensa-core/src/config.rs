@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Полная конфигурация Tensa (Контракт 4).
-/// [derived] Секции brain/voice/memory/documents сейчас — «сырые» таблицы
+/// \[derived\]: Секции brain/voice/memory/documents сейчас — «сырые» таблицы
 /// TOML: их типизированные крейты (router/llm/memory/tools) появятся позже,
 /// и их структуры должны определяться их ТЗ, а не здесь.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ pub struct Config {
     pub documents: toml::Table,
 }
 
-/// Общие настройки ([general], Контракт 4).
+/// Общие настройки (\[general\], Контракт 4).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
     /// UUID узла.
@@ -53,7 +53,7 @@ impl Default for GeneralConfig {
     }
 }
 
-/// Секция [sync] — типизированный срез полей SyncConfig из tensa-sync
+/// Секция \[sync\] — типизированный срез полей SyncConfig из tensa-sync
 /// (контракт 4 задаёт те же поля).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SyncSection {
@@ -66,7 +66,7 @@ pub struct SyncSection {
     pub syncthing_port: u16,
 }
 
-/// Секция [approval] — типизированный срез ApprovalConfig из tensa-approval
+/// Секция approval — типизированный срез ApprovalConfig из tensa-approval
 /// (Контракт 4: те же поля).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalSection {
@@ -94,7 +94,7 @@ impl Default for ApprovalSection {
     }
 }
 
-/// Преобразование секции `[approval]` в конфиг хранилища одобрений
+/// Преобразование секции `\[approval\]` в конфиг хранилища одобрений
 /// (ТЗ tensa-core: `TensaCore::new` открывает ApprovalStore).
 impl From<&ApprovalSection> for tensa_approval::ApprovalConfig {
     fn from(section: &ApprovalSection) -> Self {
